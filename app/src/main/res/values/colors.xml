@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+
+    <!-- Toolbar 背景色: RGB(11, 163, 243) -->
+    <color name="toolbar_background">#0BA3F3</color>
+
+    <!-- FAB 背景色: RGB(43, 99, 165) -->
+    <color name="fab_background">#2B63A5</color>
+    <color name="secondary_text">#6B7280</color>
+    <color name="divider">#E0E0E0</color>
+    <color name="code_background">#F0F0F0</color>
+</resources>

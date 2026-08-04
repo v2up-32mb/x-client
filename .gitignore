@@ -1,0 +1,26 @@
+# Build artifacts
+app/build/
+app/libs/gcm.aar
+*.apk
+*.keystore
+*.jks
+
+# Native code (CI clones hev-socks5-tunnel at build time)
+app/src/main/jni/
+
+# Android Studio / Gradle
+.local/
+*.iml
+.gradle/
+captures/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go workspace
+go.work
+go.work.sum
+
+# Local keystore for release signing
+keystore.properties

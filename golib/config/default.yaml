@@ -1,0 +1,91 @@
+# GCM 配置文件模板
+# 支持的格式: YAML 和 JSON
+# 使用方法: gcm-go -c config.yaml
+
+# ===== 基本配置 =====
+workerHost: ""                  # Worker 地址（必须指定）
+listenAddress: ":1080"          # SOCKS5 监听地址
+userID: ""                      # 代理访问令牌（可选）
+logLevel: "INFO"                # 日志级别: DEBUG/INFO/WARN/ERROR
+
+# ===== 连接池配置 =====
+minPoolSize: 3                  # 最小连接池大小
+maxPoolSize: 15                 # 最大连接池大小
+connectionTTL: "5m"             # 连接最大存活时间（支持单位: s, m, h）
+connectionTimeout: "1s"         # 连接超时时间
+
+# 连接池预热配置
+enablePoolWarmup: true          # 是否启用连接池预热
+warmupConcurrency: 3            # 预热并发数
+warmupTimeout: "30s"            # 预热总超时时间
+
+# 连接池动态调整配置
+enableDynamicPool: true         # 是否启用动态池大小调整
+dynamicPoolInterval: "1m"       # 动态调整检查间隔
+dynamicPoolMinSize: 2           # 动态调整时的最小值
+dynamicPoolMaxSize: 15          # 动态调整时的最大值
+dynamicPoolLowThreshold: 0.3    # 低负载阈值（活跃率 < 30%）
+dynamicPoolHighThreshold: 0.8   # 高负载阈值（利用率 > 80%）
+
+# ===== 中转节点配置 =====
+relayIPs: []                     # 中转节点列表（留空则直连 Worker）
+relayMonitorInterval: "30s"     # 节点延迟监控间隔
+relayMaxLatency: "500ms"        # 节点最大可接受延迟
+relayFailureThreshold: 3        # 节点连续失败次数阈值
+relayRescoreInterval: "10m"     # 重新评分所有节点间隔
+relayForceRescoreCooldown: "1m" # 强制重评冷却时间
+
+# ===== DNS 缓存配置 =====
+enableDoH: true                 # 是否开启 DoH
+dohUrl: "https://223.5.5.5/dns-query"  # DoH 服务地址
+dnsCacheTTL: "5m"               # DNS 缓存过期时间
+dnsCacheCleanupInterval: "1m"   # DNS 缓存清理间隔
+
+# DNS 预热配置
+enableDNSWarmup: true             # 是否启用 DNS 预热（默认启用）
+dnsWarmupDomains: []            # 额外的预热域名列表
+  # - "google.com"
+  # - "github.com"
+
+# DoH 代理配置
+enableDoHProxy: false           # 是否启用 DoH 通过代理访问
+
+# ===== 心跳保活配置 =====
+heartbeatInterval: "15s"        # 心跳间隔
+heartbeatTimeout: "3s"          # 心跳响应超时
+enableTcpNoDelay: true          # 启用 TCP_NODELAY
+
+# ===== Metrics 配置 =====
+
+# ===== 断线重连配置 =====
+enableAutoReconnect: true       # 是否启用断线自动重连
+maxReconnectAttempts: 3         # 最大重连尝试次数
+reconnectDelay: "1s"            # 重连延迟
+
+# ===== 请求超时配置 =====
+tunnelTimeout: "1m"             # SOCKS5 隧道超时时间
+
+# ===== 日志文件配置 =====
+enableLogFile: false            # 是否启用日志文件输出
+logFilePath: "./gcm.log"        # 日志文件路径
+logFileMaxSize: 10485760        # 日志文件最大大小（字节，10MB）
+logFileBackupCount: 3           # 保留的日志备份数量
+
+# ===== 统计增强配置 =====
+
+# ===== 多路复用配置 =====
+enableMultiplex: true           # 是否启用多路复用（需 Worker 端配合）
+maxStreamsPerConnection: 5      # 每个连接最大并发流数
+
+# ===== 窗口流控配置 =====
+defaultWindowSize: "1MB"      # 默认窗口大小
+minWindowSize: "64KB"           # 最小窗口大小（拥塞时的下限）
+maxWindowSize: "4MB"            # 最大窗口大小（扩展时的上限）
+windowTimeout: "5s"             # 窗口等待超时时间
+
+# ===== 拥塞控制配置 =====
+congestionControlInterval: "1m" # 拥塞控制检查间隔
+
+# ===== ECH 配置 =====
+enableECH: false                # 是否启用 TLS ECH (Encrypted Client Hello)
+echDomain: "cloudflare-ech.com" # ECH 隐藏域名
