@@ -447,6 +447,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         String prefIp = "";
         String fallbackIp = "";
         String userId = "";
+        int wsConn = Preferences.DEFAULT_WS_CONN;
+        boolean enableDynamicPool = false;
+        int dynamicPoolMax = Preferences.DEFAULT_DYNAMIC_POOL_MAX;
         String token = "";
         String relayNodes = "";
         int connections = Preferences.DEFAULT_XT_CONNECTIONS;
@@ -473,6 +476,21 @@ public class ProfileEditActivity extends AppCompatActivity {
                         case "user_id":
                             token = value;
                             userId = value;
+                            break;
+                        case "ws_conn":
+                            try {
+                                wsConn = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            break;
+                        case "enable_dynamic_pool":
+                            enableDynamicPool = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "dynamic_pool_max":
+                            try {
+                                dynamicPoolMax = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
                             break;
                         case "relay_nodes":
                             relayNodes = value;
@@ -535,6 +553,9 @@ public class ProfileEditActivity extends AppCompatActivity {
             if (!userId.isEmpty()) {
                 edittext_user_id.setText(userId);
             }
+            edittext_ws_conn.setText(String.valueOf(wsConn));
+            checkbox_enable_dynamic_pool.setChecked(enableDynamicPool);
+            edittext_dynamic_pool_max.setText(String.valueOf(dynamicPoolMax));
         }
         if (!profileName.isEmpty()) {
             edittext_profile_name.setText(profileName);

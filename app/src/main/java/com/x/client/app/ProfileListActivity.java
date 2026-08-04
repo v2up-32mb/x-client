@@ -479,6 +479,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String fallbackIp = prefs.getFallbackIp();
         String userId = prefs.getUserID();
         boolean disableEch = prefs.getDisableEch();
+        int wsConn = prefs.getWsConn();
+        boolean enableDynamicPool = prefs.getEnableDynamicPool();
+        int dynamicPoolMax = prefs.getDynamicPoolMax();
 
         // X-Tunnel 配置：读取协议参数
         String xtToken = prefs.getXtToken();
@@ -558,6 +561,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             if (query.length() > 0) query.append("&");
             query.append("disable_ech=1");
         }
+        // 连接池参数始终导出，保证分享无损
+        if (query.length() > 0) query.append("&");
+        query.append("ws_conn=").append(wsConn);
+        query.append("&enable_dynamic_pool=").append(enableDynamicPool ? 1 : 0);
+        query.append("&dynamic_pool_max=").append(dynamicPoolMax);
 
         String protocol = "gcm://" + wssAddr;
         if (query.length() > 0) {
@@ -729,6 +737,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String fallbackIp = "";
         String userId = "";
         boolean disableEch = false;
+        int wsConn = Preferences.DEFAULT_WS_CONN;
+        boolean enableDynamicPool = false;
+        int dynamicPoolMax = Preferences.DEFAULT_DYNAMIC_POOL_MAX;
         String xtToken = "";
         String xtRelayNodes = "";
         int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
@@ -755,6 +766,21 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         case "disable_ech":
                             // 1/true/yes 表示禁用 ECH
                             disableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "ws_conn":
+                            try {
+                                wsConn = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            break;
+                        case "enable_dynamic_pool":
+                            enableDynamicPool = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "dynamic_pool_max":
+                            try {
+                                dynamicPoolMax = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
                             break;
                         case "token":
                         case "user_id":
@@ -803,6 +829,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 询问用户配置名称
         showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
                 wssAddr, prefIp, fallbackIp, userId, disableEch,
+                wsConn, enableDynamicPool, dynamicPoolMax,
                 xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair);
     }
 
@@ -811,6 +838,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                                       final String wssAddr, final String prefIp,
                                       final String fallbackIp, final String userId,
                                       final boolean disableEch,
+                                      final int wsConn, final boolean enableDynamicPool,
+                                      final int dynamicPoolMax,
                                       final String xtToken, final String xtRelayNodes,
                                       final int xtConnections, final boolean xtDisableEch,
                                       final boolean xtInsecure, final boolean xtEnableHotPair) {
@@ -852,6 +881,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         if (!fallbackIp.isEmpty()) prefs.setFallbackIp(fallbackIp);
                         prefs.setUserID(userId);
                         prefs.setDisableEch(disableEch);
+                        prefs.setWsConn(wsConn);
+                        prefs.setEnableDynamicPool(enableDynamicPool);
+                        prefs.setDynamicPoolMax(dynamicPoolMax);
                     }
 
                     // 恢复原配置

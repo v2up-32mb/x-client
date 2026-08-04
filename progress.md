@@ -92,3 +92,10 @@
 4. 启动/停止按钮下移 5dp（activity_profile_list btn_start marginBottom 24→19dp）
 5. 全局设置页标题「GCM 全局网络设置」→「全局网络设置」
 6. WebSocket 连接数 / 启用连接池动态扩容 / 动态扩容连接上限：从全局设置移入 GCM 协议配置页（Preferences 改 per-profile 存储 + 旧全局值回退；ProfileEditActivity 新增三字段与校验；保存仅在 GCM 协议分支写入避免覆写）
+
+## 2026-08-04 真机反馈第三轮修复 + Release 签名准备
+
+- GCM 分享链接补充 3 个连接池参数（ws_conn / enable_dynamic_pool / dynamic_pool_max）：导出始终携带（无损分享），ProfileListActivity 导入建配置与 ProfileEditActivity 导入填字段同步支持
+- Release 签名：为 x-client 仓库生成全新 PKCS12 keystore 并配置 4 个 Actions secrets（SIGNING_KEY / ALIAS=xclient / KEY_STORE_PASSWORD / KEY_PASSWORD）
+  - 本地备份：/root/secrets/x-client/（xclient-release.p12、CREDENTIALS.env、SIGNING_KEY.b64），权限 600，**必须离线备份**，丢失后无法再签后续版本
+  - 验证：check-keystore.yml workflow 端到端校验
