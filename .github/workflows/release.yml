@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'  # 当推送以 'v' 开头的标签时触发
+  workflow_dispatch:  # 手动重试（用于修复后重新构建）
 
 jobs:
   release:
@@ -214,7 +215,7 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
       with:
         name: ${{ env.RELEASE_TITLE }}
         body: ${{ env.RELEASE_BODY }}
