@@ -14,6 +14,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import org.json.JSONObject;
+
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -154,7 +156,7 @@ public class TProxyService extends VpnService {
             }
 
             File configFile = writeTProxyConfig(prefs);
-            startGcm(prefs);
+            startProxy(prefs);
 
             if (!TProxyStartService(configFile.getAbsolutePath(), tunFd.getFd())) {
                 throw new IllegalStateException("hev-socks5-tunnel 启动失败");
@@ -260,7 +262,12 @@ public class TProxyService extends VpnService {
         return configFile;
     }
 
-    private void startGcm(Preferences prefs) throws Exception {
+    private void startProxy(Preferences prefs) throws Exception {
+        String protocol = prefs.getProtocol();
+        if (protocol == null || protocol.trim().isEmpty()) {
+            protocol = Preferences.PROTOCOL_GCM;
+        }
+
         String workerHost = prefs.getWorkerHost().trim();
         if (workerHost.startsWith("wss://")) {
             workerHost = workerHost.substring(6);
@@ -269,25 +276,29 @@ public class TProxyService extends VpnService {
         }
         workerHost = workerHost.replaceAll("/+$", "");
 
+        JSONObject params = new JSONObject();
+        params.put("worker_host", workerHost);
+        params.put("ws_conn", prefs.getWsConn());
+        params.put("relay_ips", prefs.getPrefIp());
+        params.put("user_id", prefs.getUserID());
+        params.put("proxy_ip", prefs.getFallbackIp());
+        params.put("ech_domain", prefs.getEchDomain());
+        params.put("ech_dns", prefs.getEchDns());
+        params.put("enable_ech", !prefs.getDisableEch());
+        params.put("disable_ipv6_route", prefs.getDisableIpv6Route());
+        params.put("enable_dns_warmup", prefs.getEnableDnsWarmup());
+        params.put("bypass_private", prefs.getBypassPrivate());
+        params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
+        params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
+        params.put("bypass_rules", prefs.getBypassRules());
+        params.put("enable_dynamic_pool", prefs.getEnableDynamicPool());
+        params.put("dynamic_pool_max", prefs.getDynamicPoolMax());
+
         Xclient.startSocksProxy(
                 prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
-                workerHost,
-                prefs.getWsConn(),
-                prefs.getPrefIp(),
-                prefs.getUserID(),
-                prefs.getFallbackIp(),
-                prefs.getEchDomain(),
-                prefs.getEchDns(),
-                !prefs.getDisableEch(),
-                prefs.getDisableIpv6Route(),
-                prefs.getEnableDnsWarmup(),
-                prefs.getBypassPrivate(),
-                prefs.getBypassGeoIpCn(),
-                prefs.getBypassGeoSiteCn(),
-                prefs.getBypassRules(),
-                true,
-                prefs.getEnableDynamicPool(),
-                prefs.getDynamicPoolMax()
+                protocol,
+                params.toString(),
+                true
         );
     }
 

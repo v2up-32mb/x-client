@@ -1,121 +1,92 @@
 package xclient
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 
-	"xclient/config"
-	"xclient/dns"
-	"xclient/ech"
+	"xclient/gcm"
 	"xclient/logger"
-	"xclient/pool"
-	"xclient/relay"
 	"xclient/routing"
-	"xclient/socks5"
+)
+
+// ProxyBackend 代理后端接口，每种协议实现此接口。
+type ProxyBackend interface {
+	// Start 启动代理后端。
+	// listenAddr: SOCKS5 本地监听地址
+	// params: 协议特定参数（key-value 对）
+	Start(listenAddr string, params map[string]string, verbose bool) error
+
+	// Stop 停止代理后端。
+	Stop() error
+
+	// Reconnect 触发重连。
+	Reconnect(reason string)
+
+	// NotifyNetworkChanged 通知网络变更。
+	NotifyNetworkChanged()
+}
+
+// 协议标识（与 Android 侧 Preferences.Protocol 保持一致）。
+const (
+	ProtocolGCM     = "gcm"
+	ProtocolXTunnel = "xtunnel"
 )
 
 var (
-	lifecycleMu  sync.Mutex
-	cfg          *config.Config
-	relayManager *relay.RelayManager
-	dnsCache     *dns.DNSCache
-	dohClient    *dns.DoHClient
-	echManager   *ech.EchManager
-	connPool     *pool.ConnectionPool
-	socks5Server *socks5.Server
+	lifecycleMu   sync.Mutex
+	activeBackend ProxyBackend
 )
 
-const (
-	defaultAndroidPoolSize       = 3
-	defaultAndroidDynamicPoolMax = 16
-	maxAndroidDynamicPoolLimit   = 64
-)
-
-// StartSocksProxy 启动 GCM 代理（gomobile AAR 入口）
-func StartSocksProxy(listenAddr, workerHost string, wsConn int, relayIPs, userID, proxyIP, echDomain, dohURL string, enableECH, disableIPv6Route, enableDNSWarmup, bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN bool, bypassRules string, verbose, enableDynamicPool bool, dynamicPoolMax int) error {
+// StartSocksProxy 启动指定协议的代理（gomobile AAR 入口）。
+// protocol 为空时向后兼容，默认使用 GCM 协议；paramsJSON 为协议参数的
+// JSON 对象（{"key": "value", ...}），verbose 控制调试日志级别。
+func StartSocksProxy(listenAddr, protocol string, paramsJSON string, verbose bool) error {
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()
-	if socks5Server != nil {
-		return fmt.Errorf("GCM proxy is already running")
+	if activeBackend != nil {
+		return fmt.Errorf("proxy is already running")
 	}
-	logger.ClearRuntimeLogs()
 
-	c, err := buildConfig(listenAddr, workerHost, wsConn, relayIPs, userID, proxyIP, echDomain, dohURL, enableECH, disableIPv6Route, enableDNSWarmup, verbose, enableDynamicPool, dynamicPoolMax)
+	params, err := parseParamsJSON(paramsJSON)
 	if err != nil {
 		return err
 	}
-	bypassMatcher, err := routing.NewMatcher(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, bypassRules)
+	backend, err := newBackend(protocol)
 	if err != nil {
-		return fmt.Errorf("invalid bypass rules: %w", err)
+		return err
 	}
-
-	logger.InitGlobalLogger(c)
-	systemLog := logger.GetLogger("System")
-	log.SetFlags(log.LstdFlags)
-	systemLog.Info("启动 GCM: Worker=%s, 连接数=%d, ECH=%v, DoH=%v", c.WorkerHost, c.MinPoolSize, c.EnableECH, c.EnableDoH)
-
-	d := dns.NewDoHClient(c)
-	dc := dns.NewDNSCache(c, d)
-	rm := relay.NewRelayManager(c.RelayIPs, c, dc)
-	if err := rm.Init(); err != nil {
-		dc.Close()
-		logger.Close()
-		return fmt.Errorf("initialize relay manager: %w", err)
+	if err := backend.Start(listenAddr, params, verbose); err != nil {
+		return err
 	}
-
-	var em *ech.EchManager
-	if c.EnableECH {
-		em = ech.NewEchManager(d, c.ECHDomain, c.GetECHCacheTTL(), c.GetECHRefreshInterval())
-		if echConfig, err := d.GetECHConfig(c.ECHDomain); err == nil {
-			em.CacheConfig(c.ECHDomain, echConfig)
-		} else {
-			systemLog.Warn("ECH 配置预取失败: %v (将回退到标准 TLS)", err)
-		}
-	}
-	p := pool.NewConnectionPool(c, rm, em)
-	if c.EnableDoHProxy {
-		d.EnableProxy(pool.NewProxyTransport(p))
-	}
-	warmupDone := make(chan struct{})
-	go func() {
-		defer close(warmupDone)
-		defer func() {
-			if r := recover(); r != nil {
-				systemLog.Error("连接池预热 panic: %v", r)
-			}
-		}()
-		if err := p.Warmup(); err != nil {
-			systemLog.Warn("连接池预热失败: %v", err)
-		}
-	}()
-	if c.EnableDNSWarmup {
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					systemLog.Error("DNS 预热 panic: %v", r)
-				}
-			}()
-			<-warmupDone
-			dc.Warmup(c.DNSWarmupDomains)
-		}()
-	}
-	s := socks5.NewServer(c, p, dc)
-	s.SetBypassMatcher(bypassMatcher)
-	if err := s.Start(); err != nil {
-		p.Close()
-		rm.Close()
-		dc.Close()
-		logger.Close()
-		return fmt.Errorf("start SOCKS5 server: %w", err)
-	}
-	if c.EnableECH {
-		em.StartAutoRefresh()
-	}
-	cfg, dohClient, dnsCache, relayManager, echManager, connPool, socks5Server = c, d, dc, rm, em, p, s
-	systemLog.Info("GCM 已就绪")
+	activeBackend = backend
 	return nil
+}
+
+// parseParamsJSON 解析协议参数 JSON 对象。空字符串视为空参数表。
+func parseParamsJSON(paramsJSON string) (map[string]string, error) {
+	params := map[string]string{}
+	paramsJSON = strings.TrimSpace(paramsJSON)
+	if paramsJSON == "" {
+		return params, nil
+	}
+	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+		return nil, fmt.Errorf("invalid params JSON: %w", err)
+	}
+	return params, nil
+}
+
+// newBackend 按协议标识返回对应后端实例。protocol 为空时默认 GCM。
+func newBackend(protocol string) (ProxyBackend, error) {
+	switch strings.ToLower(strings.TrimSpace(protocol)) {
+	case "", ProtocolGCM:
+		return gcm.NewBackend(), nil
+	case ProtocolXTunnel:
+		return nil, fmt.Errorf("protocol %q is not implemented yet", ProtocolXTunnel)
+	default:
+		return nil, fmt.Errorf("unsupported protocol %q", protocol)
+	}
 }
 
 // ValidateBypassRules validates newline-separated manual routing rules without
@@ -124,97 +95,19 @@ func ValidateBypassRules(rules string) error {
 	return routing.ValidateManualRules(rules)
 }
 
-func buildConfig(listenAddr, workerHost string, wsConn int, relayIPs, userID, proxyIP, echDomain, dohURL string, enableECH, disableIPv6Route, enableDNSWarmup, verbose, enableDynamicPool bool, dynamicPoolMax int) (*config.Config, error) {
-	_ = disableIPv6Route
-	c := config.DefaultConfig()
-	c.ListenAddress = strings.TrimSpace(listenAddr)
-	c.WorkerHost = strings.TrimRight(strings.TrimPrefix(strings.TrimPrefix(strings.TrimSpace(workerHost), "wss://"), "https://"), "/")
-	if c.ListenAddress == "" {
-		return nil, fmt.Errorf("SOCKS5 listen address is required")
-	}
-	if c.WorkerHost == "" {
-		return nil, fmt.Errorf("Worker address is required")
-	}
-	initialPoolSize, maxPoolSize := normalizeAndroidPoolSettings(wsConn, enableDynamicPool, dynamicPoolMax)
-	c.MinPoolSize, c.MaxPoolSize = initialPoolSize, maxPoolSize
-	c.EnableDynamicPool = enableDynamicPool
-	c.DynamicPoolMinSize = initialPoolSize
-	c.DynamicPoolMaxSize = maxPoolSize
-	if relayIPs != "" {
-		for _, item := range strings.Split(relayIPs, ",") {
-			if item = strings.TrimSpace(item); item != "" {
-				c.RelayIPs = append(c.RelayIPs, item)
-			}
-		}
-	}
-	c.UserID = userID
-	c.ProxyIP = proxyIP
-	if echDomain != "" {
-		c.ECHDomain = echDomain
-	}
-	// DoH 服务器：非空时使用用户配置，空值保留主分支内置备用列表语义。
-	if dohURL = strings.TrimSpace(dohURL); dohURL != "" {
-		c.DoHUrl = dohURL
-	}
-	c.EnableECH = enableECH
-	if verbose {
-		c.LogLevel = config.DEBUG
-	} else {
-		c.LogLevel = config.INFO
-	}
-	c.EnableLogFile = false
-	// 默认关闭 DNS 预热以避免冷启动冲突；可由 UI 开关启用
-	c.EnableDNSWarmup = enableDNSWarmup
-	c.EnableQualityMonitor = true
-
-	return c, nil
-}
-
-func normalizeAndroidPoolSettings(wsConn int, enableDynamicPool bool, dynamicPoolMax int) (int, int) {
-	initialPoolSize := wsConn
-	if initialPoolSize <= 0 {
-		initialPoolSize = defaultAndroidPoolSize
-	}
-	if initialPoolSize > maxAndroidDynamicPoolLimit {
-		initialPoolSize = maxAndroidDynamicPoolLimit
-	}
-	if !enableDynamicPool {
-		return initialPoolSize, initialPoolSize
-	}
-
-	if dynamicPoolMax <= 0 {
-		dynamicPoolMax = defaultAndroidDynamicPoolMax
-	}
-	if dynamicPoolMax > maxAndroidDynamicPoolLimit {
-		dynamicPoolMax = maxAndroidDynamicPoolLimit
-	}
-	if dynamicPoolMax < initialPoolSize {
-		dynamicPoolMax = initialPoolSize
-	}
-	return initialPoolSize, dynamicPoolMax
-}
-
-// StopSocksProxy 停止代理并逆序释放所有资源。
+// StopSocksProxy 停止当前代理并逆序释放所有资源。
 func StopSocksProxy() {
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()
-	if socks5Server == nil {
+	if activeBackend == nil {
 		return
 	}
-	logger.GetLogger("System").Info("正在停止 GCM")
-	if echManager != nil {
-		echManager.StopAutoRefresh()
-	}
-	_ = socks5Server.Close()
-	connPool.Close()
-	relayManager.Close()
-	dnsCache.Close()
-	logger.Close()
-	cfg, dohClient, dnsCache, relayManager, echManager, connPool, socks5Server = nil, nil, nil, nil, nil, nil, nil
+	_ = activeBackend.Stop()
+	activeBackend = nil
 }
 
-// NotifyNetworkChanged asks the running pool to replace sockets bound to the
-// previous physical network. The Android VPN interface is left untouched.
+// NotifyNetworkChanged asks the running backend to replace sockets bound to
+// the previous physical network. The Android VPN interface is left untouched.
 func NotifyNetworkChanged() {
 	Reconnect("Android default network changed")
 }
@@ -226,8 +119,8 @@ func Reconnect(reason string) {
 	}
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()
-	if connPool != nil {
-		connPool.Reconnect(reason)
+	if activeBackend != nil {
+		activeBackend.Reconnect(reason)
 	}
 }
 

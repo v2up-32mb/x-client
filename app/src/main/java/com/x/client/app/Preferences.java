@@ -57,6 +57,10 @@ public class Preferences
         public static final int MAX_DYNAMIC_POOL_LIMIT = 64;
         // IPv6 路由禁用
         public static final String DISABLE_IPV6_ROUTE = "DisableIpv6Route";
+        // 代理协议（gcm / xtunnel），默认 gcm
+        public static final String PROTOCOL = "Protocol";
+        public static final String PROTOCOL_GCM = "gcm";
+        public static final String PROTOCOL_X_TUNNEL = "xtunnel";
         
         // Profile Management
         public static final String CURRENT_PROFILE_ID = "CurrentProfileId";
@@ -445,6 +449,19 @@ public class Preferences
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putBoolean(getKey(DISABLE_IPV6_ROUTE), disable);
                 editor.commit();
+        }
+
+        // 代理协议（per-profile）
+        public String getProtocol() {
+                String protocol = prefs.getString(getKey(PROTOCOL), PROTOCOL_GCM);
+                if (protocol == null || protocol.trim().isEmpty()) {
+                        return PROTOCOL_GCM;
+                }
+                return protocol;
+        }
+
+        public void setProtocol(String protocol) {
+                prefs.edit().putString(getKey(PROTOCOL), protocol).apply();
         }
 
         // ======================== 辅助方法（用于配置列表页） ========================
