@@ -99,3 +99,11 @@
 - Release 签名：为 x-client 仓库生成全新 PKCS12 keystore 并配置 4 个 Actions secrets（SIGNING_KEY / ALIAS=xclient / KEY_STORE_PASSWORD / KEY_PASSWORD）
   - 本地备份：/root/secrets/x-client/（xclient-release.p12、CREDENTIALS.env、SIGNING_KEY.b64），权限 600，**必须离线备份**，丢失后无法再签后续版本
   - 验证：check-keystore.yml workflow 端到端校验
+
+## 2026-08-04 v1.1 Release 发布成功
+
+- Release workflow run `30927171092` 成功，GitHub Release「X Client - v1.1」已发布（非 draft/prerelease）
+- 5 个签名 APK：arm64-v8a / armeabi-v7a / x86 / x86_64 / universal（15-46MB）
+- 修复过程：① `secrets.GITHUB_TOKEN` → `github.token`（原引用不存在的 secret 导致 Create Release 403）；② 仓库 Actions 权限改为 write（`/actions/permissions/workflow`）；③ 新增 `workflow_dispatch` 便于重试；④ v1.1 tag 移至 af50487（含修复）
+- Secrets：SIGNING_KEY / ALIAS=xclient / KEY_STORE_PASSWORD / KEY_PASSWORD（check-keystore workflow 验证通过）
+- 签名密钥备份：`/root/secrets/x-client/`（xclient-release.p12 + CREDENTIALS.env，600 权限）——必须离线备份，丢失后无法签署后续版本
