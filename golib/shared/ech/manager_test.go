@@ -4,8 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"xclient/config"
-	"xclient/dns"
+	"xclient/shared/config"
+	"xclient/shared/dns"
 )
 
 func TestEchManagerFallsBackToUDPWhenDoHFails(t *testing.T) {

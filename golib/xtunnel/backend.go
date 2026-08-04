@@ -6,8 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"xclient/config"
-	"xclient/logger"
+	"xclient/shared/config"
+	"xclient/shared/logger"
 )
 
 // Param keys accepted by Backend.Start（与 Android 侧 X_TUNNEL Profile 字段对齐）。

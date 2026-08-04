@@ -3,9 +3,9 @@ package xtunnel
 import (
 	"strings"
 
-	"xclient/config"
-	"xclient/dns"
-	"xclient/ech"
+	"xclient/shared/config"
+	"xclient/shared/dns"
+	"xclient/shared/ech"
 )
 
 // newSharedEchManager 基于 x-tunnel 配置构建共享 ECH 管理器：

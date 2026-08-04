@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"golang.org/x/net/dns/dnsmessage"
-	"xclient/config"
-	"xclient/logger"
+	"xclient/shared/config"
+	"xclient/shared/logger"
 )
 
 // DNS 记录类型常量

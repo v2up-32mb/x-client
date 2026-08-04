@@ -10,14 +10,14 @@ import (
 	"strings"
 	"sync"
 
-	"xclient/config"
-	"xclient/dns"
-	"xclient/ech"
-	"xclient/logger"
-	"xclient/pool"
-	"xclient/relay"
-	"xclient/routing"
-	"xclient/socks5"
+	"xclient/gcm/pool"
+	"xclient/gcm/relay"
+	"xclient/shared/config"
+	"xclient/shared/dns"
+	"xclient/shared/ech"
+	"xclient/shared/logger"
+	"xclient/shared/routing"
+	"xclient/shared/socks5"
 )
 
 const (

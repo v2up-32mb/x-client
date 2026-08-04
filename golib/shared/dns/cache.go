@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"xclient/config"
-	"xclient/logger"
+	"xclient/shared/config"
+	"xclient/shared/logger"
 )
 
 // CacheEntry 缓存条目

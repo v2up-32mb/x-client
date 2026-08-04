@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"xclient/dns"
-	"xclient/logger"
+	"xclient/shared/dns"
+	"xclient/shared/logger"
 )
 
 // defaultUDPDNSServer 是 DoH 查询失败时的 UDP DNS 回退服务器（移植自 x-tunnel）。

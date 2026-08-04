@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"xclient/protocol"
+	"xclient/gcm/protocol"
 )
 
 // tunnelConn WebSocket 隧道连接

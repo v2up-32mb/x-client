@@ -34,14 +34,15 @@
 - [x] 验证：xtunnel/protocol/relay 全量测试通过（含移植测试）；`go test ./... -count=3`、vet、gofmt、diff --check 全过
 - [ ] 提交推送后确认 CI 构建与 4 ABI APK
 
-### 阶段 4：共享模块优化
-- [ ] `shared/ech`：融合 gcm 的 DoH 多服务器 fallback + x-tunnel 的 UDP DNS fallback
-- [ ] `shared/socks5`：以 gcm 的 `socks5.Server` 为框架，移植 x-tunnel 的 UDP associate
-- [ ] `shared/routing`：gcm 版本直接迁移（x-tunnel 无此功能）
-- [ ] `shared/dns`：gcm 的 `DoHClient` + `DNSCache` 直接迁移
-- [ ] `shared/logger`：gcm 的 `logger.Logger` 直接迁移
-- [ ] `shared/config`：扩展 Profile 配置，新增 `Protocol` 字段和 per-protocol 参数
-- [ ] 验证：全套 Go 测试通过
+### 阶段 4：共享模块优化（代码已完成，待提交 + CI 验证）
+- [x] golib 三层结构重组：`shared/`（config/dns/ech/logger/routing/socks5）+ `gcm/`（backend/pool/protocol/relay）+ `xtunnel/`，全量 import 重写
+- [x] `shared/ech`：融合 gcm 的 DoH 多服务器 fallback + x-tunnel 的 UDP DNS fallback（阶段 3 已完成，随目录迁移）
+- [x] `shared/routing`：gcm 版本直接迁移（x-tunnel 无此功能）
+- [x] `shared/dns`：gcm 的 `DoHClient` + `DNSCache` 直接迁移（含 UDP HTTPS 查询）
+- [x] `shared/logger`：gcm 的 `logger.Logger` 直接迁移
+- [x] `shared/config`：直接迁移；`Protocol` 字段在 Android Preferences 侧管理（Go 分发入口按 protocol 选择后端，无需 Go 侧 Profile 存储）
+- [x] 验证：全套 Go 测试通过（14 包，-count=3）、vet、gofmt、diff --check、gobind
+- [ ] `shared/socks5` UDP associate：**延后**——GCM wire 协议（gcm/protocol）无 UDP 消息类型，移植 UDP 需 GCM 服务端协议扩展（超出客户端范围）；x-tunnel 的 SOCKS5+UDP 已在 xtunnel 内部集成
 
 ### 阶段 5：Android UI 适配
 - [ ] `Preferences.java`：新增 `Protocol` 字段（已完成：`PROTOCOL`/`getProtocol`/`setProtocol`，默认 gcm）

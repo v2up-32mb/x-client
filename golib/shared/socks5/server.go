@@ -13,12 +13,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"xclient/config"
-	"xclient/dns"
-	"xclient/logger"
-	"xclient/pool"
-	"xclient/protocol"
-	"xclient/routing"
+	"xclient/gcm/pool"
+	"xclient/gcm/protocol"
+	"xclient/shared/config"
+	"xclient/shared/dns"
+	"xclient/shared/logger"
+	"xclient/shared/routing"
 )
 
 const (

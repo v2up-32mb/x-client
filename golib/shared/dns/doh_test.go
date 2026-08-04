@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"xclient/config"
-	"xclient/logger"
+	"xclient/shared/config"
+	"xclient/shared/logger"
 )
 
 func initTestLogger() {
