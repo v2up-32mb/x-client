@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+        <string name="app_name">GCM 代理</string>
+        <string name="socks_port">本地代理端口：</string>
+        <string name="ipv4">IPv4</string>
+        <string name="ipv6">IPv6</string>
+        <string name="global">全局代理</string>
+        <string name="apps">分应用代理</string>
+        <string name="save">保存</string>
+        <string name="control_enable">启动</string>
+        <string name="control_disable">停止</string>
+        <string name="worker_host">服务器地址（Worker 域名）：</string>
+        <string name="pref_ip">优选中转节点（IP:端口，逗号分隔多个）：</string>
+        <string name="user_id">用户 ID：</string>
+        <string name="fallback_ip">出口代理 IP（逗号分隔多个，发往 Worker）：</string>
+        <string name="ech_dns">DoH 服务器（用于 DNS/ECH 查询，默认 https://doh.pub/dns-query）：</string>
+        <string name="ech_domain">ECH 查询域名：</string>
+        <string name="disable_ech">禁用 ECH（标准 TLS 1.3）</string>
+        <string name="enable_dns_warmup">启用 DNS 预热（启动时预解析常见域名，加快首次连接，但可能导致冷启动延迟）</string>
+        <string name="ws_conn">WebSocket 连接数：</string>
+        <string name="enable_dynamic_pool">启用连接池动态扩容</string>
+        <string name="dynamic_pool_max">动态扩容连接上限：</string>
+
+        <!-- Profile Management -->
+        <string name="profile_label">配置节点：</string>
+        <string name="btn_add">添加</string>
+        <string name="btn_rename">重命名</string>
+        <string name="btn_delete">删除</string>
+        <string name="default_profile_name">默认节点</string>
+        <string name="dialog_title_add">添加节点</string>
+        <string name="dialog_title_rename">重命名节点</string>
+        <string name="dialog_title_delete">确认删除？</string>
+        <string name="dialog_hint_name">节点名称</string>
+        <string name="toast_profile_exists">节点名称已存在</string>
+        <string name="toast_name_empty">节点名称不能为空</string>
+        <string name="toast_saved">保存成功</string>
+        <string name="toast_cannot_delete_last">不能删除最后一个节点</string>
+        <string name="ok">确定</string>
+        <string name="cancel">取消</string>
+        
+        <!-- Export/Import -->
+        <string name="btn_export">导出</string>
+        <string name="btn_import">导入</string>
+        <string name="dialog_title_export">导出配置</string>
+        <string name="dialog_title_import">导入配置</string>
+        <string name="dialog_option_manual">手动输入</string>
+        <string name="dialog_option_scan">扫描二维码</string>
+        <string name="dialog_hint_protocol">gcm://...</string>
+        <string name="toast_copied">已复制到剪贴板</string>
+        <string name="toast_imported">配置已导入</string>
+        <string name="toast_invalid_protocol">无效的协议格式</string>
+        <string name="scan_prompt">将二维码放入框内扫描</string>
+        <string name="copy">复制</string>
+        <string name="close">关闭</string>
+        <string name="disable_ipv6_route">禁用 IPv6 路由</string>
+
+        <!-- Theme -->
+        <string name="theme_toggle">切换主题</string>
+        <string name="theme_system">跟随系统</string>
+        <string name="theme_light">亮色</string>
+        <string name="theme_dark">暗色</string>
+        <string name="search_apps">搜索应用</string>
+        <string name="view_runtime_logs">查看本次运行日志</string>
+        <string name="runtime_logs_title">运行日志</string>
+        <string name="runtime_logs_refresh">刷新</string>
+        <string name="runtime_logs_copy">复制</string>
+        <string name="runtime_logs_empty">暂无运行日志</string>
+        <string name="runtime_logs_loading">正在读取日志…</string>
+        <string name="runtime_logs_unavailable">日志服务未响应</string>
+        <string name="runtime_logs_copied">日志已复制</string>
+        <string name="runtime_logs_line_count">%1$d 行</string>
+        <string name="back">返回</string>
+
+        <!-- Route bypass -->
+        <string name="bypass_routes">路由绕过</string>
+        <string name="bypass_private">绕过本地和局域网地址</string>
+        <string name="bypass_geoip_cn">绕过 GEOIP:CN</string>
+        <string name="bypass_geosite_cn">绕过 GEOSITE:CN</string>
+        <string name="manual_bypass_rules">手动规则（每行一条）</string>
+        <string name="manual_bypass_rules_hint">192.168.1.0/24\nexample.com\nfull:api.example.com</string>
+</resources>

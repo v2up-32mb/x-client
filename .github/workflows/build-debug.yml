@@ -1,0 +1,125 @@
+name: Build Debug
+
+on:
+  push:
+    branches:
+      - 'feat/*'
+      - 'fix/*'
+      - 'repair/*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_NDK_VERSION: 26.3.11579264 
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
+      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF8
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: temurin
+        java-version: 17
+        cache: gradle
+
+    - name: Setup Android SDK
+      # 此Action会自动设置ANDROID_HOME和安装常用组件
+      uses: android-actions/setup-android@v3
+
+    - name: Clone hev-socks5-tunnel
+      run: |
+          git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
+    
+    # 条件编译gcm.aar
+    - name: Check for gcm.aar
+      id: check-gcm-aar
+      run: |
+        if [ -f "app/libs/gcm.aar" ]; then
+          echo "gcm_aar_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "gcm_aar_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Go
+      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+
+    - name: Install gomobile and Build gcm.aar
+      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      run: |
+        go install golang.org/x/mobile/cmd/gomobile@latest
+        gomobile init
+        cd golib
+        mkdir -p ../app/libs
+        go get golang.org/x/mobile/bind
+        gomobile bind -target=android -androidapi=24 -o ../app/libs/gcm.aar
+        cd ..
+
+    # 条件生成 Gradle Wrapper
+    - name: Check for Gradle Wrapper
+      id: check-wrapper
+      run: |
+        if [ -f "gradlew" ]; then
+          echo "wrapper_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "wrapper_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate Gradle Wrapper and Settings
+      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
+      run: |
+        # 生成 Gradle Wrapper
+        gradle wrapper
+        chmod +x gradlew
+        # 输出提示，建议提交 wrapper 文件到仓库
+        echo "Gradle wrapper generated. Consider committing these files to your repository:"
+        echo "  gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar, gradle/wrapper/gradle-wrapper.properties"
+        echo "To commit automatically, uncomment the 'Commit Gradle Wrapper' step below."
+
+    #可选：提交 Gradle Wrapper 到仓库（默认禁用）
+    - name: Commit Gradle Wrapper
+      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add gradlew gradlew.bat gradle/wrapper/
+        git commit -m "chore: add gradle wrapper [skip ci]" || echo "No changes to commit"
+        git push origin HEAD:${{ github.ref_name }}
+
+    - name: Download dependencies
+      run: ./gradlew dependencies --no-daemon
+
+    - name: Build debug APK
+      run: ./gradlew assembleDebug --no-daemon
+
+    - name: Upload APKs per ABI
+      uses: actions/upload-artifact@v4
+      with:
+        path: |
+          app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
+        name: app-armeabi-v7a-debug
+
+    - uses: actions/upload-artifact@v4
+      with:
+        path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+        name: app-arm64-v8a-debug
+
+    - uses: actions/upload-artifact@v4
+      with:
+        path: app/build/outputs/apk/debug/app-x86-debug.apk
+        name: app-x86-debug
+
+    - uses: actions/upload-artifact@v4
+      with:
+        path: app/build/outputs/apk/debug/app-x86_64-debug.apk
+        name: app-x86_64-debug

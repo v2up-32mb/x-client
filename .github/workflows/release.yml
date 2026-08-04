@@ -1,0 +1,228 @@
+name: Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送以 'v' 开头的标签时触发
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    env:
+      ANDROID_NDK_VERSION: 26.3.11579264 
+      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
+      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF8
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # 获取完整的 Git 历史，以便计算版本号
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: 17
+        cache: gradle
+
+    - name: Get version from tag
+      run: |
+        # 从 Git tag 中提取版本号
+        VERSION_NAME=${{ github.ref_name }}
+        # 去掉可能的 'v' 前缀
+        echo "VERSION_NAME=${VERSION_NAME#v}" >> $GITHUB_ENV
+
+        # 计算版本号（基于提交次数）
+        VERSION_CODE=$(git rev-list --count HEAD)
+        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+        echo "Version Name: $VERSION_NAME"
+        echo "Version Code: $VERSION_CODE"
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: |
+          platform-tools build-tools;29.0.3 platforms;android-29
+
+    - name: Clone hev-socks5-tunnel
+      run: |
+          git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
+    
+    # 条件编译gcm.aar
+    - name: Check for gcm.aar
+      id: check-gcm-aar
+      run: |
+        if [ -f "app/libs/gcm.aar" ]; then
+          echo "gcm_aar_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "gcm_aar_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Setup Go
+      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.25'
+
+    - name: Install gomobile and Build gcm.aar
+      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      run: |
+        go install golang.org/x/mobile/cmd/gomobile@latest
+        gomobile init
+        cd golib
+        mkdir -p ../app/libs
+        go get golang.org/x/mobile/bind
+        gomobile bind -target=android -androidapi=24 -o ../app/libs/gcm.aar
+        cd ..
+
+    # 条件生成 Gradle Wrapper
+    - name: Check for Gradle Wrapper
+      id: check-wrapper
+      run: |
+        if [ -f "gradlew" ]; then
+          echo "wrapper_exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "wrapper_exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Generate Gradle Wrapper and Settings
+      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
+      run: |
+        # 生成 Gradle Wrapper
+        gradle wrapper
+        chmod +x gradlew
+        # 输出提示，建议提交 wrapper 文件到仓库
+        echo "Gradle wrapper generated. Consider committing these files to your repository:"
+        echo "  gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar, gradle/wrapper/gradle-wrapper.properties"
+        echo "To commit automatically, uncomment the 'Commit Gradle Wrapper' step below."
+
+    #可选：提交 Gradle Wrapper 到仓库（默认禁用）
+    - name: Commit Gradle Wrapper
+      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add gradlew gradlew.bat gradle/wrapper/
+        git commit -m "chore: add gradle wrapper [skip ci]" || echo "No changes to commit"
+        git push origin HEAD:${{ github.ref_name }}
+
+    - name: Download dependencies
+      run: ./gradlew dependencies --no-daemon
+
+    - name: Build release APK
+      run: ./gradlew assembleRelease -PVERSION_CODE=$VERSION_CODE -PVERSION_NAME=$VERSION_NAME --no-daemon
+    
+    - name: Sign APK
+      uses: r0adkll/sign-android-release@v1
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+        alias: ${{ secrets.ALIAS }}
+        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+    - name: Clean unsigned APKs
+      run: |
+        find app/build/outputs/apk/release -name "*-unsigned.apk" -delete
+        find app/build/outputs/apk/release -name "*-unsigned-aligned.apk" -delete
+
+    - name: Rename signed APKs
+      run: |
+        cd app/build/outputs/apk/release
+        files=(*-unsigned-signed.apk)
+        if [ ${#files[@]} -gt 0 ]; then
+          for file in "${files[@]}"; do
+            # 规则 1：-unsigned-signed → -signed
+            new_name="${file/-unsigned-signed/-signed}"
+            # 规则 2：app- → gcm-client-
+            new_name="${new_name/#app-/gcm-client-}"
+            mv "$file" "$new_name" && echo "Renamed: $file -> $new_name"
+          done
+        else
+          echo "No signed APK files found to rename."
+        fi
+
+    - name: Generate Release Notes
+      id: release_notes
+      run: |
+        # 设置应用名称
+        APP_NAME="GCM Client"
+        TAG_NAME=${{ github.ref_name }}
+
+        # 获取上一个 tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+        # 生成 Release 标题
+        echo "RELEASE_TITLE=${APP_NAME} - ${TAG_NAME}" >> $GITHUB_ENV
+
+        # 生成 Release Notes
+        {
+          echo "RELEASE_BODY<<EOF"
+          echo "## 📦 更新内容"
+          echo ""
+
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..${TAG_NAME}"
+            echo "### 📝 Commits since ${PREV_TAG}"
+          else
+            RANGE=""
+            echo "### 📝 All commits"
+          fi
+          echo ""
+
+          print_section () {
+            local type="$1"
+            local title="$2"
+
+            COMMITS=$(git log $RANGE \
+              --pretty=format:"- \`%h\` %s" \
+              --grep="^${type}(\([^)]*\))\?: " \
+              -i)
+
+            if [ -n "$COMMITS" ]; then
+              echo "#### $title"
+              echo "$COMMITS"
+              echo ""
+            fi
+          }
+
+          # Conventional Commit 分类
+          print_section "feat"     "✨ 新功能（Features）"
+          print_section "fix"      "🛠 修复（Fixes）"
+          print_section "refactor" "♻️ 重构（Refactors）"
+          print_section "perf"     "⚡ 性能优化（Performance）"
+          print_section "docs"     "📚 文档（Docs）"
+          print_section "build"    "🏗 构建（Build）"
+          print_section "chore"    "🧹 其他（Chores）"
+
+          echo "### 📥 下载说明"
+          echo "请根据你的设备架构下载对应的 APK 文件："
+          echo "- **armeabi-v7a**: 32位 ARM 设备"
+          echo "- **arm64-v8a**: 64位 ARM 设备（大多数现代设备）"
+          echo "- **x86**: 32位 x86 设备"
+          echo "- **x86_64**: 64位 x86 设备"
+
+          echo "EOF"
+        } >> $GITHUB_ENV
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ env.RELEASE_TITLE }}
+        body: ${{ env.RELEASE_BODY }}
+        draft: false
+        prerelease: false
+        files: app/build/outputs/apk/release/*.apk
+                 
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "发布失败，请检查日志"

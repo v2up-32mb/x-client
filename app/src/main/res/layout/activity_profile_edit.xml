@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- 配置名称 -->
+        <TextView android:text="配置名称"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:paddingTop="8dp"/>
+        <EditText android:id="@+id/profile_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="配置名称"
+            android:singleLine="true"/>
+
+        <!-- WSS 服务器地址 -->
+        <TextView android:text="@string/worker_host"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:paddingTop="8dp"/>
+        <EditText android:id="@+id/worker_host"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="wss://example.com"
+            android:singleLine="true"/>
+
+        <!-- 优选 IP -->
+        <TextView android:text="@string/pref_ip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:paddingTop="16dp"/>
+        <EditText android:id="@+id/pref_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="1.1.1.1,8.8.8.8"
+            android:singleLine="true"/>
+
+        <!-- 用户 ID -->
+        <TextView android:text="@string/user_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:paddingTop="16dp"/>
+        <EditText android:id="@+id/user_id"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="用户ID"
+            android:singleLine="true"/>
+
+        <!-- 出口代理 IP -->
+        <TextView android:text="@string/fallback_ip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:paddingTop="16dp"/>
+        <EditText android:id="@+id/fallback_ip"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="1.1.1.1,8.8.8.8"
+            android:singleLine="true"/>
+
+        <!-- 配置级选项 -->
+        <TextView
+            android:text="配置选项"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:paddingTop="24dp"
+            android:paddingBottom="8dp"/>
+
+
+        <CheckBox android:id="@+id/disable_ech"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/disable_ech"/>
+
+        <CheckBox android:id="@+id/disable_ipv6_route"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/disable_ipv6_route"/>
+
+        <!-- 导入按钮 -->
+        <Button android:id="@+id/btn_import"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="导入配置"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#FF9800"
+            android:textSize="16sp"/>
+
+        <!-- 保存按钮 -->
+        <Button android:id="@+id/btn_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="保存"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#2196F3"
+            android:textSize="16sp"/>
+
+    </LinearLayout>
+</ScrollView>
