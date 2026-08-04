@@ -168,32 +168,12 @@
                 android:paddingTop="24dp"
                 android:paddingBottom="8dp"/>
 
-            <CheckBox android:id="@+id/xt_enable_ech"
+            <CheckBox android:id="@+id/xt_disable_ech"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/xt_enable_ech"/>
+                android:text="@string/disable_ech"/>
 
-            <TextView android:text="@string/xt_ech_domain"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/xt_ech_domain"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="cloudflare-ech.com"
-                android:singleLine="true"/>
-
-            <TextView android:text="@string/xt_dns_server"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/xt_dns_server"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="https://doh.pub/dns-query"
-                android:singleLine="true"/>
+            <!-- ECH 查询域名与 DoH 服务器复用全局设置（SettingsActivity） -->
 
             <CheckBox android:id="@+id/xt_insecure"
                 android:layout_width="match_parent"

@@ -77,3 +77,9 @@
 - TProxyService：按 Protocol 分支组装 paramsJSON（键与 Go 侧一致：server_addr/token/connections/relay_nodes/enable_ech/ech_domain/dns_server/insecure/enable_hot_pair）
 - URI：`xtunnel://` 导入导出（token/relay_nodes/connections/ech/domain/dns/insecure/hotpair），`gcm://`/`ech://` 兼容
 - strings.xml（中/俄）新增协议与 X-Tunnel 字段文案
+
+## 2026-08-04 真机反馈修复（stage 5 APK 实测）
+
+- **问题 1**：`invalid params JSON: json: cannot unmarshal number into Go value of type string`——Android JSONObject.put 输出无引号数字/布尔。修复：`golib/android.go` `parseParamsJSON` 改为解析 `map[string]interface{}`，标量统一转字符串（float64→FormatFloat、bool→FormatBool、nil→空），数组/对象报错；新增 `TestParseParamsJSONScalarTypes`
+- **问题 2**：x-tunnel 编辑页删除「ECH 查询域名」「DoH 服务器」设置项，TProxyService 组装参数时复用全局 `getEchDomain()/getEchDns()`（与 GCM 一致）；Preferences 删除 XT_ECH_DOMAIN/XT_DNS_SERVER
+- **问题 3**：x-tunnel ECH 文案统一为 GCM 的「禁用 ECH（标准 TLS 1.3）」（@string/disable_ech），checkbox 默认未选中 = 默认启用 ECH；存储语义改为 `XtDisableEch`（默认 false），导出 URI `ech=0` 表示禁用、导入 `ech=0/false/no` 置禁用；旧 URI 的 domain/dns 参数忽略（兼容）

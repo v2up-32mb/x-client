@@ -2,8 +2,11 @@
 
 ## 当前状态
 
-阶段 1 已完成并验证：提交 `d9b0e26` 推送成功，GitHub Actions run `30886749438` 成功，4 ABI APK 全部产出。
-阶段 2 代码修改已完成（Go + Java），待提交推送并等 CI 验证。
+阶段 0-5 全部完成并验证（7 次 CI 全绿，4 ABI APK）。
+真机反馈 3 个问题已修复（提交后待 CI 验证）：
+1. paramsJSON 数字/布尔解析失败 → Go `parseParamsJSON` 支持标量类型（GCM 的 ws_conn 等数字参数同样受益）
+2. x-tunnel 页面删除 ECH 查询域名/DoH 服务器设置项，复用全局设置（SettingsActivity）
+3. ECH 文案统一为「禁用 ECH（标准 TLS 1.3）」，checkbox 默认未选中（= 默认启用 ECH），x-tunnel 存储改为 XtDisableEch 语义
 
 ## 下一步
 

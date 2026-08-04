@@ -27,6 +27,31 @@ func TestParseParamsJSON(t *testing.T) {
 	}
 }
 
+func TestParseParamsJSONScalarTypes(t *testing.T) {
+	// Android JSONObject.put 会输出无引号的数字/布尔值，必须能被接受
+	params, err := parseParamsJSON(`{"connections":3,"enable_ech":true,"token":"t","nil_key":null}`)
+	if err != nil {
+		t.Fatalf("parseParamsJSON(scalars) error = %v", err)
+	}
+	if params["connections"] != "3" {
+		t.Fatalf("connections = %q, want 3", params["connections"])
+	}
+	if params["enable_ech"] != "true" {
+		t.Fatalf("enable_ech = %q, want true", params["enable_ech"])
+	}
+	if params["token"] != "t" {
+		t.Fatalf("token = %q", params["token"])
+	}
+	if _, ok := params["nil_key"]; !ok {
+		t.Fatal("nil_key missing")
+	}
+
+	// 数组/对象等复杂值必须报错
+	if _, err := parseParamsJSON(`{"relay_nodes":["a","b"]}`); err == nil || !strings.Contains(err.Error(), "unsupported value type") {
+		t.Fatalf("parseParamsJSON(array) error = %v, want unsupported type", err)
+	}
+}
+
 func TestNewBackendDispatch(t *testing.T) {
 	for _, protocol := range []string{"", "gcm", "GCM", " gcm "} {
 		backend, err := newBackend(protocol)

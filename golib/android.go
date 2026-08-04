@@ -3,6 +3,7 @@ package xclient
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -66,14 +67,31 @@ func StartSocksProxy(listenAddr, protocol string, paramsJSON string, verbose boo
 }
 
 // parseParamsJSON 解析协议参数 JSON 对象。空字符串视为空参数表。
+// 值允许为字符串、数字或布尔标量（Android 侧 JSONObject.put 会输出
+// 无引号的数字/布尔），统一转换为字符串供后端解析。
 func parseParamsJSON(paramsJSON string) (map[string]string, error) {
 	params := map[string]string{}
 	paramsJSON = strings.TrimSpace(paramsJSON)
 	if paramsJSON == "" {
 		return params, nil
 	}
-	if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(paramsJSON), &raw); err != nil {
 		return nil, fmt.Errorf("invalid params JSON: %w", err)
+	}
+	for key, value := range raw {
+		switch v := value.(type) {
+		case string:
+			params[key] = v
+		case float64:
+			params[key] = strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			params[key] = strconv.FormatBool(v)
+		case nil:
+			params[key] = ""
+		default:
+			return nil, fmt.Errorf("invalid params JSON: unsupported value type %T for key %q", v, key)
+		}
 	}
 	return params, nil
 }

@@ -51,9 +51,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private EditText edittext_xt_token;
     private EditText edittext_xt_relay_nodes;
     private EditText edittext_xt_connections;
-    private CheckBox checkbox_xt_enable_ech;
-    private EditText edittext_xt_ech_domain;
-    private EditText edittext_xt_dns_server;
+    private CheckBox checkbox_xt_disable_ech;
     private CheckBox checkbox_xt_insecure;
     private CheckBox checkbox_xt_enable_hot_pair;
 
@@ -95,9 +93,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_token = findViewById(R.id.xt_token);
         edittext_xt_relay_nodes = findViewById(R.id.xt_relay_nodes);
         edittext_xt_connections = findViewById(R.id.xt_connections);
-        checkbox_xt_enable_ech = findViewById(R.id.xt_enable_ech);
-        edittext_xt_ech_domain = findViewById(R.id.xt_ech_domain);
-        edittext_xt_dns_server = findViewById(R.id.xt_dns_server);
+        checkbox_xt_disable_ech = findViewById(R.id.xt_disable_ech);
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
 
@@ -180,9 +176,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_token.setText(prefs.getXtToken());
         edittext_xt_relay_nodes.setText(prefs.getXtRelayNodes());
         edittext_xt_connections.setText(String.valueOf(prefs.getXtConnections()));
-        checkbox_xt_enable_ech.setChecked(prefs.getXtEnableEch());
-        edittext_xt_ech_domain.setText(prefs.getXtEchDomain());
-        edittext_xt_dns_server.setText(prefs.getXtDnsServer());
+        checkbox_xt_disable_ech.setChecked(prefs.getXtDisableEch());
         checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
 
@@ -206,9 +200,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_xt_token.setEnabled(false);
             edittext_xt_relay_nodes.setEnabled(false);
             edittext_xt_connections.setEnabled(false);
-            checkbox_xt_enable_ech.setEnabled(false);
-            edittext_xt_ech_domain.setEnabled(false);
-            edittext_xt_dns_server.setEnabled(false);
+            checkbox_xt_disable_ech.setEnabled(false);
             checkbox_xt_insecure.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
             spinner_protocol.setEnabled(false);
@@ -297,9 +289,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setXtToken(edittext_xt_token.getText().toString().trim());
         prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
         prefs.setXtConnections(xtConnections);
-        prefs.setXtEnableEch(checkbox_xt_enable_ech.isChecked());
-        prefs.setXtEchDomain(edittext_xt_ech_domain.getText().toString().trim());
-        prefs.setXtDnsServer(edittext_xt_dns_server.getText().toString().trim());
+        prefs.setXtDisableEch(checkbox_xt_disable_ech.isChecked());
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
 
@@ -410,11 +400,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         String token = "";
         String relayNodes = "";
         int connections = Preferences.DEFAULT_XT_CONNECTIONS;
-        boolean enableEch = true;
+        boolean disableEch = false;
         boolean insecure = false;
         boolean enableHotPair = false;
-        String echDomain = "";
-        String dnsServer = "";
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -446,13 +434,12 @@ public class ProfileEditActivity extends AppCompatActivity {
                             }
                             break;
                         case "ech":
-                            enableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            // ech=0 表示禁用 ECH（与 GCM 的 disable_ech 语义一致）
+                            disableEch = value.equals("0") || value.equalsIgnoreCase("false") || value.equalsIgnoreCase("no");
                             break;
+                        // 兼容旧 URI：domain/dns 参数忽略，ECH 域名与 DoH 服务器复用全局设置
                         case "domain":
-                            echDomain = value;
-                            break;
                         case "dns":
-                            dnsServer = value;
                             break;
                         case "insecure":
                             insecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
@@ -482,9 +469,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             if (!token.isEmpty()) edittext_xt_token.setText(token);
             if (!relayNodes.isEmpty()) edittext_xt_relay_nodes.setText(relayNodes);
             edittext_xt_connections.setText(String.valueOf(connections));
-            checkbox_xt_enable_ech.setChecked(enableEch);
-            if (!echDomain.isEmpty()) edittext_xt_ech_domain.setText(echDomain);
-            if (!dnsServer.isEmpty()) edittext_xt_dns_server.setText(dnsServer);
+            checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
             checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
         } else {
