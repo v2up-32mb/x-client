@@ -10,8 +10,8 @@
 ### 立即执行
 - [x] 提交阶段 1 的全部改动并推送 `origin/main`，触发 GitHub Actions Debug 构建验证
 - [x] 检查 Actions 构建结果，确认 4 ABI APK 产出正常（run 30886749438，4 个 artifact）
-- [ ] 提交阶段 2 改动并推送，等待 CI 构建通过（Java 侧编译验证只能靠 Actions）
-- [ ] 确认阶段 2 CI 的 4 ABI APK 产出
+- [x] 提交阶段 2 改动并推送（a1bf62f），CI 构建通过（run 30887891590）
+- [x] 确认阶段 2 CI 的 4 ABI APK 产出
 
 ### 阶段 2：定义 Backend 接口和协议分发（代码已完成）
 - [x] 在 `golib/android.go` 中定义 `ProxyBackend` 接口
@@ -20,7 +20,7 @@
 - [x] 内部根据 protocol 选择对应 Backend 实例
 - [x] 保持向后兼容：空 protocol / 旧 `gcm://` Profile 默认使用 GCM 协议
 - [x] Android 侧 `TProxyService.java` 改为从 Preferences 读取 Protocol 字段并组装 paramsJSON
-- [ ] 验证：Go 测试通过（已完成），Android 能编译（CI 验证中）
+- [x] 验证：Go 测试通过（已完成），Android 能编译（CI run 30887891590 通过）
 
 ### 阶段 3：集成 x-tunnel 协议后端
 - [ ] 从 x-tunnel main (`9ee779a`) 复制 `client/pkg/` → `golib/xtunnel/`
