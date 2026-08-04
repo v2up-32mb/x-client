@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"xclient/ech"
+	"xclient/shared/ech"
 	common "xclient/xtunnel/protocol"
 	"xclient/xtunnel/relay"
 )

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"xclient/config"
-	"xclient/routing"
+	"xclient/shared/config"
+	"xclient/shared/routing"
 )
 
 func TestBypassRequestsUseDirectConnection(t *testing.T) {

@@ -63,3 +63,9 @@
 - relay 融合 gcm 负载均衡：`candidateWeight = 评分 × 负载因子`，Acquire/Release 活跃计数，SelectNodeExcluding 加权随机
 - 修复上游缺陷（x-tunnel main 上同样失败）：SOCKS5/HTTP 无通道时标准失败应答；Shutdown 关闭 SOCKS5/HTTP 监听器释放端口
 - 测试：移植 10 个 x-tunnel 测试文件 + 新增 backend/params/生命周期（端口释放）/ech UDP fallback/UDP DNS 测试；全量 `go test ./... -count=3`、vet、gofmt、diff --check 通过；gobind 验证绑定面不变
+
+## 2026-08-04 阶段 4：共享模块优化（代码完成，待提交 + CI 验证）
+
+- golib 重组为三层结构：`shared/`（config/dns/ech/logger/routing/socks5）、`gcm/`（backend/pool/protocol/relay）、`xtunnel/`（不变）；全量 import 重写（git mv 保留历史）
+- 14 个包 `go test ./... -count=3`、vet、gofmt、diff --check、gobind 全部通过
+- 决策：`shared/socks5` 的 UDP associate 融合延后——`gcm/protocol` 无 UDP 消息类型，需 GCM 服务端协议扩展（客户端不可独立完成）；x-tunnel 的 UDP 能力保留在 xtunnel 内部

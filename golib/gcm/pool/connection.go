@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"xclient/config"
-	"xclient/logger"
-	"xclient/protocol"
-	"xclient/relay"
+	"xclient/gcm/protocol"
+	"xclient/gcm/relay"
+	"xclient/shared/config"
+	"xclient/shared/logger"
 )
 
 // EchManagerInterface ECH 管理器接口

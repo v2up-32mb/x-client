@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"xclient/config"
-	"xclient/dns"
-	"xclient/logger"
+	"xclient/shared/config"
+	"xclient/shared/dns"
+	"xclient/shared/logger"
 )
 
 // RelayNode 中转节点

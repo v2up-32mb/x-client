@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"xclient/config"
+	"xclient/shared/config"
 )
 
 const (

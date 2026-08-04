@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"xclient/gcm"
-	"xclient/logger"
-	"xclient/routing"
+	"xclient/shared/logger"
+	"xclient/shared/routing"
 	"xclient/xtunnel"
 )
 
