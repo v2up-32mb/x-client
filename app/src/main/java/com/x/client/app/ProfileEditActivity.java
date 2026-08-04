@@ -45,6 +45,9 @@ public class ProfileEditActivity extends AppCompatActivity {
     private EditText edittext_fallback_ip;
     private CheckBox checkbox_disable_ech;
     private CheckBox checkbox_disable_ipv6_route;
+    private EditText edittext_ws_conn;
+    private CheckBox checkbox_enable_dynamic_pool;
+    private EditText edittext_dynamic_pool_max;
 
     // X-Tunnel 字段
     private EditText edittext_xt_server_addr;
@@ -88,6 +91,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_fallback_ip = findViewById(R.id.fallback_ip);
         checkbox_disable_ech = findViewById(R.id.disable_ech);
         checkbox_disable_ipv6_route = findViewById(R.id.disable_ipv6_route);
+        edittext_ws_conn = findViewById(R.id.ws_conn);
+        checkbox_enable_dynamic_pool = findViewById(R.id.enable_dynamic_pool);
+        edittext_dynamic_pool_max = findViewById(R.id.dynamic_pool_max);
 
         edittext_xt_server_addr = findViewById(R.id.xt_server_addr);
         edittext_xt_token = findViewById(R.id.xt_token);
@@ -170,6 +176,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_fallback_ip.setText(prefs.getFallbackIp());
         checkbox_disable_ech.setChecked(prefs.getDisableEch());
         checkbox_disable_ipv6_route.setChecked(prefs.getDisableIpv6Route());
+        edittext_ws_conn.setText(String.valueOf(prefs.getWsConn()));
+        checkbox_enable_dynamic_pool.setChecked(prefs.getEnableDynamicPool());
+        edittext_dynamic_pool_max.setText(String.valueOf(prefs.getDynamicPoolMax()));
 
         // 加载 X-Tunnel 参数
         edittext_xt_server_addr.setText(prefs.getXtServerAddr());
@@ -196,6 +205,9 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_fallback_ip.setEnabled(false);
             checkbox_disable_ech.setEnabled(false);
             checkbox_disable_ipv6_route.setEnabled(false);
+            edittext_ws_conn.setEnabled(false);
+            checkbox_enable_dynamic_pool.setEnabled(false);
+            edittext_dynamic_pool_max.setEnabled(false);
             edittext_xt_server_addr.setEnabled(false);
             edittext_xt_token.setEnabled(false);
             edittext_xt_relay_nodes.setEnabled(false);
@@ -254,6 +266,38 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
+        // 解析 GCM 连接池参数（仅 GCM 协议使用）
+        int wsConn = Preferences.DEFAULT_WS_CONN;
+        if (Preferences.PROTOCOL_GCM.equals(protocol)) {
+            String wsConnText = edittext_ws_conn.getText().toString().trim();
+            try {
+                wsConn = wsConnText.isEmpty() ? Preferences.DEFAULT_WS_CONN : Integer.parseInt(wsConnText);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "WebSocket 连接数格式错误", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (wsConn < 1 || wsConn > Preferences.MAX_DYNAMIC_POOL_LIMIT) {
+                Toast.makeText(this, "WebSocket 连接数必须在 1-" + Preferences.MAX_DYNAMIC_POOL_LIMIT + " 之间", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+        int dynamicPoolMax = Preferences.DEFAULT_DYNAMIC_POOL_MAX;
+        if (Preferences.PROTOCOL_GCM.equals(protocol)) {
+            String limitText = edittext_dynamic_pool_max.getText().toString().trim();
+            try {
+                dynamicPoolMax = limitText.isEmpty() ? Preferences.DEFAULT_DYNAMIC_POOL_MAX : Integer.parseInt(limitText);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "动态扩容上限格式错误", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (dynamicPoolMax > Preferences.MAX_DYNAMIC_POOL_LIMIT
+                    || (checkbox_enable_dynamic_pool.isChecked() && dynamicPoolMax < wsConn)) {
+                Toast.makeText(this, "启用动态扩容时，上限必须在 WebSocket 连接数和 "
+                        + Preferences.MAX_DYNAMIC_POOL_LIMIT + " 之间", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+
         // 解析连接数（X-Tunnel）
         int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
         String xtConnectionsText = edittext_xt_connections.getText().toString().trim();
@@ -283,6 +327,12 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setFallbackIp(edittext_fallback_ip.getText().toString().trim());
         prefs.setDisableEch(checkbox_disable_ech.isChecked());
         prefs.setDisableIpv6Route(checkbox_disable_ipv6_route.isChecked());
+        if (Preferences.PROTOCOL_GCM.equals(protocol)) {
+            // 连接池参数仅在 GCM 协议下写入，避免切换协议时覆写该配置的 GCM 值
+            prefs.setWsConn(wsConn);
+            prefs.setEnableDynamicPool(checkbox_enable_dynamic_pool.isChecked());
+            prefs.setDynamicPoolMax(dynamicPoolMax);
+        }
 
         // 保存 X-Tunnel 参数
         prefs.setXtServerAddr(edittext_xt_server_addr.getText().toString().trim());

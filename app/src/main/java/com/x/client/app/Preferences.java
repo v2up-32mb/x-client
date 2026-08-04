@@ -363,16 +363,17 @@ public class Preferences
                 editor.commit();
         }
 
-        // GCM tunnel: WebSocket 连接数
+        // GCM tunnel: WebSocket 连接数（per-profile；未设置时回退旧全局值）
         public int getWsConn() {
-                int count = prefs.getInt(WS_CONN, DEFAULT_WS_CONN);
+                int count = prefs.getInt(getKey(WS_CONN), -1);
+                if (count < 0) {
+                        count = prefs.getInt(WS_CONN, DEFAULT_WS_CONN);
+                }
                 return Math.max(1, Math.min(count, MAX_DYNAMIC_POOL_LIMIT));
         }
 
         public void setWsConn(int n) {
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putInt(WS_CONN, Math.max(1, Math.min(n, MAX_DYNAMIC_POOL_LIMIT)));
-                editor.commit();
+                prefs.edit().putInt(getKey(WS_CONN), Math.max(1, Math.min(n, MAX_DYNAMIC_POOL_LIMIT))).apply();
         }
 
         // 出口代理 IP
@@ -430,22 +431,26 @@ public class Preferences
                 editor.commit();
         }
 
-        // 连接池动态扩容（全局设置，默认关闭）
+        // 连接池动态扩容（per-profile；未设置时回退旧全局值，默认关闭）
         public boolean getEnableDynamicPool() {
-                return prefs.getBoolean(ENABLE_DYNAMIC_POOL, false);
+                return prefs.getBoolean(getKey(ENABLE_DYNAMIC_POOL),
+                        prefs.getBoolean(ENABLE_DYNAMIC_POOL, false));
         }
 
         public void setEnableDynamicPool(boolean enable) {
-                prefs.edit().putBoolean(ENABLE_DYNAMIC_POOL, enable).apply();
+                prefs.edit().putBoolean(getKey(ENABLE_DYNAMIC_POOL), enable).apply();
         }
 
         public int getDynamicPoolMax() {
-                int limit = prefs.getInt(DYNAMIC_POOL_MAX, DEFAULT_DYNAMIC_POOL_MAX);
+                int limit = prefs.getInt(getKey(DYNAMIC_POOL_MAX), -1);
+                if (limit < 0) {
+                        limit = prefs.getInt(DYNAMIC_POOL_MAX, DEFAULT_DYNAMIC_POOL_MAX);
+                }
                 return Math.max(1, Math.min(limit, MAX_DYNAMIC_POOL_LIMIT));
         }
 
         public void setDynamicPoolMax(int limit) {
-                prefs.edit().putInt(DYNAMIC_POOL_MAX,
+                prefs.edit().putInt(getKey(DYNAMIC_POOL_MAX),
                         Math.max(1, Math.min(limit, MAX_DYNAMIC_POOL_LIMIT))).apply();
         }
 
@@ -547,7 +552,11 @@ public class Preferences
                 java.util.Set<String> ids = getProfileIds();
                 java.util.List<ProfileInfo> profiles = new java.util.ArrayList<>();
                 for (String id : ids) {
-                        profiles.add(new ProfileInfo(id, getProfileName(id), getWorkerHostForProfile(id)));
+                        String protocol = prefs.getString(PROTOCOL + "_" + id, PROTOCOL_GCM);
+                        if (protocol == null || protocol.trim().isEmpty()) {
+                                protocol = PROTOCOL_GCM;
+                        }
+                        profiles.add(new ProfileInfo(id, getProfileName(id), getWorkerHostForProfile(id), protocol));
                 }
                 // 按名称排序
                 java.util.Collections.sort(profiles, new java.util.Comparator<ProfileInfo>() {
@@ -564,10 +573,12 @@ public class Preferences
                 public String id;
                 public String name;
                 public String serverAddr;
+                public String protocol;
 
-                public ProfileInfo(String id, String name, String wssAddr) {
+                public ProfileInfo(String id, String name, String wssAddr, String protocol) {
                         this.id = id;
                         this.name = name;
+                        this.protocol = protocol;
                         // 提取服务器地址（移除 wss:// 前缀和路径）
                         if (wssAddr != null && wssAddr.startsWith("wss://")) {
                                 wssAddr = wssAddr.substring(6);

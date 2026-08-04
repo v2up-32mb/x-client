@@ -83,3 +83,12 @@
 - **问题 1**：`invalid params JSON: json: cannot unmarshal number into Go value of type string`——Android JSONObject.put 输出无引号数字/布尔。修复：`golib/android.go` `parseParamsJSON` 改为解析 `map[string]interface{}`，标量统一转字符串（float64→FormatFloat、bool→FormatBool、nil→空），数组/对象报错；新增 `TestParseParamsJSONScalarTypes`
 - **问题 2**：x-tunnel 编辑页删除「ECH 查询域名」「DoH 服务器」设置项，TProxyService 组装参数时复用全局 `getEchDomain()/getEchDns()`（与 GCM 一致）；Preferences 删除 XT_ECH_DOMAIN/XT_DNS_SERVER
 - **问题 3**：x-tunnel ECH 文案统一为 GCM 的「禁用 ECH（标准 TLS 1.3）」（@string/disable_ech），checkbox 默认未选中 = 默认启用 ECH；存储语义改为 `XtDisableEch`（默认 false），导出 URI `ech=0` 表示禁用、导入 `ech=0/false/no` 置禁用；旧 URI 的 domain/dns 参数忽略（兼容）
+
+## 2026-08-04 真机反馈第二轮修复（6 项）
+
+1. VPN 运行时禁止在列表页切换配置（onProfileClick 增加 getEnable() 守卫 + Toast）
+2. xtunnel 分享 URI 服务器地址为空：export 分支改用 `getXtServerAddr()`（worker_host 对 xtunnel 为空）
+3. 配置文件列表右下角显示协议标签（ProfileInfo 增加 protocol 字段，item_profile_swipe 增加 text_protocol）
+4. 启动/停止按钮下移 5dp（activity_profile_list btn_start marginBottom 24→19dp）
+5. 全局设置页标题「GCM 全局网络设置」→「全局网络设置」
+6. WebSocket 连接数 / 启用连接池动态扩容 / 动态扩容连接上限：从全局设置移入 GCM 协议配置页（Preferences 改 per-profile 存储 + 旧全局值回退；ProfileEditActivity 新增三字段与校验；保存仅在 GCM 协议分支写入避免覆写）

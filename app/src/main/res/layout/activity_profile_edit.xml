@@ -104,6 +104,35 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/disable_ipv6_route"/>
+
+            <TextView android:text="@string/ws_conn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="12dp"/>
+            <EditText android:id="@+id/ws_conn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="3"
+                android:inputType="number"
+                android:singleLine="true"/>
+
+            <CheckBox android:id="@+id/enable_dynamic_pool"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/enable_dynamic_pool"/>
+
+            <TextView android:text="@string/dynamic_pool_max"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="12dp"/>
+            <EditText android:id="@+id/dynamic_pool_max"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="16"
+                android:inputType="number"
+                android:singleLine="true"/>
         </LinearLayout>
 
         <!-- ==================== X-Tunnel 协议字段 ==================== -->
