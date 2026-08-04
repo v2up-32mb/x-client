@@ -52,11 +52,15 @@ WebSocket 连接：`wss://<workerHost>/<userID>?fallbackip=<出口IP列表>`
 
 ## 配置导出/导入 URI
 
-支持 `gcm://` 和 `ech://`（兼容）导入导出：
+支持 `gcm://`、`ech://`（兼容）和 `xtunnel://` 导入导出：
 
 ```
 gcm://<workerHost>?ip=<优选中转IP:端口>&fip=<出口代理IP>&user_id=<用户ID>&dns=<DoH服务器>&domain=<ECH查询域名>&disable_ech=1#<配置名称>
+xtunnel://<serverAddr>?token=<Token>&relay_nodes=<节点,逗号分隔>&connections=<连接数>&ech=0|1&domain=<ECH域名>&dns=<DoH服务器>&insecure=1&hotpair=1#<配置名称>
 ```
+
+Profile 编辑页按协议显示字段：GCM（WorkerHost/PrefIp/UserId/FallbackIp/DisableEch/DisableIpv6Route）与
+X-Tunnel（ServerAddr wss:///Token/RelayNodes/Connections/EnableECH/ECHDomain/DNSServer/Insecure/HotPair）。
 
 ## Go 入口 API（gomobile AAR）
 

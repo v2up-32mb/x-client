@@ -44,14 +44,14 @@
 - [x] 验证：全套 Go 测试通过（14 包，-count=3）、vet、gofmt、diff --check、gobind
 - [ ] `shared/socks5` UDP associate：**延后**——GCM wire 协议（gcm/protocol）无 UDP 消息类型，移植 UDP 需 GCM 服务端协议扩展（超出客户端范围）；x-tunnel 的 SOCKS5+UDP 已在 xtunnel 内部集成
 
-### 阶段 5：Android UI 适配
-- [ ] `Preferences.java`：新增 `Protocol` 字段（已完成：`PROTOCOL`/`getProtocol`/`setProtocol`，默认 gcm）
-- [ ] `ProfileEditActivity.java`：新增协议选择 Spinner；根据选择显示/隐藏对应参数字段
-- [ ] GCM Profile 显示：WorkerHost, UserId, PrefIp, FallbackIp, EchDomain, EchDns, DisableEch
-- [ ] x-tunnel Profile 显示：ServerAddr (wss://), Token, RelayNodes, Connections, EnableECH, ECHDomain, DNSServer, Insecure, EnableHotPair
-- [ ] `TProxyService.java`：根据 Protocol 字段组装 params 并调用 `Xclient.startSocksProxy(listenAddr, protocol, paramsJSON, verbose)`（已完成，待 CI 验证）
-- [ ] URI 导入/导出：`gcm://` 保持兼容，新增 `xtunnel://` 格式
-- [ ] 验证：CI 构建通过
+### 阶段 5：Android UI 适配（代码已完成，待提交 + CI 验证）
+- [x] `Preferences.java`：`Protocol` 字段 + 9 个 X-Tunnel per-profile 参数（ServerAddr/Token/RelayNodes/Connections/EnableECH/ECHDomain/DNSServer/Insecure/HotPair）；列表页地址回退显示
+- [x] `ProfileEditActivity.java`：协议选择 Spinner（GCM/X-Tunnel）按协议显示/隐藏字段组；按协议校验必填（gcm→worker_host，xtunnel→wss:// server_addr）；保存保留两套字段
+- [x] GCM Profile 显示：WorkerHost, PrefIp, UserId, FallbackIp, DisableEch, DisableIpv6Route
+- [x] x-tunnel Profile 显示：ServerAddr (wss://), Token, RelayNodes, Connections, EnableECH, ECHDomain, DNSServer, Insecure, EnableHotPair
+- [x] `TProxyService.java`：按 Protocol 分支组装 paramsJSON（GCM 键 / xtunnel 键与 Go 侧一致）
+- [x] URI 导入/导出：`gcm://`/`ech://` 保持兼容，新增 `xtunnel://`（token/relay_nodes/connections/ech/domain/dns/insecure/hotpair）
+- [ ] 验证：CI 构建通过（Java 编译只能靠 Actions）
 
 ### 阶段 6：CI/CD 适配
 - [ ] `build-debug.yml`：gomobile bind 输出名适配（已在阶段 1 完成，run 30886749438 已验证）

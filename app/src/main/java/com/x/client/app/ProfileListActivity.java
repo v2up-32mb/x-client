@@ -462,7 +462,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String originalId = prefs.getCurrentProfileId();
         prefs.setCurrentProfileId(profileId);
 
-        // 生成 ech 协议字符串
+        // 生成协议字符串
+        String protocolValue = prefs.getProtocol();
+
         String wssAddr = prefs.getWorkerHost();
         // 移除 wss:// 前缀（如果存在）
         if (wssAddr.startsWith("wss://")) {
@@ -473,8 +475,68 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String userId = prefs.getUserID();
         boolean disableEch = prefs.getDisableEch();
 
+        // X-Tunnel 配置：读取协议参数
+        String xtToken = prefs.getXtToken();
+        String xtRelayNodes = prefs.getXtRelayNodes();
+        int xtConnections = prefs.getXtConnections();
+        boolean xtEnableEch = prefs.getXtEnableEch();
+        String xtEchDomain = prefs.getXtEchDomain();
+        String xtDnsServer = prefs.getXtDnsServer();
+        boolean xtInsecure = prefs.getXtInsecure();
+        boolean xtEnableHotPair = prefs.getXtEnableHotPair();
+
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
+
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
+            // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/domain/dns/insecure/hotpair
+            StringBuilder xtQuery = new StringBuilder();
+            if (!xtToken.isEmpty()) {
+                xtQuery.append("token=").append(xtToken);
+            }
+            if (!xtRelayNodes.isEmpty()) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("relay_nodes=").append(xtRelayNodes);
+            }
+            if (xtConnections != Preferences.DEFAULT_XT_CONNECTIONS) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("connections=").append(xtConnections);
+            }
+            if (!xtEnableEch) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("ech=0");
+            }
+            if (!xtEchDomain.isEmpty() && !xtEchDomain.equals("cloudflare-ech.com")) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("domain=").append(xtEchDomain);
+            }
+            if (!xtDnsServer.isEmpty() && !xtDnsServer.equals("https://doh.pub/dns-query")) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("dns=").append(xtDnsServer);
+            }
+            if (xtInsecure) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("insecure=1");
+            }
+            if (xtEnableHotPair) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("hotpair=1");
+            }
+            String xtProtocol = "xtunnel://" + wssAddr;
+            if (xtQuery.length() > 0) {
+                xtProtocol += "?" + xtQuery.toString();
+            }
+            // 添加配置名称作为 fragment
+            String xtName = prefs.getProfileName(profileId);
+            try {
+                xtName = java.net.URLEncoder.encode(xtName, "UTF-8");
+            } catch (java.io.UnsupportedEncodingException e) {
+                // 忽略，使用原始名称
+            }
+            xtProtocol += "#" + xtName;
+            showExportDialog(xtProtocol);
+            return;
+        }
 
         // 构建配置级查询参数：ip= 优选中转节点，fip= 出口代理 IP，user_id= 用户标识。
         StringBuilder query = new StringBuilder();
@@ -625,17 +687,17 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     }
 
     private void importFromProtocol(String protocol) {
-        // 解析协议字符串
-        if (!protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
+        // 解析协议字符串：支持 gcm://、ech://（兼容）和 xtunnel://
+        boolean isXtunnel = protocol.startsWith("xtunnel://");
+        if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
             Toast.makeText(this, "无效的协议格式", Toast.LENGTH_SHORT).show();
             return;
         }
-        // 同时支持 gcm:// 和 ech:// 两种前缀（兼容导入）
         String rest;
-        if (protocol.startsWith("gcm://")) {
-            rest = protocol.substring(6); // "gcm://" 之后
+        if (isXtunnel) {
+            rest = protocol.substring(9); // "xtunnel://" 之后
         } else {
-            rest = protocol.substring(6); // "ech://" 之后
+            rest = protocol.substring(6); // "gcm://" / "ech://" 之后
         }
         // 分离 fragment
         String fragment = "";
@@ -664,6 +726,14 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String fallbackIp = "";
         String userId = "";
         boolean disableEch = false;
+        String xtToken = "";
+        String xtRelayNodes = "";
+        int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
+        boolean xtEnableEch = true;
+        String xtEchDomain = "";
+        String xtDnsServer = "";
+        boolean xtInsecure = false;
+        boolean xtEnableHotPair = false;
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -689,6 +759,30 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         case "user_id":
                             userId = value;
                             break;
+                        case "relay_nodes":
+                            xtRelayNodes = value;
+                            break;
+                        case "connections":
+                            try {
+                                xtConnections = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            break;
+                        case "ech":
+                            xtEnableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "domain":
+                            xtEchDomain = value;
+                            break;
+                        case "dns":
+                            xtDnsServer = value;
+                            break;
+                        case "insecure":
+                            xtInsecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "hotpair":
+                            xtEnableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
                     }
                 }
             }
@@ -707,13 +801,20 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 使用这些参数创建新配置
         String newId = UUID.randomUUID().toString();
         // 询问用户配置名称
-        showImportNameDialog(newId, defaultName, wssAddr, prefIp, fallbackIp, userId, disableEch);
+        showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
+                wssAddr, prefIp, fallbackIp, userId, disableEch,
+                xtToken, xtRelayNodes, xtConnections, xtEnableEch, xtEchDomain, xtDnsServer, xtInsecure, xtEnableHotPair);
     }
 
     private void showImportNameDialog(final String id, final String defaultName,
+                                      final String protocol,
                                       final String wssAddr, final String prefIp,
                                       final String fallbackIp, final String userId,
-                                      final boolean disableEch) {
+                                      final boolean disableEch,
+                                      final String xtToken, final String xtRelayNodes,
+                                      final int xtConnections, final boolean xtEnableEch,
+                                      final String xtEchDomain, final String xtDnsServer,
+                                      final boolean xtInsecure, final boolean xtEnableHotPair) {
         final EditText input = new EditText(this);
         input.setText(defaultName);
         new AlertDialog.Builder(this)
@@ -736,12 +837,25 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                     String originalId = prefs.getCurrentProfileId();
                     prefs.setCurrentProfileId(id);
 
-                    // 设置参数
-                    prefs.setWorkerHost(wssAddr);
-                    prefs.setPrefIp(prefIp);
-                    if (!fallbackIp.isEmpty()) prefs.setFallbackIp(fallbackIp);
-                    prefs.setUserID(userId);
-                    prefs.setDisableEch(disableEch);
+                    // 设置协议与参数
+                    prefs.setProtocol(protocol);
+                    if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+                        prefs.setXtServerAddr(wssAddr);
+                        prefs.setXtToken(xtToken);
+                        prefs.setXtRelayNodes(xtRelayNodes);
+                        prefs.setXtConnections(xtConnections);
+                        prefs.setXtEnableEch(xtEnableEch);
+                        prefs.setXtEchDomain(xtEchDomain);
+                        prefs.setXtDnsServer(xtDnsServer);
+                        prefs.setXtInsecure(xtInsecure);
+                        prefs.setXtEnableHotPair(xtEnableHotPair);
+                    } else {
+                        prefs.setWorkerHost(wssAddr);
+                        prefs.setPrefIp(prefIp);
+                        if (!fallbackIp.isEmpty()) prefs.setFallbackIp(fallbackIp);
+                        prefs.setUserID(userId);
+                        prefs.setDisableEch(disableEch);
+                    }
 
                     // 恢复原配置
                     prefs.setCurrentProfileId(originalId);
