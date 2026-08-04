@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"gcm/dns"
-	"gcm/logger"
+	"xclient/dns"
+	"xclient/logger"
 )
 
 // cacheEntry ECH 缓存条目

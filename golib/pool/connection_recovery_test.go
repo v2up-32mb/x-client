@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
 	"github.com/gorilla/websocket"
+	"xclient/config"
+	"xclient/logger"
 )
 
 func TestRetireConnectionRemovesDeadActiveConnection(t *testing.T) {

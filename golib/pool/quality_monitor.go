@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
-	"gcm/relay"
+	"xclient/config"
+	"xclient/logger"
+	"xclient/relay"
 )
 
 // ConnectionQualityMonitor 连接质量监控器

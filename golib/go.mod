@@ -1,4 +1,4 @@
-module gcm
+module xclient
 
 go 1.23
 

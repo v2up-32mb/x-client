@@ -1,4 +1,4 @@
-package gcm
+package xclient
 
 import "testing"
 

@@ -1,8 +1,8 @@
-package com.gcm.client.app;
+package com.x.client.app;
 
 import android.app.Application;
 
-public class GcmApplication extends Application {
+public class XclientApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();

@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
+	"xclient/config"
+	"xclient/logger"
 )
 
 // CacheEntry 缓存条目

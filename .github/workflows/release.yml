@@ -53,31 +53,31 @@ jobs:
       run: |
           git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
     
-    # 条件编译gcm.aar
-    - name: Check for gcm.aar
-      id: check-gcm-aar
+    # 条件编译xclient.aar
+    - name: Check for xclient.aar
+      id: check-xclient-aar
       run: |
-        if [ -f "app/libs/gcm.aar" ]; then
-          echo "gcm_aar_exists=true" >> $GITHUB_OUTPUT
+        if [ -f "app/libs/xclient.aar" ]; then
+          echo "xclient_aar_exists=true" >> $GITHUB_OUTPUT
         else
-          echo "gcm_aar_exists=false" >> $GITHUB_OUTPUT
+          echo "xclient_aar_exists=false" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Go
-      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 
-    - name: Install gomobile and Build gcm.aar
-      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+    - name: Install gomobile and Build xclient.aar
+      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       run: |
         go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
         cd golib
         mkdir -p ../app/libs
         go get golang.org/x/mobile/bind
-        gomobile bind -target=android -androidapi=24 -o ../app/libs/gcm.aar
+        gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
         cd ..
 
     # 条件生成 Gradle Wrapper
@@ -140,8 +140,8 @@ jobs:
           for file in "${files[@]}"; do
             # 规则 1：-unsigned-signed → -signed
             new_name="${file/-unsigned-signed/-signed}"
-            # 规则 2：app- → gcm-client-
-            new_name="${new_name/#app-/gcm-client-}"
+            # 规则 2：app- → x-client-
+            new_name="${new_name/#app-/x-client-}"
             mv "$file" "$new_name" && echo "Renamed: $file -> $new_name"
           done
         else
@@ -152,7 +152,7 @@ jobs:
       id: release_notes
       run: |
         # 设置应用名称
-        APP_NAME="GCM Client"
+        APP_NAME="X Client"
         TAG_NAME=${{ github.ref_name }}
 
         # 获取上一个 tag

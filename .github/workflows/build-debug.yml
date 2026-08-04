@@ -3,6 +3,8 @@ name: Build Debug
 on:
   push:
     branches:
+      - 'main'
+      - 'develop'
       - 'feat/*'
       - 'fix/*'
       - 'repair/*'
@@ -38,31 +40,31 @@ jobs:
       run: |
           git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
     
-    # 条件编译gcm.aar
-    - name: Check for gcm.aar
-      id: check-gcm-aar
+    # 条件编译xclient.aar
+    - name: Check for xclient.aar
+      id: check-xclient-aar
       run: |
-        if [ -f "app/libs/gcm.aar" ]; then
-          echo "gcm_aar_exists=true" >> $GITHUB_OUTPUT
+        if [ -f "app/libs/xclient.aar" ]; then
+          echo "xclient_aar_exists=true" >> $GITHUB_OUTPUT
         else
-          echo "gcm_aar_exists=false" >> $GITHUB_OUTPUT
+          echo "xclient_aar_exists=false" >> $GITHUB_OUTPUT
         fi
 
     - name: Setup Go
-      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       uses: actions/setup-go@v6
       with:
         go-version: '1.25'
 
-    - name: Install gomobile and Build gcm.aar
-      if: steps.check-gcm-aar.outputs.gcm_aar_exists == 'false'
+    - name: Install gomobile and Build xclient.aar
+      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       run: |
         go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
         cd golib
         mkdir -p ../app/libs
         go get golang.org/x/mobile/bind
-        gomobile bind -target=android -androidapi=24 -o ../app/libs/gcm.aar
+        gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
         cd ..
 
     # 条件生成 Gradle Wrapper

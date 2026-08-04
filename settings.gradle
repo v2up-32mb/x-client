@@ -1,2 +1,2 @@
-rootProject.name = "gcmclient"
+rootProject.name = "xclient"
 include(":app")

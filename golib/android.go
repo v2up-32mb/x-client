@@ -1,4 +1,4 @@
-package gcm
+package xclient
 
 import (
 	"fmt"
@@ -6,14 +6,14 @@ import (
 	"strings"
 	"sync"
 
-	"gcm/config"
-	"gcm/dns"
-	"gcm/ech"
-	"gcm/logger"
-	"gcm/pool"
-	"gcm/relay"
-	"gcm/routing"
-	"gcm/socks5"
+	"xclient/config"
+	"xclient/dns"
+	"xclient/ech"
+	"xclient/logger"
+	"xclient/pool"
+	"xclient/relay"
+	"xclient/routing"
+	"xclient/socks5"
 )
 
 var (

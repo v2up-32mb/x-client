@@ -6,7 +6,7 @@
  ============================================================================
  */
 
-package com.gcm.client.app;
+package com.x.client.app;
 
 import android.os.Bundle;
 import com.journeyapps.barcodescanner.CaptureActivity;
