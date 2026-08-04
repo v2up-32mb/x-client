@@ -80,6 +80,10 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         // 设置服务器地址
         holder.textServerAddr.setText(profile.serverAddr);
 
+        // 设置协议类型标签（右下角）
+        String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "X-Tunnel" : "GCM";
+        holder.textProtocol.setText(protocolLabel);
+
         // 配置滑动行为（始终允许滑动，分享功能在 VPN 运行时也可用）
         // 注意：编辑/删除按钮在 VPN 运行时会禁用，见下方按钮点击事件
 
@@ -183,6 +187,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         RadioButton radioSelected;
         TextView textProfileName;
         TextView textServerAddr;
+        TextView textProtocol;
         ImageButton btnShare;
         ImageButton btnEdit;
         ImageButton btnDelete;
@@ -194,6 +199,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             radioSelected = itemView.findViewById(R.id.radio_selected);
             textProfileName = itemView.findViewById(R.id.text_profile_name);
             textServerAddr = itemView.findViewById(R.id.text_server_addr);
+            textProtocol = itemView.findViewById(R.id.text_protocol);
             btnShare = itemView.findViewById(R.id.btn_share);
             btnEdit = itemView.findViewById(R.id.btn_edit);
             btnDelete = itemView.findViewById(R.id.btn_delete);

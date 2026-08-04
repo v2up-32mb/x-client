@@ -340,6 +340,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 只在配置真正改变时才刷新列表
         String currentId = prefs.getCurrentProfileId();
         if (profileId == null || !profileId.equals(currentId)) {
+            if (prefs.getEnable()) {
+                // VPN 运行中禁止切换配置（当前 VPN 绑定的是原配置）
+                Toast.makeText(this, "VPN 正在运行，无法切换配置", Toast.LENGTH_LONG).show();
+                return;
+            }
             prefs.setCurrentProfileId(profileId);
             // 延迟刷新，让关闭动画先完成（250ms）
             recyclerView.postDelayed(() -> refreshProfileList(), 250);
@@ -487,7 +492,14 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         prefs.setCurrentProfileId(originalId);
 
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
-            // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/domain/dns/insecure/hotpair
+            // X-Tunnel 的服务器地址存在 XtServerAddr（worker_host 为空）
+            String xtServerAddr = prefs.getXtServerAddr();
+            if (xtServerAddr.startsWith("wss://")) {
+                xtServerAddr = xtServerAddr.substring(6);
+            } else if (xtServerAddr.startsWith("ws://")) {
+                xtServerAddr = xtServerAddr.substring(5);
+            }
+            // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/insecure/hotpair
             StringBuilder xtQuery = new StringBuilder();
             if (!xtToken.isEmpty()) {
                 xtQuery.append("token=").append(xtToken);
@@ -513,7 +525,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                 if (xtQuery.length() > 0) xtQuery.append("&");
                 xtQuery.append("hotpair=1");
             }
-            String xtProtocol = "xtunnel://" + wssAddr;
+            String xtProtocol = "xtunnel://" + xtServerAddr;
             if (xtQuery.length() > 0) {
                 xtProtocol += "?" + xtQuery.toString();
             }

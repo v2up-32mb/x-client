@@ -56,6 +56,18 @@
 
         </LinearLayout>
 
+        <!-- 协议类型标签（右下角） -->
+        <TextView
+            android:id="@+id/text_protocol"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginStart="4dp"
+            android:layout_marginBottom="2dp"
+            android:textSize="10sp"
+            android:textColor="@color/secondary_text"
+            android:text="GCM"/>
+
     </LinearLayout>
 
     <!-- 分界线 -->
