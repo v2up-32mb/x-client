@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"encoding/binary"
 	"net"
 	"strings"
 	"testing"
@@ -103,5 +104,59 @@ func TestSystemDNSFallback(t *testing.T) {
 	}
 	if net.ParseIP(ips[0]) == nil {
 		t.Errorf("not an IP: %s", ips[0])
+	}
+}
+
+func TestResolveHTTPSUDP(t *testing.T) {
+	// 本地 UDP DNS 服务器：回应 HTTPS(65) 记录（ECH key=5）
+	pc, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatalf("listen udp failed: %v", err)
+	}
+	defer pc.Close()
+
+	go func() {
+		buf := make([]byte, 2048)
+		for {
+			n, addr, err := pc.ReadFromUDP(buf)
+			if err != nil {
+				return
+			}
+			query := buf[:n]
+			id := binary.BigEndian.Uint16(query[0:2])
+
+			// 手工构造响应（dnsmessage.Builder 的 UnknownResource 会把 TYPE
+			// 覆盖为 0，无法表达 HTTPS(65) 记录）：问题段回显 + 一条 HTTPS answer
+			qname := []byte{3, 'e', 'c', 'h', 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0}
+			var resp []byte
+			resp = binary.BigEndian.AppendUint16(resp, id)
+			resp = append(resp, 0x81, 0x80)               // QR=1 RD=1 RA=1
+			resp = binary.BigEndian.AppendUint16(resp, 1) // qdcount
+			resp = binary.BigEndian.AppendUint16(resp, 1) // ancount
+			resp = binary.BigEndian.AppendUint16(resp, 0)
+			resp = binary.BigEndian.AppendUint16(resp, 0)
+			resp = append(resp, qname...)
+			resp = binary.BigEndian.AppendUint16(resp, 65) // HTTPS
+			resp = binary.BigEndian.AppendUint16(resp, 1)  // IN
+			resp = append(resp, 0xC0, 0x0C)                // 回答名：指针指向问题名
+			resp = binary.BigEndian.AppendUint16(resp, 65)
+			resp = binary.BigEndian.AppendUint16(resp, 1)
+			resp = binary.BigEndian.AppendUint32(resp, 300)
+			// rdata: priority=1, target=".", ech(5)=0xAABB
+			rdata := []byte{0x00, 0x01, 0x00, 0x00, 0x05, 0x00, 0x02, 0xAA, 0xBB}
+			resp = binary.BigEndian.AppendUint16(resp, uint16(len(rdata)))
+			resp = append(resp, rdata...)
+			_, _ = pc.WriteToUDP(resp, addr)
+		}
+	}()
+
+	d := NewDoHClient(config.DefaultConfig())
+	ech, err := d.ResolveHTTPSUDP("ech.example.com", pc.LocalAddr().String())
+	if err != nil {
+		t.Fatalf("ResolveHTTPSUDP() error = %v", err)
+	}
+	want := []byte{0xAA, 0xBB}
+	if len(ech) != len(want) || ech[0] != want[0] || ech[1] != want[1] {
+		t.Fatalf("ECH = %v, want %v", ech, want)
 	}
 }

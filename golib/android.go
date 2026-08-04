@@ -9,6 +9,7 @@ import (
 	"xclient/gcm"
 	"xclient/logger"
 	"xclient/routing"
+	"xclient/xtunnel"
 )
 
 // ProxyBackend 代理后端接口，每种协议实现此接口。
@@ -83,7 +84,7 @@ func newBackend(protocol string) (ProxyBackend, error) {
 	case "", ProtocolGCM:
 		return gcm.NewBackend(), nil
 	case ProtocolXTunnel:
-		return nil, fmt.Errorf("protocol %q is not implemented yet", ProtocolXTunnel)
+		return xtunnel.NewBackend(), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol %q", protocol)
 	}

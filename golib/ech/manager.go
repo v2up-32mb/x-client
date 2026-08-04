@@ -10,6 +10,9 @@ import (
 	"xclient/logger"
 )
 
+// defaultUDPDNSServer 是 DoH 查询失败时的 UDP DNS 回退服务器（移植自 x-tunnel）。
+const defaultUDPDNSServer = "8.8.8.8:53"
+
 // cacheEntry ECH 缓存条目
 type cacheEntry struct {
 	echConfig []byte    // ECH 配置字节
@@ -22,6 +25,7 @@ type EchManager struct {
 	cache           map[string]*cacheEntry
 	echDomain       string                       // ECH 查询域名
 	dohFunc         func(string) ([]byte, error) // DoH 查询函数
+	udpFunc         func(string) ([]byte, error) // UDP DNS 回退查询函数（可注入便于测试）
 	cacheTTL        time.Duration                // 缓存 TTL
 	refreshInterval time.Duration                // 定时刷新间隔
 	stopChan        chan struct{}                // 停止信号
@@ -42,17 +46,31 @@ func NewEchManager(dohClient *dns.DoHClient, echDomain string, cacheTTL time.Dur
 		refreshInterval = 12 * time.Hour // 默认 12 小时
 	}
 
-	return &EchManager{
-		cache:     make(map[string]*cacheEntry),
-		echDomain: echDomain,
-		dohFunc: func(domain string) ([]byte, error) {
-			return dohClient.GetECHConfig(domain)
-		},
+	m := &EchManager{
+		cache:           make(map[string]*cacheEntry),
+		echDomain:       echDomain,
 		cacheTTL:        cacheTTL,
 		refreshInterval: refreshInterval,
 		stopChan:        make(chan struct{}),
 		log:             logger.GetLogger("ECH"),
 	}
+	// DoH 优先（内部多服务器 fallback），失败后回退 UDP DNS（x-tunnel 能力）。
+	m.dohFunc = func(domain string) ([]byte, error) {
+		cfg, err := dohClient.GetECHConfig(domain)
+		if err == nil {
+			return cfg, nil
+		}
+		if m.udpFunc != nil {
+			if cfg2, err2 := m.udpFunc(domain); err2 == nil {
+				return cfg2, nil
+			}
+		}
+		return nil, err
+	}
+	m.udpFunc = func(domain string) ([]byte, error) {
+		return dohClient.ResolveHTTPSUDP(domain, defaultUDPDNSServer)
+	}
+	return m
 }
 
 // GetTlsConfig 获取 TLS 配置

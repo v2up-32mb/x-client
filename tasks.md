@@ -22,15 +22,17 @@
 - [x] Android 侧 `TProxyService.java` 改为从 Preferences 读取 Protocol 字段并组装 paramsJSON
 - [x] 验证：Go 测试通过（已完成），Android 能编译（CI run 30887891590 通过）
 
-### 阶段 3：集成 x-tunnel 协议后端
-- [ ] 从 x-tunnel main (`9ee779a`) 复制 `client/pkg/` → `golib/xtunnel/`
-- [ ] 从 x-tunnel 复制 `common/` → `golib/xtunnel/protocol/`
-- [ ] 将 x-tunnel 的 `log` 包替换为 `xclient/logger`
-- [ ] 将 x-tunnel 的 ECH 管理器替换为共享的 `shared/ech`（补充 UDP DNS fallback）
-- [ ] 编写 `xtunnel/backend.go` 实现 `ProxyBackend` 接口
-- [ ] 适配 x-tunnel 的 `Config` 为 params key-value 形式
-- [ ] 将 x-tunnel 的 RelayNodeManager 提取到 `xtunnel/relay/`，融合 gcm 的负载均衡能力
-- [ ] 验证：x-tunnel 后端独立 Go 测试通过
+### 阶段 3：集成 x-tunnel 协议后端（代码已完成，待提交 + CI 验证）
+- [x] 从 x-tunnel main (`9ee779a`) 复制 `client/pkg/` → `golib/xtunnel/`（Go 1.25.5，不降级）
+- [x] 从 x-tunnel 复制 `common/` → `golib/xtunnel/protocol/`
+- [x] 将 x-tunnel 的 `log` 包替换为 `xclient/logger`（XTunnel / XTunnelRelay scope）
+- [x] 将 x-tunnel 的 ECH 管理器替换为共享 `xclient/ech`：`dns.ResolveHTTPSUDP` 新增 UDP DNS 查询（type 65），ech 管理器 DoH→UDP→标准 TLS 三级回退（含测试）
+- [x] 编写 `xtunnel/backend.go` 实现 `ProxyBackend`；`StartSocksProxy` 的 `xtunnel` 分发已接通（android.go）
+- [x] 适配 x-tunnel 的 `Config` 为 params key-value 形式（server_addr/token/connections/client_id/relay_nodes/enable_ech/ech_domain/dns_server/insecure/enable_hot_pair）
+- [x] 将 RelayNodeManager 提取到 `xtunnel/relay/`，融合 gcm 加权负载均衡（candidateWeight = 评分 × 负载因子，Acquire/Release 活跃计数，SelectNodeExcluding 加权随机）
+- [x] 修复 x-tunnel 上游缺陷：SOCKS5/HTTP 无可用通道时返回标准失败应答（上游两个对应测试同样失败）；监听器在 Shutdown 时关闭释放端口（Android 重启必需）
+- [x] 验证：xtunnel/protocol/relay 全量测试通过（含移植测试）；`go test ./... -count=3`、vet、gofmt、diff --check 全过
+- [ ] 提交推送后确认 CI 构建与 4 ABI APK
 
 ### 阶段 4：共享模块优化
 - [ ] `shared/ech`：融合 gcm 的 DoH 多服务器 fallback + x-tunnel 的 UDP DNS fallback

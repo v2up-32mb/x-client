@@ -336,6 +336,97 @@ func (d *DoHClient) resolveRFC8484(ctx context.Context, dohURL string, domain st
 	return "", fmt.Errorf("no answer found")
 }
 
+// ResolveHTTPSUDP 通过 UDP DNS 服务器查询 HTTPS 记录（type 65），
+// 返回 ECH 配置字节。dnsServer 形如 "8.8.8.8:53"。
+// 该路径是 DoH 查询失败时的回退（移植自 x-tunnel 的 ECHManager）。
+func (d *DoHClient) ResolveHTTPSUDP(domain, dnsServer string) ([]byte, error) {
+	if strings.TrimSpace(dnsServer) == "" {
+		dnsServer = "8.8.8.8:53"
+	}
+	name, err := dnsmessage.NewName(domain + ".")
+	if err != nil {
+		return nil, fmt.Errorf("invalid domain name: %w", err)
+	}
+
+	b := dnsmessage.NewBuilder(nil, dnsmessage.Header{
+		ID:                 uint16(time.Now().UnixNano() & 0xffff),
+		Response:           false,
+		OpCode:             0,
+		RecursionDesired:   true,
+		RecursionAvailable: false,
+		RCode:              dnsmessage.RCodeSuccess,
+	})
+	b.EnableCompression()
+	if err := b.StartQuestions(); err != nil {
+		return nil, err
+	}
+	if err := b.Question(dnsmessage.Question{
+		Name:  name,
+		Type:  dnsmessage.Type(65), // HTTPS
+		Class: dnsmessage.ClassINET,
+	}); err != nil {
+		return nil, err
+	}
+	query, err := b.Finish()
+	if err != nil {
+		return nil, err
+	}
+
+	conn, err := net.DialTimeout("udp", dnsServer, 5*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("UDP DNS 连接失败: %w", err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+
+	if _, err := conn.Write(query); err != nil {
+		return nil, fmt.Errorf("UDP DNS 发送失败: %w", err)
+	}
+
+	buf := make([]byte, 4096)
+	n, err := conn.Read(buf)
+	if err != nil {
+		return nil, fmt.Errorf("UDP DNS 读取失败: %w", err)
+	}
+
+	var parser dnsmessage.Parser
+	if _, err := parser.Start(buf[:n]); err != nil {
+		return nil, fmt.Errorf("parse dns response header failed: %w", err)
+	}
+	if err := parser.SkipAllQuestions(); err != nil {
+		return nil, err
+	}
+	for {
+		h, err := parser.AnswerHeader()
+		if err == dnsmessage.ErrSectionDone {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parse answer failed: %w", err)
+		}
+		if h.Type == dnsmessage.Type(65) {
+			r, err := parser.UnknownResource()
+			if err != nil {
+				return nil, fmt.Errorf("parse HTTPS resource failed: %w", err)
+			}
+			hexStr := hex.EncodeToString(r.Data)
+			record, err := parseHTTPSRecordWire(fmt.Sprintf("\\# %d %s", len(r.Data), hexStr))
+			if err != nil {
+				return nil, fmt.Errorf("parse HTTPS wire record failed: %w", err)
+			}
+			if len(record.ECH) == 0 {
+				return nil, fmt.Errorf("HTTPS 记录中未找到 ECH 配置")
+			}
+			d.log.Debug("UDP DNS 获取 %s 的 ECH 配置 (长度: %d 字节)", domain, len(record.ECH))
+			return record.ECH, nil
+		}
+		if err := parser.SkipAnswer(); err != nil {
+			return nil, err
+		}
+	}
+	return nil, fmt.Errorf("UDP DNS 响应中未找到 HTTPS 记录")
+}
+
 // ResolveA 解析 A 记录 (IPv4)
 func (d *DoHClient) ResolveA(domain string) (string, error) {
 	return d.Resolve(domain, "A")
