@@ -61,6 +61,17 @@ public class Preferences
         public static final String PROTOCOL = "Protocol";
         public static final String PROTOCOL_GCM = "gcm";
         public static final String PROTOCOL_X_TUNNEL = "xtunnel";
+        // X-Tunnel 协议参数
+        public static final String XT_SERVER_ADDR = "XtServerAddr";
+        public static final String XT_TOKEN = "XtToken";
+        public static final String XT_RELAY_NODES = "XtRelayNodes";
+        public static final String XT_CONNECTIONS = "XtConnections";
+        public static final String XT_ENABLE_ECH = "XtEnableEch";
+        public static final String XT_ECH_DOMAIN = "XtEchDomain";
+        public static final String XT_DNS_SERVER = "XtDnsServer";
+        public static final String XT_INSECURE = "XtInsecure";
+        public static final String XT_ENABLE_HOT_PAIR = "XtEnableHotPair";
+        public static final int DEFAULT_XT_CONNECTIONS = 3;
         
         // Profile Management
         public static final String CURRENT_PROFILE_ID = "CurrentProfileId";
@@ -464,11 +475,74 @@ public class Preferences
                 prefs.edit().putString(getKey(PROTOCOL), protocol).apply();
         }
 
+        // ======================== X-Tunnel 协议参数（per-profile） ========================
+
+        public String getXtServerAddr() { return prefs.getString(getKey(XT_SERVER_ADDR), ""); }
+
+        public void setXtServerAddr(String v) {
+                prefs.edit().putString(getKey(XT_SERVER_ADDR), v).apply();
+        }
+
+        public String getXtToken() { return prefs.getString(getKey(XT_TOKEN), ""); }
+
+        public void setXtToken(String v) {
+                prefs.edit().putString(getKey(XT_TOKEN), v).apply();
+        }
+
+        public String getXtRelayNodes() { return prefs.getString(getKey(XT_RELAY_NODES), ""); }
+
+        public void setXtRelayNodes(String v) {
+                prefs.edit().putString(getKey(XT_RELAY_NODES), v).apply();
+        }
+
+        public int getXtConnections() {
+                return Math.max(1, Math.min(prefs.getInt(getKey(XT_CONNECTIONS), DEFAULT_XT_CONNECTIONS), 16));
+        }
+
+        public void setXtConnections(int n) {
+                prefs.edit().putInt(getKey(XT_CONNECTIONS), Math.max(1, Math.min(n, 16))).apply();
+        }
+
+        public boolean getXtEnableEch() { return prefs.getBoolean(getKey(XT_ENABLE_ECH), true); }
+
+        public void setXtEnableEch(boolean enable) {
+                prefs.edit().putBoolean(getKey(XT_ENABLE_ECH), enable).apply();
+        }
+
+        public String getXtEchDomain() { return prefs.getString(getKey(XT_ECH_DOMAIN), "cloudflare-ech.com"); }
+
+        public void setXtEchDomain(String v) {
+                prefs.edit().putString(getKey(XT_ECH_DOMAIN), v).apply();
+        }
+
+        public String getXtDnsServer() { return prefs.getString(getKey(XT_DNS_SERVER), "https://doh.pub/dns-query"); }
+
+        public void setXtDnsServer(String v) {
+                prefs.edit().putString(getKey(XT_DNS_SERVER), v).apply();
+        }
+
+        public boolean getXtInsecure() { return prefs.getBoolean(getKey(XT_INSECURE), false); }
+
+        public void setXtInsecure(boolean insecure) {
+                prefs.edit().putBoolean(getKey(XT_INSECURE), insecure).apply();
+        }
+
+        public boolean getXtEnableHotPair() { return prefs.getBoolean(getKey(XT_ENABLE_HOT_PAIR), false); }
+
+        public void setXtEnableHotPair(boolean enable) {
+                prefs.edit().putBoolean(getKey(XT_ENABLE_HOT_PAIR), enable).apply();
+        }
+
         // ======================== 辅助方法（用于配置列表页） ========================
 
         // 获取指定配置的 Worker 域名（不切换当前配置）
+        // X-Tunnel 配置没有 Worker 字段，回退显示服务器地址。
         public String getWorkerHostForProfile(String profileId) {
-                return prefs.getString(WORKER_HOST + "_" + profileId, "");
+                String workerHost = prefs.getString(WORKER_HOST + "_" + profileId, "");
+                if (workerHost.isEmpty()) {
+                        return prefs.getString(XT_SERVER_ADDR + "_" + profileId, "");
+                }
+                return workerHost;
         }
 
         // 检查配置名称是否已存在（用于验证）

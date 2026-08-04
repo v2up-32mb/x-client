@@ -20,74 +20,191 @@
             android:hint="配置名称"
             android:singleLine="true"/>
 
-        <!-- WSS 服务器地址 -->
-        <TextView android:text="@string/worker_host"
+        <!-- 代理协议 -->
+        <TextView android:text="@string/protocol_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textStyle="bold"
             android:paddingTop="8dp"/>
-        <EditText android:id="@+id/worker_host"
+        <Spinner android:id="@+id/protocol_spinner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <!-- ==================== GCM 协议字段 ==================== -->
+        <LinearLayout
+            android:id="@+id/gcm_fields"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <!-- WSS 服务器地址 -->
+            <TextView android:text="@string/worker_host"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="8dp"/>
+            <EditText android:id="@+id/worker_host"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="wss://example.com"
+                android:singleLine="true"/>
+
+            <!-- 优选 IP -->
+            <TextView android:text="@string/pref_ip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/pref_ip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="1.1.1.1,8.8.8.8"
+                android:singleLine="true"/>
+
+            <!-- 用户 ID -->
+            <TextView android:text="@string/user_id"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/user_id"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="用户ID"
+                android:singleLine="true"/>
+
+            <!-- 出口代理 IP -->
+            <TextView android:text="@string/fallback_ip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/fallback_ip"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="1.1.1.1,8.8.8.8"
+                android:singleLine="true"/>
+
+            <!-- 配置级选项 -->
+            <TextView
+                android:text="配置选项"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:paddingTop="24dp"
+                android:paddingBottom="8dp"/>
+
+            <CheckBox android:id="@+id/disable_ech"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/disable_ech"/>
+
+            <CheckBox android:id="@+id/disable_ipv6_route"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/disable_ipv6_route"/>
+        </LinearLayout>
+
+        <!-- ==================== X-Tunnel 协议字段 ==================== -->
+        <LinearLayout
+            android:id="@+id/xtunnel_fields"
+            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="wss://example.com"
-            android:singleLine="true"/>
+            android:visibility="gone">
 
-        <!-- 优选 IP -->
-        <TextView android:text="@string/pref_ip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-        <EditText android:id="@+id/pref_ip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="1.1.1.1,8.8.8.8"
-            android:singleLine="true"/>
+            <TextView android:text="@string/xt_server_addr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="8dp"/>
+            <EditText android:id="@+id/xt_server_addr"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="wss://tunnel.example.com:8443"
+                android:singleLine="true"/>
 
-        <!-- 用户 ID -->
-        <TextView android:text="@string/user_id"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-        <EditText android:id="@+id/user_id"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="用户ID"
-            android:singleLine="true"/>
+            <TextView android:text="@string/xt_token"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/xt_token"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Token"
+                android:singleLine="true"/>
 
-        <!-- 出口代理 IP -->
-        <TextView android:text="@string/fallback_ip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:paddingTop="16dp"/>
-        <EditText android:id="@+id/fallback_ip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="1.1.1.1,8.8.8.8"
-            android:singleLine="true"/>
+            <TextView android:text="@string/xt_relay_nodes"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/xt_relay_nodes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="relay1.example.com:443,relay2.example.com"
+                android:singleLine="true"/>
 
-        <!-- 配置级选项 -->
-        <TextView
-            android:text="配置选项"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:paddingTop="24dp"
-            android:paddingBottom="8dp"/>
+            <TextView android:text="@string/xt_connections"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/xt_connections"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="3"
+                android:inputType="number"
+                android:singleLine="true"/>
 
+            <TextView
+                android:text="配置选项"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:paddingTop="24dp"
+                android:paddingBottom="8dp"/>
 
-        <CheckBox android:id="@+id/disable_ech"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/disable_ech"/>
+            <CheckBox android:id="@+id/xt_enable_ech"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/xt_enable_ech"/>
 
-        <CheckBox android:id="@+id/disable_ipv6_route"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/disable_ipv6_route"/>
+            <TextView android:text="@string/xt_ech_domain"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/xt_ech_domain"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="cloudflare-ech.com"
+                android:singleLine="true"/>
+
+            <TextView android:text="@string/xt_dns_server"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:paddingTop="16dp"/>
+            <EditText android:id="@+id/xt_dns_server"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="https://doh.pub/dns-query"
+                android:singleLine="true"/>
+
+            <CheckBox android:id="@+id/xt_insecure"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/xt_insecure"/>
+
+            <CheckBox android:id="@+id/xt_enable_hot_pair"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/xt_enable_hot_pair"/>
+        </LinearLayout>
 
         <!-- 导入按钮 -->
         <Button android:id="@+id/btn_import"

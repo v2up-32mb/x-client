@@ -9,4 +9,16 @@
 	<string name="save">Сохранить</string>
 	<string name="control_enable">Включить</string>
 	<string name="control_disable">Отключить</string>
+	<string name="protocol_label">Протокол:</string>
+	<string name="protocol_gcm">GCM</string>
+	<string name="protocol_x_tunnel">X-Tunnel</string>
+	<string name="xt_server_addr">Адрес сервера (wss://):</string>
+	<string name="xt_token">Токен:</string>
+	<string name="xt_relay_nodes">Relay-узлы (через запятую):</string>
+	<string name="xt_connections">Соединений:</string>
+	<string name="xt_enable_ech">Включить ECH</string>
+	<string name="xt_ech_domain">Домен ECH:</string>
+	<string name="xt_dns_server">DoH-сервер:</string>
+	<string name="xt_insecure">Пропустить проверку сертификата</string>
+	<string name="xt_enable_hot_pair">Hot Pair (тёплая пара каналов)</string>
 </resources>

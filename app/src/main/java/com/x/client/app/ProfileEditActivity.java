@@ -11,9 +11,13 @@ package com.x.client.app;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.journeyapps.barcodescanner.ScanOptions;
@@ -28,6 +32,12 @@ public class ProfileEditActivity extends AppCompatActivity {
     private boolean isNewProfile = false;
     private boolean hasBeenSaved = false;
 
+    // 协议选择
+    private Spinner spinner_protocol;
+    private LinearLayout gcm_fields;
+    private LinearLayout xtunnel_fields;
+
+    // GCM 字段
     private EditText edittext_profile_name;
     private EditText edittext_worker_host;
     private EditText edittext_pref_ip;
@@ -35,6 +45,18 @@ public class ProfileEditActivity extends AppCompatActivity {
     private EditText edittext_fallback_ip;
     private CheckBox checkbox_disable_ech;
     private CheckBox checkbox_disable_ipv6_route;
+
+    // X-Tunnel 字段
+    private EditText edittext_xt_server_addr;
+    private EditText edittext_xt_token;
+    private EditText edittext_xt_relay_nodes;
+    private EditText edittext_xt_connections;
+    private CheckBox checkbox_xt_enable_ech;
+    private EditText edittext_xt_ech_domain;
+    private EditText edittext_xt_dns_server;
+    private CheckBox checkbox_xt_insecure;
+    private CheckBox checkbox_xt_enable_hot_pair;
+
     private Button btn_import;
     private Button btn_save;
 
@@ -57,6 +79,10 @@ public class ProfileEditActivity extends AppCompatActivity {
         setTitle("编辑配置: " + prefs.getProfileName(profileId));
 
         // 初始化控件
+        spinner_protocol = findViewById(R.id.protocol_spinner);
+        gcm_fields = findViewById(R.id.gcm_fields);
+        xtunnel_fields = findViewById(R.id.xtunnel_fields);
+
         edittext_profile_name = findViewById(R.id.profile_name);
         edittext_worker_host = findViewById(R.id.worker_host);
         edittext_pref_ip = findViewById(R.id.pref_ip);
@@ -64,8 +90,36 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_fallback_ip = findViewById(R.id.fallback_ip);
         checkbox_disable_ech = findViewById(R.id.disable_ech);
         checkbox_disable_ipv6_route = findViewById(R.id.disable_ipv6_route);
+
+        edittext_xt_server_addr = findViewById(R.id.xt_server_addr);
+        edittext_xt_token = findViewById(R.id.xt_token);
+        edittext_xt_relay_nodes = findViewById(R.id.xt_relay_nodes);
+        edittext_xt_connections = findViewById(R.id.xt_connections);
+        checkbox_xt_enable_ech = findViewById(R.id.xt_enable_ech);
+        edittext_xt_ech_domain = findViewById(R.id.xt_ech_domain);
+        edittext_xt_dns_server = findViewById(R.id.xt_dns_server);
+        checkbox_xt_insecure = findViewById(R.id.xt_insecure);
+        checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
+
         btn_import = findViewById(R.id.btn_import);
         btn_save = findViewById(R.id.btn_save);
+
+        // 协议选择器
+        ArrayAdapter<String> protocolAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,
+                new String[]{getString(R.string.protocol_gcm), getString(R.string.protocol_x_tunnel)});
+        protocolAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner_protocol.setAdapter(protocolAdapter);
+        spinner_protocol.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
+                updateFieldVisibility(position == 1 ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM);
+            }
+
+            @Override
+            public void onNothingSelected(android.widget.AdapterView<?> parent) {
+            }
+        });
 
         // 加载配置数据
         loadProfileData();
@@ -83,6 +137,25 @@ public class ProfileEditActivity extends AppCompatActivity {
         });
     }
 
+    private void updateFieldVisibility(String protocol) {
+        boolean isXtunnel = Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
+        gcm_fields.setVisibility(isXtunnel ? View.GONE : View.VISIBLE);
+        xtunnel_fields.setVisibility(isXtunnel ? View.VISIBLE : View.GONE);
+    }
+
+    private void setProtocolSelection(String protocol) {
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            spinner_protocol.setSelection(1);
+        } else {
+            spinner_protocol.setSelection(0);
+        }
+    }
+
+    private String getSelectedProtocol() {
+        return spinner_protocol.getSelectedItemPosition() == 1
+                ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM;
+    }
+
     private void loadProfileData() {
         // 临时切换到目标配置以读取数据
         String originalId = prefs.getCurrentProfileId();
@@ -91,6 +164,9 @@ public class ProfileEditActivity extends AppCompatActivity {
         // 加载配置名称
         edittext_profile_name.setText(prefs.getProfileName(profileId));
 
+        // 加载协议
+        setProtocolSelection(prefs.getProtocol());
+
         // 加载配置级参数
         edittext_worker_host.setText(prefs.getWorkerHost());
         edittext_pref_ip.setText(prefs.getPrefIp());
@@ -98,6 +174,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_fallback_ip.setText(prefs.getFallbackIp());
         checkbox_disable_ech.setChecked(prefs.getDisableEch());
         checkbox_disable_ipv6_route.setChecked(prefs.getDisableIpv6Route());
+
+        // 加载 X-Tunnel 参数
+        edittext_xt_server_addr.setText(prefs.getXtServerAddr());
+        edittext_xt_token.setText(prefs.getXtToken());
+        edittext_xt_relay_nodes.setText(prefs.getXtRelayNodes());
+        edittext_xt_connections.setText(String.valueOf(prefs.getXtConnections()));
+        checkbox_xt_enable_ech.setChecked(prefs.getXtEnableEch());
+        edittext_xt_ech_domain.setText(prefs.getXtEchDomain());
+        edittext_xt_dns_server.setText(prefs.getXtDnsServer());
+        checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
+        checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
@@ -115,6 +202,16 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_fallback_ip.setEnabled(false);
             checkbox_disable_ech.setEnabled(false);
             checkbox_disable_ipv6_route.setEnabled(false);
+            edittext_xt_server_addr.setEnabled(false);
+            edittext_xt_token.setEnabled(false);
+            edittext_xt_relay_nodes.setEnabled(false);
+            edittext_xt_connections.setEnabled(false);
+            checkbox_xt_enable_ech.setEnabled(false);
+            edittext_xt_ech_domain.setEnabled(false);
+            edittext_xt_dns_server.setEnabled(false);
+            checkbox_xt_insecure.setEnabled(false);
+            checkbox_xt_enable_hot_pair.setEnabled(false);
+            spinner_protocol.setEnabled(false);
             btn_save.setEnabled(false);
 
             Toast.makeText(this, "VPN 正在运行，无法修改当前配置", Toast.LENGTH_LONG).show();
@@ -144,11 +241,37 @@ public class ProfileEditActivity extends AppCompatActivity {
             return false;
         }
 
-        // 验证 WSS 地址不为空
-        String workerHost = edittext_worker_host.getText().toString().trim();
-        if (workerHost.isEmpty()) {
-            Toast.makeText(this, "服务器地址不能为空", Toast.LENGTH_SHORT).show();
-            return false;
+        String protocol = getSelectedProtocol();
+
+        // 按协议验证必填字段
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            String serverAddr = edittext_xt_server_addr.getText().toString().trim();
+            if (serverAddr.isEmpty()) {
+                Toast.makeText(this, "服务器地址不能为空", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (!serverAddr.startsWith("wss://") && !serverAddr.startsWith("ws://")) {
+                Toast.makeText(this, "服务器地址必须以 wss:// 或 ws:// 开头", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        } else {
+            String workerHost = edittext_worker_host.getText().toString().trim();
+            if (workerHost.isEmpty()) {
+                Toast.makeText(this, "服务器地址不能为空", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+
+        // 解析连接数（X-Tunnel）
+        int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
+        String xtConnectionsText = edittext_xt_connections.getText().toString().trim();
+        if (!xtConnectionsText.isEmpty()) {
+            try {
+                xtConnections = Integer.parseInt(xtConnectionsText);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "连接数必须是数字", Toast.LENGTH_SHORT).show();
+                return false;
+            }
         }
 
         // 临时切换到目标配置以保存数据
@@ -158,14 +281,27 @@ public class ProfileEditActivity extends AppCompatActivity {
         // 保存配置名称
         prefs.setProfileName(profileId, profileName);
 
-        // 保存配置级参数
-        prefs.setWorkerHost(workerHost);
+        // 保存协议
+        prefs.setProtocol(protocol);
+
+        // 保存 GCM 配置级参数（保留，切换协议时不丢失）
+        prefs.setWorkerHost(edittext_worker_host.getText().toString().trim());
         prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
         prefs.setUserID(edittext_user_id.getText().toString().trim());
         prefs.setFallbackIp(edittext_fallback_ip.getText().toString().trim());
-
         prefs.setDisableEch(checkbox_disable_ech.isChecked());
         prefs.setDisableIpv6Route(checkbox_disable_ipv6_route.isChecked());
+
+        // 保存 X-Tunnel 参数
+        prefs.setXtServerAddr(edittext_xt_server_addr.getText().toString().trim());
+        prefs.setXtToken(edittext_xt_token.getText().toString().trim());
+        prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
+        prefs.setXtConnections(xtConnections);
+        prefs.setXtEnableEch(checkbox_xt_enable_ech.isChecked());
+        prefs.setXtEchDomain(edittext_xt_ech_domain.getText().toString().trim());
+        prefs.setXtDnsServer(edittext_xt_dns_server.getText().toString().trim());
+        prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
+        prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
@@ -193,7 +329,7 @@ public class ProfileEditActivity extends AppCompatActivity {
 
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
-        input.setHint("gcm://server.com?ip=1.1.1.1:443&fip=2.2.2.2&user_id=v2up#Name");
+        input.setHint("gcm://server.com?ip=1.1.1.1:443&fip=2.2.2.2&user_id=v2up#Name\nxtunnel://server:8443?token=t&relay=r1.com:443#Name");
         new AlertDialog.Builder(this)
                 .setTitle("导入配置")
                 .setView(input)
@@ -238,12 +374,14 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private void importFromProtocol(String protocol) {
-        // 支持 gcm:// 和 ech:// 前缀
-        if (!protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
+        // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
+        boolean isXtunnel = protocol.startsWith("xtunnel://");
+        if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
             Toast.makeText(this, "无效的协议格式", Toast.LENGTH_SHORT).show();
             return;
         }
-        String rest = protocol.substring(6); // 去掉 scheme 前缀
+        int schemeLen = isXtunnel ? 9 : 6;
+        String rest = protocol.substring(schemeLen); // 去掉 scheme 前缀
         // 分离 fragment
         String fragment = "";
         int hash = rest.indexOf('#');
@@ -261,15 +399,22 @@ public class ProfileEditActivity extends AppCompatActivity {
             wssAddr = rest;
         }
         // 确保 wss:// 前缀
-        if (!wssAddr.startsWith("wss://")) {
+        if (!wssAddr.startsWith("wss://") && !wssAddr.startsWith("ws://")) {
             wssAddr = "wss://" + wssAddr;
         }
 
-        // 解析配置级参数：ip= 优选中转节点，fip= 出口代理 IP，user_id= 用户标识。
-        // 旧文档中的 dns/domain 参数不再写入 profile，继续保持全局设置。
+        // 解析查询参数
         String prefIp = "";
         String fallbackIp = "";
         String userId = "";
+        String token = "";
+        String relayNodes = "";
+        int connections = Preferences.DEFAULT_XT_CONNECTIONS;
+        boolean enableEch = true;
+        boolean insecure = false;
+        boolean enableHotPair = false;
+        String echDomain = "";
+        String dnsServer = "";
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -288,7 +433,32 @@ public class ProfileEditActivity extends AppCompatActivity {
                             break;
                         case "token":
                         case "user_id":
+                            token = value;
                             userId = value;
+                            break;
+                        case "relay_nodes":
+                            relayNodes = value;
+                            break;
+                        case "connections":
+                            try {
+                                connections = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            break;
+                        case "ech":
+                            enableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "domain":
+                            echDomain = value;
+                            break;
+                        case "dns":
+                            dnsServer = value;
+                            break;
+                        case "insecure":
+                            insecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            break;
+                        case "hotpair":
+                            enableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
                             break;
                     }
                 }
@@ -305,16 +475,31 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
-        // 更新当前配置的字段
-        edittext_worker_host.setText(wssAddr);
-        if (!prefIp.isEmpty()) {
-            edittext_pref_ip.setText(prefIp);
-        }
-        if (!fallbackIp.isEmpty()) {
-            edittext_fallback_ip.setText(fallbackIp);
-        }
-        if (!userId.isEmpty()) {
-            edittext_user_id.setText(userId);
+        if (isXtunnel) {
+            // X-Tunnel 配置
+            setProtocolSelection(Preferences.PROTOCOL_X_TUNNEL);
+            edittext_xt_server_addr.setText(wssAddr);
+            if (!token.isEmpty()) edittext_xt_token.setText(token);
+            if (!relayNodes.isEmpty()) edittext_xt_relay_nodes.setText(relayNodes);
+            edittext_xt_connections.setText(String.valueOf(connections));
+            checkbox_xt_enable_ech.setChecked(enableEch);
+            if (!echDomain.isEmpty()) edittext_xt_ech_domain.setText(echDomain);
+            if (!dnsServer.isEmpty()) edittext_xt_dns_server.setText(dnsServer);
+            checkbox_xt_insecure.setChecked(insecure);
+            checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
+        } else {
+            // GCM 配置
+            setProtocolSelection(Preferences.PROTOCOL_GCM);
+            edittext_worker_host.setText(wssAddr);
+            if (!prefIp.isEmpty()) {
+                edittext_pref_ip.setText(prefIp);
+            }
+            if (!fallbackIp.isEmpty()) {
+                edittext_fallback_ip.setText(fallbackIp);
+            }
+            if (!userId.isEmpty()) {
+                edittext_user_id.setText(userId);
+            }
         }
         if (!profileName.isEmpty()) {
             edittext_profile_name.setText(profileName);

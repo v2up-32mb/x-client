@@ -69,3 +69,11 @@
 - golib 重组为三层结构：`shared/`（config/dns/ech/logger/routing/socks5）、`gcm/`（backend/pool/protocol/relay）、`xtunnel/`（不变）；全量 import 重写（git mv 保留历史）
 - 14 个包 `go test ./... -count=3`、vet、gofmt、diff --check、gobind 全部通过
 - 决策：`shared/socks5` 的 UDP associate 融合延后——`gcm/protocol` 无 UDP 消息类型，需 GCM 服务端协议扩展（客户端不可独立完成）；x-tunnel 的 UDP 能力保留在 xtunnel 内部
+
+## 2026-08-04 阶段 5：Android UI 适配（代码完成，待提交 + CI 验证）
+
+- ProfileEditActivity：协议 Spinner（GCM/X-Tunnel）切换显示两组字段；按协议校验必填；两套参数均持久化（切换不丢）
+- Preferences：9 个 X-Tunnel per-profile 参数存取；列表页地址显示回退到 xtunnel server_addr
+- TProxyService：按 Protocol 分支组装 paramsJSON（键与 Go 侧一致：server_addr/token/connections/relay_nodes/enable_ech/ech_domain/dns_server/insecure/enable_hot_pair）
+- URI：`xtunnel://` 导入导出（token/relay_nodes/connections/ech/domain/dns/insecure/hotpair），`gcm://`/`ech://` 兼容
+- strings.xml（中/俄）新增协议与 X-Tunnel 字段文案

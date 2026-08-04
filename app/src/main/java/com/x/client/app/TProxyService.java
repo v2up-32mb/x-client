@@ -268,6 +268,23 @@ public class TProxyService extends VpnService {
             protocol = Preferences.PROTOCOL_GCM;
         }
 
+        JSONObject params;
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            params = buildXtunnelParams(prefs);
+        } else {
+            protocol = Preferences.PROTOCOL_GCM;
+            params = buildGCMParams(prefs);
+        }
+
+        Xclient.startSocksProxy(
+                prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
+                protocol,
+                params.toString(),
+                true
+        );
+    }
+
+    private JSONObject buildGCMParams(Preferences prefs) throws Exception {
         String workerHost = prefs.getWorkerHost().trim();
         if (workerHost.startsWith("wss://")) {
             workerHost = workerHost.substring(6);
@@ -293,13 +310,21 @@ public class TProxyService extends VpnService {
         params.put("bypass_rules", prefs.getBypassRules());
         params.put("enable_dynamic_pool", prefs.getEnableDynamicPool());
         params.put("dynamic_pool_max", prefs.getDynamicPoolMax());
+        return params;
+    }
 
-        Xclient.startSocksProxy(
-                prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
-                protocol,
-                params.toString(),
-                true
-        );
+    private JSONObject buildXtunnelParams(Preferences prefs) throws Exception {
+        JSONObject params = new JSONObject();
+        params.put("server_addr", prefs.getXtServerAddr());
+        params.put("token", prefs.getXtToken());
+        params.put("connections", prefs.getXtConnections());
+        params.put("relay_nodes", prefs.getXtRelayNodes());
+        params.put("enable_ech", prefs.getXtEnableEch());
+        params.put("ech_domain", prefs.getXtEchDomain());
+        params.put("dns_server", prefs.getXtDnsServer());
+        params.put("insecure", prefs.getXtInsecure());
+        params.put("enable_hot_pair", prefs.getXtEnableHotPair());
+        return params;
     }
 
     private void failStartup(Preferences prefs, Throwable error) {
