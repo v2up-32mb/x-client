@@ -1,91 +1,89 @@
 package xclient
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestBuildConfigMatchesMainParameters(t *testing.T) {
-	cfg, err := buildConfig(
-		"127.0.0.1:1080",
-		"gcm.ics.de5.net",
-		3,
-		"saas.sin.fan",
-		"v2up",
-		"128.199.255.242",
-		"cloudflare-ech.com",
-		"https://doh.pub/dns-query",
-		true,
-		false,
-		true,
-		true,
-		false,
-		16,
-	)
+func TestParseParamsJSON(t *testing.T) {
+	params, err := parseParamsJSON(`{"worker_host":"w.example","ws_conn":"3","enable_ech":"true"}`)
 	if err != nil {
-		t.Fatalf("buildConfig() error = %v", err)
+		t.Fatalf("parseParamsJSON() error = %v", err)
+	}
+	if params["worker_host"] != "w.example" || params["ws_conn"] != "3" || params["enable_ech"] != "true" {
+		t.Fatalf("params = %#v", params)
 	}
 
-	if cfg.ListenAddress != "127.0.0.1:1080" {
-		t.Fatalf("ListenAddress = %q", cfg.ListenAddress)
+	params, err = parseParamsJSON("")
+	if err != nil {
+		t.Fatalf("parseParamsJSON(empty) error = %v", err)
 	}
-	if cfg.WorkerHost != "gcm.ics.de5.net" {
-		t.Fatalf("WorkerHost = %q", cfg.WorkerHost)
+	if len(params) != 0 {
+		t.Fatalf("empty params = %#v", params)
 	}
-	if len(cfg.RelayIPs) != 1 || cfg.RelayIPs[0] != "saas.sin.fan" {
-		t.Fatalf("RelayIPs = %#v", cfg.RelayIPs)
-	}
-	if cfg.UserID != "v2up" || cfg.ProxyIP != "128.199.255.242" {
-		t.Fatalf("UserID = %q, ProxyIP = %q", cfg.UserID, cfg.ProxyIP)
-	}
-	if !cfg.EnableECH || cfg.ECHDomain != "cloudflare-ech.com" {
-		t.Fatalf("EnableECH = %v, ECHDomain = %q", cfg.EnableECH, cfg.ECHDomain)
-	}
-	if !cfg.EnableDoH || cfg.DoHUrl != "https://doh.pub/dns-query" {
-		t.Fatalf("EnableDoH = %v, DoHUrl = %q", cfg.EnableDoH, cfg.DoHUrl)
-	}
-	if !cfg.EnableDNSWarmup {
-		t.Fatal("EnableDNSWarmup = false")
-	}
-	if cfg.MinPoolSize != 3 || cfg.MaxPoolSize != 3 || cfg.EnableDynamicPool {
-		t.Fatalf("pool size = %d..%d", cfg.MinPoolSize, cfg.MaxPoolSize)
+
+	if _, err := parseParamsJSON(`{not json`); err == nil || !strings.Contains(err.Error(), "invalid params JSON") {
+		t.Fatalf("parseParamsJSON(bad) error = %v", err)
 	}
 }
 
-func TestBuildConfigPreservesMainDoHFallback(t *testing.T) {
-	cfg, err := buildConfig("127.0.0.1:1080", "wss://worker.example/", 0, "", "", "", "", "", false, false, false, false, false, 0)
-	if err != nil {
-		t.Fatalf("buildConfig() error = %v", err)
+func TestNewBackendDispatch(t *testing.T) {
+	for _, protocol := range []string{"", "gcm", "GCM", " gcm "} {
+		backend, err := newBackend(protocol)
+		if err != nil {
+			t.Fatalf("newBackend(%q) error = %v", protocol, err)
+		}
+		if backend == nil {
+			t.Fatalf("newBackend(%q) = nil", protocol)
+		}
 	}
-	if cfg.WorkerHost != "worker.example" {
-		t.Fatalf("WorkerHost = %q", cfg.WorkerHost)
+
+	if _, err := newBackend(ProtocolXTunnel); err == nil || !strings.Contains(err.Error(), "not implemented") {
+		t.Fatalf("newBackend(xtunnel) error = %v, want not-implemented", err)
 	}
-	if cfg.DoHUrl != "" {
-		t.Fatalf("DoHUrl = %q, want main fallback sentinel", cfg.DoHUrl)
+	if _, err := newBackend("bogus"); err == nil || !strings.Contains(err.Error(), `unsupported protocol "bogus"`) {
+		t.Fatalf("newBackend(bogus) error = %v", err)
 	}
 }
 
-func TestBuildConfigDynamicPoolSettings(t *testing.T) {
-	cfg, err := buildConfig("127.0.0.1:1080", "worker.example", 3, "", "", "", "", "", false, false, false, false, true, 16)
-	if err != nil {
-		t.Fatalf("buildConfig() error = %v", err)
-	}
-	if !cfg.EnableDynamicPool || cfg.MinPoolSize != 3 || cfg.MaxPoolSize != 16 {
-		t.Fatalf("dynamic pool config = enabled:%v size:%d..%d", cfg.EnableDynamicPool, cfg.MinPoolSize, cfg.MaxPoolSize)
-	}
+func TestStartSocksProxyDispatch(t *testing.T) {
+	t.Cleanup(StopSocksProxy)
 
-	cfg, err = buildConfig("127.0.0.1:1080", "worker.example", 3, "", "", "", "", "", false, false, false, false, true, 1000)
-	if err != nil {
-		t.Fatalf("buildConfig() with oversized limit error = %v", err)
+	// 未知协议：不启动任何后端
+	if err := StartSocksProxy("127.0.0.1:1080", "bogus", "", false); err == nil || !strings.Contains(err.Error(), "unsupported protocol") {
+		t.Fatalf("StartSocksProxy(bogus) error = %v", err)
 	}
-	if cfg.MaxPoolSize != maxAndroidDynamicPoolLimit {
-		t.Fatalf("oversized dynamic pool max = %d, want %d", cfg.MaxPoolSize, maxAndroidDynamicPoolLimit)
+	// 非法 params JSON
+	if err := StartSocksProxy("127.0.0.1:1080", "gcm", `{bad`, false); err == nil || !strings.Contains(err.Error(), "invalid params JSON") {
+		t.Fatalf("StartSocksProxy(bad json) error = %v", err)
 	}
+	// 空协议默认 GCM：缺 worker 时应在启动网络前报错（证明分发到 GCM 后端）
+	if err := StartSocksProxy("127.0.0.1:1080", "", `{}`, false); err == nil || !strings.Contains(err.Error(), "Worker address is required") {
+		t.Fatalf("StartSocksProxy(default gcm) error = %v", err)
+	}
+	// 显式 GCM：非法 bypass 规则在启动网络前报错，证明分发到 GCM 后端
+	badRules := `{"worker_host":"w.example","bypass_rules":"not a valid rule!"}`
+	if err := StartSocksProxy("127.0.0.1:1080", "gcm", badRules, false); err == nil || !strings.Contains(err.Error(), "invalid bypass rules") {
+		t.Fatalf("StartSocksProxy(gcm) error = %v", err)
+	}
+	// 失败的启动不得留下 active backend，重试不受影响
+	if err := StartSocksProxy("127.0.0.1:1080", "gcm", badRules, false); err == nil {
+		t.Fatal("StartSocksProxy retry after failure error = nil")
+	}
+}
 
-	cfg, err = buildConfig("127.0.0.1:1080", "worker.example", 3, "", "", "", "", "", false, false, false, false, true, 1)
-	if err != nil {
-		t.Fatalf("buildConfig() with undersized limit error = %v", err)
+func TestStopSocksProxyIdempotent(t *testing.T) {
+	StopSocksProxy()
+	StopSocksProxy() // 不应 panic
+	if activeBackend != nil {
+		t.Fatalf("activeBackend = %#v after StopSocksProxy", activeBackend)
 	}
-	if cfg.MaxPoolSize != cfg.MinPoolSize {
-		t.Fatalf("dynamic pool max %d is below initial min %d", cfg.MaxPoolSize, cfg.MinPoolSize)
-	}
+}
+
+func TestReconnectWithoutBackend(t *testing.T) {
+	Reconnect("test") // 不应 panic
+	NotifyNetworkChanged()
+	Reconnect("")
 }
 
 func TestValidateBypassRules(t *testing.T) {

@@ -2,23 +2,25 @@
 
 ## 当前状态
 
-阶段 1 代码修改已全部完成并暂存（`git add -A`），但**尚未提交和推送**。
-Go 测试/vet/gofmt 全部通过，GitHub Actions 构建尚未触发验证。
+阶段 1 已完成并验证：提交 `d9b0e26` 推送成功，GitHub Actions run `30886749438` 成功，4 ABI APK 全部产出。
+阶段 2 代码修改已完成（Go + Java），待提交推送并等 CI 验证。
 
 ## 下一步
 
 ### 立即执行
-- [ ] 提交阶段 1 的全部改动并推送 `origin/main`，触发 GitHub Actions Debug 构建验证
-- [ ] 检查 Actions 构建结果，确认 4 ABI APK 产出正常
+- [x] 提交阶段 1 的全部改动并推送 `origin/main`，触发 GitHub Actions Debug 构建验证
+- [x] 检查 Actions 构建结果，确认 4 ABI APK 产出正常（run 30886749438，4 个 artifact）
+- [ ] 提交阶段 2 改动并推送，等待 CI 构建通过（Java 侧编译验证只能靠 Actions）
+- [ ] 确认阶段 2 CI 的 4 ABI APK 产出
 
-### 阶段 2：定义 Backend 接口和协议分发
-- [ ] 在 `golib/android.go` 中定义 `ProxyBackend` 接口
-- [ ] 现有 GCM 代码封装为 `gcm/backend.go`（实现 ProxyBackend）
-- [ ] `StartSocksProxy` 签名改为 `(listenAddr, protocol, paramsJSON, verbose)` 形式
-- [ ] 内部根据 protocol 选择对应 Backend 实例
-- [ ] 保持向后兼容：旧版 `gcm://` URI 的 Profile 默认使用 GCM 协议
-- [ ] Android 侧 `TProxyService.java` 改为从 Preferences 读取 Protocol 字段
-- [ ] 验证：Go 测试通过，Android 能编译（CI 验证）
+### 阶段 2：定义 Backend 接口和协议分发（代码已完成）
+- [x] 在 `golib/android.go` 中定义 `ProxyBackend` 接口
+- [x] 现有 GCM 代码封装为 `gcm/backend.go`（实现 ProxyBackend）
+- [x] `StartSocksProxy` 签名改为 `(listenAddr, protocol, paramsJSON, verbose)` 形式
+- [x] 内部根据 protocol 选择对应 Backend 实例
+- [x] 保持向后兼容：空 protocol / 旧 `gcm://` Profile 默认使用 GCM 协议
+- [x] Android 侧 `TProxyService.java` 改为从 Preferences 读取 Protocol 字段并组装 paramsJSON
+- [ ] 验证：Go 测试通过（已完成），Android 能编译（CI 验证中）
 
 ### 阶段 3：集成 x-tunnel 协议后端
 - [ ] 从 x-tunnel main (`9ee779a`) 复制 `client/pkg/` → `golib/xtunnel/`
@@ -40,17 +42,17 @@ Go 测试/vet/gofmt 全部通过，GitHub Actions 构建尚未触发验证。
 - [ ] 验证：全套 Go 测试通过
 
 ### 阶段 5：Android UI 适配
-- [ ] `Preferences.java`：新增 `Protocol` 字段（枚举：GCM / X_TUNNEL）
+- [ ] `Preferences.java`：新增 `Protocol` 字段（已完成：`PROTOCOL`/`getProtocol`/`setProtocol`，默认 gcm）
 - [ ] `ProfileEditActivity.java`：新增协议选择 Spinner；根据选择显示/隐藏对应参数字段
 - [ ] GCM Profile 显示：WorkerHost, UserId, PrefIp, FallbackIp, EchDomain, EchDns, DisableEch
 - [ ] x-tunnel Profile 显示：ServerAddr (wss://), Token, RelayNodes, Connections, EnableECH, ECHDomain, DNSServer, Insecure, EnableHotPair
-- [ ] `TProxyService.java`：根据 Protocol 字段组装 params 并调用 `Xclient.startSocksProxy(listenAddr, protocol, paramsJSON, verbose)`
+- [ ] `TProxyService.java`：根据 Protocol 字段组装 params 并调用 `Xclient.startSocksProxy(listenAddr, protocol, paramsJSON, verbose)`（已完成，待 CI 验证）
 - [ ] URI 导入/导出：`gcm://` 保持兼容，新增 `xtunnel://` 格式
 - [ ] 验证：CI 构建通过
 
 ### 阶段 6：CI/CD 适配
-- [ ] `build-debug.yml`：gomobile bind 输出名适配（已在阶段 1 完成，需验证）
-- [ ] AAR 产物改为 `xclient.aar`（已在阶段 1 完成，需验证）
+- [ ] `build-debug.yml`：gomobile bind 输出名适配（已在阶段 1 完成，run 30886749438 已验证）
+- [ ] AAR 产物改为 `xclient.aar`（已在阶段 1 完成，已验证）
 - [ ] `release.yml`：适配新 applicationId 和 release note（已在阶段 1 完成，需验证）
 
 ### 阶段 7：端到端验证
@@ -65,6 +67,7 @@ Go 测试/vet/gofmt 全部通过，GitHub Actions 构建尚未触发验证。
 ## 注意事项
 
 - 构建验证只能通过 GitHub Actions（无本地 Android 环境）
+- GitHub 直连被 SNI 阻断，git 使用 `http.proxy http://192.168.4.1:7890`（仓库级配置）
 - Go module 版本：当前 `go 1.23`，CI 使用 `go-version: '1.25'`，gomobile bind 需确认兼容
 - x-tunnel 原 module 为 `go 1.25.5`，集成时需降级适配
 - 旧的 x-client 项目已存档为 `/root/projects/x-client.legacy`

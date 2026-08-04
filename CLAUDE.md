@@ -58,6 +58,30 @@ WebSocket 连接：`wss://<workerHost>/<userID>?fallbackip=<出口IP列表>`
 gcm://<workerHost>?ip=<优选中转IP:端口>&fip=<出口代理IP>&user_id=<用户ID>&dns=<DoH服务器>&domain=<ECH查询域名>&disable_ech=1#<配置名称>
 ```
 
+## Go 入口 API（gomobile AAR）
+
+Android 侧统一通过 `xclient.Xclient` 调用：
+
+- `startSocksProxy(listenAddr, protocol, paramsJSON, verbose)` — 按协议启动代理
+  - `protocol`：`"gcm"`（默认，空值向后兼容）或 `"xtunnel"`（阶段 3 实现）
+  - `paramsJSON`：协议参数 JSON 对象（`{"key": "value", ...}`）
+  - `verbose`：调试日志开关
+- `stopSocksProxy()` — 停止当前代理并释放资源
+- `reconnect(reason)` / `notifyNetworkChanged()` — 重连与网络切换
+- `getRuntimeLogs()` / `appendRuntimeLog(scope, message)` — 运行时日志缓冲
+- `validateBypassRules(rules)` — 校验路由绕过规则
+
+GCM 协议参数（TProxyService 组装）：
+
+```
+worker_host, ws_conn, relay_ips, user_id, proxy_ip,
+ech_domain, ech_dns, enable_ech, disable_ipv6_route,
+enable_dns_warmup, bypass_private, bypass_geoip_cn,
+bypass_geosite_cn, bypass_rules, enable_dynamic_pool, dynamic_pool_max
+```
+
+Profile 的 `Protocol` 字段（默认 `gcm`）决定分发目标；`gcm://` URI 导入的旧 Profile 自动沿用 GCM 协议。
+
 ## 开发注意事项
 
 - Go module 名为 `xclient`，gomobile 生成的 AAR 类名前缀为 `xclient.Xclient`

@@ -36,3 +36,17 @@
 
 ### 未提交状态
 - 41 个文件已修改（git add -A 已暂存），未提交未推送
+
+## 2026-08-04 阶段 1 完成：提交推送 + CI 验证通过
+
+- 提交 `d9b0e26`（43 文件：Go module 重命名、Android 包名迁移、CI 适配、progress/tasks 文档），推送 origin/main
+- GitHub Actions Build Debug run `30886749438` 成功（6m33s），4 ABI APK 产出：
+  `app-arm64-v8a-debug` / `app-armeabi-v7a-debug` / `app-x86-debug` / `app-x86_64-debug`
+- 网络说明：本机直连 github.com:443 被 SNI 阻断，git 已配置 `http.proxy http://192.168.4.1:7890`（仓库级）
+
+## 2026-08-04 阶段 2 进行中：ProxyBackend 接口 + 协议分发
+
+### Go 侧（已完成，未提交）
+- `golib/gcm/backend.go`（新包 `xclient/gcm`）：GCM 生命周期封装为 `Backend`，实现 `Start/Stop/Reconnect/NotifyNetworkChanged`；参数解析收敛为 `buildConfig(listenAddr, params, verbose)`，16 个参数字典化（worker_host/ws_conn/relay_ips/user_id/proxy_ip/ech_domain/ech_dns/enable_ech/disable_ipv6_route/enable_dns_warmup/bypass_*/enable_dynamic_pool/dynamic_pool_max）
+- `golib/android.go`：定义 `ProxyBackend` 接口 + `StartSocksProxy(listenAddr, protocol, paramsJSON, verbose)` 分发入口；空 protocol 默认 GCM（向后兼容）；`xtunnel` 返回"未实现"错误；Stop/Reconnect/NotifyNetworkChanged 转发到 activeBackend
+- 测试：`golib/gcm/backend_test.go`（参数全量/默认/错误路径/池设置/Worker 归一化）+ `android_test.go` 重写（JSON 解析/协议分发/幂等停止），全部通过
