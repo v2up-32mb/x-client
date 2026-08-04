@@ -52,3 +52,14 @@
 - 测试：`golib/gcm/backend_test.go`（参数全量/默认/错误路径/池设置/Worker 归一化）+ `android_test.go` 重写（JSON 解析/协议分发/幂等停止），全部通过
 
 - 阶段 2 提交 `a1bf62f` 推送成功，GitHub Actions Build Debug run `30887891590` 成功，4 ABI APK 全部产出（arm64-v8a 9.0MB / armeabi-v7a 9.2MB / x86 9.5MB / x86_64 9.3MB）
+
+## 2026-08-04 阶段 3：集成 x-tunnel 协议后端（代码完成，待提交）
+
+- Go 版本按要求保持 1.25.5：`golib/go.mod` 从 `go 1.23` 升级为 `go 1.25.5`，新增 `google/uuid v1.6.0`，websocket 升到 v1.5.3
+- 拷贝 x-tunnel main (9ee779a) `client/pkg` → `golib/xtunnel/`、`common` → `golib/xtunnel/protocol/`、relay 提取到 `golib/xtunnel/relay/`（约 6000 行含测试）
+- 适配：包名/import 重写、`log` → `xclient/logger`（XTunnel/XTunnelRelay scope）
+- ECH 融合：`dns.ResolveHTTPSUDP`（UDP DNS type 65 查询），共享 ech 管理器 DoH 多服务器 → UDP 8.8.8.8:53 → 标准 TLS 三级回退；x-tunnel 原生 ECHManager 删除
+- `xtunnel/backend.go` 实现 ProxyBackend；android.go 接通 `xtunnel` 分发；参数键值化（10 个键）
+- relay 融合 gcm 负载均衡：`candidateWeight = 评分 × 负载因子`，Acquire/Release 活跃计数，SelectNodeExcluding 加权随机
+- 修复上游缺陷（x-tunnel main 上同样失败）：SOCKS5/HTTP 无通道时标准失败应答；Shutdown 关闭 SOCKS5/HTTP 监听器释放端口
+- 测试：移植 10 个 x-tunnel 测试文件 + 新增 backend/params/生命周期（端口释放）/ech UDP fallback/UDP DNS 测试；全量 `go test ./... -count=3`、vet、gofmt、diff --check 通过；gobind 验证绑定面不变

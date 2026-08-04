@@ -38,8 +38,12 @@ func TestNewBackendDispatch(t *testing.T) {
 		}
 	}
 
-	if _, err := newBackend(ProtocolXTunnel); err == nil || !strings.Contains(err.Error(), "not implemented") {
-		t.Fatalf("newBackend(xtunnel) error = %v, want not-implemented", err)
+	backend, err := newBackend(ProtocolXTunnel)
+	if err != nil {
+		t.Fatalf("newBackend(xtunnel) error = %v", err)
+	}
+	if backend == nil {
+		t.Fatal("newBackend(xtunnel) = nil")
 	}
 	if _, err := newBackend("bogus"); err == nil || !strings.Contains(err.Error(), `unsupported protocol "bogus"`) {
 		t.Fatalf("newBackend(bogus) error = %v", err)
@@ -60,6 +64,10 @@ func TestStartSocksProxyDispatch(t *testing.T) {
 	// 空协议默认 GCM：缺 worker 时应在启动网络前报错（证明分发到 GCM 后端）
 	if err := StartSocksProxy("127.0.0.1:1080", "", `{}`, false); err == nil || !strings.Contains(err.Error(), "Worker address is required") {
 		t.Fatalf("StartSocksProxy(default gcm) error = %v", err)
+	}
+	// xtunnel：缺 server_addr 时在启动网络前报错，证明分发到 xtunnel 后端
+	if err := StartSocksProxy("127.0.0.1:1080", ProtocolXTunnel, `{"token":"t"}`, false); err == nil || !strings.Contains(err.Error(), "server address is required") {
+		t.Fatalf("StartSocksProxy(xtunnel) error = %v", err)
 	}
 	// 显式 GCM：非法 bypass 规则在启动网络前报错，证明分发到 GCM 后端
 	badRules := `{"worker_host":"w.example","bypass_rules":"not a valid rule!"}`

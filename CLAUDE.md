@@ -82,6 +82,18 @@ bypass_geosite_cn, bypass_rules, enable_dynamic_pool, dynamic_pool_max
 
 Profile 的 `Protocol` 字段（默认 `gcm`）决定分发目标；`gcm://` URI 导入的旧 Profile 自动沿用 GCM 协议。
 
+X-Tunnel 协议参数（阶段 3 已实现分发，UI 参数编辑在阶段 5）：
+
+```
+server_addr (wss:// 必填), token, connections, client_id,
+relay_nodes (逗号分隔), enable_ech, ech_domain, dns_server,
+insecure, enable_hot_pair
+```
+
+共享 ECH 管理器（xclient/ech + xclient/dns）：DoH 多服务器 fallback 优先，
+失败回退 UDP DNS（8.8.8.8:53，移植自 x-tunnel），再回退标准 TLS。
+x-tunnel 连接池自带持续重连；SOCKS5/HTTP 无可用通道时返回标准失败应答。
+
 ## 开发注意事项
 
 - Go module 名为 `xclient`，gomobile 生成的 AAR 类名前缀为 `xclient.Xclient`
