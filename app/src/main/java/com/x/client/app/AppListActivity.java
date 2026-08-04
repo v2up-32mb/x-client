@@ -7,7 +7,7 @@
  ============================================================================
  */
 
-package com.gcm.client.app;
+package com.x.client.app;
 
 import java.util.Set;
 import java.util.List;

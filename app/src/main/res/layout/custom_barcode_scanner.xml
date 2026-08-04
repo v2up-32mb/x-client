@@ -9,7 +9,7 @@
         android:layout_height="match_parent" />
 
     <!-- 自定义遮罩视图 -->
-    <com.gcm.client.app.ScannerOverlayView
+    <com.x.client.app.ScannerOverlayView
         android:id="@+id/zxing_viewfinder_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

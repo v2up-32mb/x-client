@@ -12,13 +12,13 @@ import (
 	"syscall"
 	"time"
 
-	"gcm/config"
-	"gcm/dns"
-	"gcm/logger"
-	"gcm/pool"
-	"gcm/protocol"
-	"gcm/routing"
 	"github.com/gorilla/websocket"
+	"xclient/config"
+	"xclient/dns"
+	"xclient/logger"
+	"xclient/pool"
+	"xclient/protocol"
+	"xclient/routing"
 )
 
 const (

@@ -6,7 +6,7 @@
  ============================================================================
  */
 
-package com.gcm.client.app;
+package com.x.client.app;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -16,7 +16,7 @@ import android.widget.EditText;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
-import gcm.Gcm;
+import xclient.Xclient;
 
 public class SettingsActivity extends AppCompatActivity {
     private Preferences prefs;
@@ -140,7 +140,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         String bypassRules = edittext_bypass_rules.getText().toString().trim();
         try {
-            Gcm.validateBypassRules(bypassRules);
+            Xclient.validateBypassRules(bypassRules);
         } catch (Exception e) {
             Toast.makeText(this, "绕过规则格式错误: " + e.getMessage(), Toast.LENGTH_LONG).show();
             return false;

@@ -13,11 +13,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
-	"gcm/protocol"
-	"gcm/relay"
 	"github.com/gorilla/websocket"
+	"xclient/config"
+	"xclient/logger"
+	"xclient/protocol"
+	"xclient/relay"
 )
 
 // EchManagerInterface ECH 管理器接口

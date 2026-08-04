@@ -7,7 +7,7 @@
  ============================================================================
  */
 
-package com.gcm.client.app;
+package com.x.client.app;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -36,7 +36,7 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
-import gcm.Gcm;
+import xclient.Xclient;
 
 public class TProxyService extends VpnService {
     private static final String TAG = "TProxyService";
@@ -49,11 +49,11 @@ public class TProxyService extends VpnService {
     private static native boolean TProxyIsRunning();
     private static native long[] TProxyGetStats();
 
-    public static final String ACTION_CONNECT = "com.gcm.client.app.CONNECT";
-    public static final String ACTION_DISCONNECT = "com.gcm.client.app.DISCONNECT";
-    public static final String ACTION_STATUS = "com.gcm.client.app.STATUS";
-    public static final String ACTION_REQUEST_RUNTIME_LOGS = "com.gcm.client.app.REQUEST_RUNTIME_LOGS";
-    public static final String ACTION_RUNTIME_LOGS = "com.gcm.client.app.RUNTIME_LOGS";
+    public static final String ACTION_CONNECT = "com.x.client.app.CONNECT";
+    public static final String ACTION_DISCONNECT = "com.x.client.app.DISCONNECT";
+    public static final String ACTION_STATUS = "com.x.client.app.STATUS";
+    public static final String ACTION_REQUEST_RUNTIME_LOGS = "com.x.client.app.REQUEST_RUNTIME_LOGS";
+    public static final String ACTION_RUNTIME_LOGS = "com.x.client.app.RUNTIME_LOGS";
     public static final String EXTRA_STATUS = "status";
     public static final String EXTRA_ERROR = "error";
     public static final String EXTRA_RUNTIME_LOGS = "runtime_logs";
@@ -269,7 +269,7 @@ public class TProxyService extends VpnService {
         }
         workerHost = workerHost.replaceAll("/+$", "");
 
-        Gcm.startSocksProxy(
+        Xclient.startSocksProxy(
                 prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
                 workerHost,
                 prefs.getWsConn(),
@@ -350,7 +350,7 @@ public class TProxyService extends VpnService {
             Log.w(TAG, "Failed to stop native tunnel", error);
         }
         try {
-            Gcm.stopSocksProxy();
+            Xclient.stopSocksProxy();
         } catch (Throwable error) {
             Log.w(TAG, "Failed to stop GCM proxy", error);
         }
@@ -529,7 +529,7 @@ public class TProxyService extends VpnService {
             try {
                 Thread.sleep(300);
                 if (runtimeRunning) {
-                    Gcm.reconnect(reason);
+                    Xclient.reconnect(reason);
                     appendRuntimeLog("已触发 GCM 连接重建: " + reason);
                 }
             } catch (InterruptedException error) {
@@ -548,7 +548,7 @@ public class TProxyService extends VpnService {
     private void appendRuntimeLog(String message) {
         Log.i(TAG, message);
         try {
-            Gcm.appendRuntimeLog("AndroidVPN", message);
+            Xclient.appendRuntimeLog("AndroidVPN", message);
         } catch (Throwable error) {
             Log.w(TAG, "Failed to append runtime log", error);
         }
@@ -557,7 +557,7 @@ public class TProxyService extends VpnService {
     private void sendRuntimeLogs() {
         String logs = "";
         try {
-            logs = Gcm.getRuntimeLogs();
+            logs = Xclient.getRuntimeLogs();
         } catch (Throwable error) {
             Log.w(TAG, "Failed to read runtime logs", error);
             logs = "读取运行日志失败: " + error.getMessage();

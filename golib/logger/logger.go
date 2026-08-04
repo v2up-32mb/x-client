@@ -9,7 +9,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"gcm/config"
+	"xclient/config"
 )
 
 const (

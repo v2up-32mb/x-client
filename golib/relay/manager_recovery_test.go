@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"gcm/config"
+	"xclient/config"
 )
 
 func TestRescoreAllReleasesManagerLock(t *testing.T) {

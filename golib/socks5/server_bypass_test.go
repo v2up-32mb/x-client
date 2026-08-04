@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"gcm/config"
-	"gcm/routing"
+	"xclient/config"
+	"xclient/routing"
 )
 
 func TestBypassRequestsUseDirectConnection(t *testing.T) {

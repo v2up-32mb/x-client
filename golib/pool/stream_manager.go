@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gcm/logger"
-	"gcm/protocol"
+	"xclient/logger"
+	"xclient/protocol"
 )
 
 // 窗口流控常量

@@ -17,9 +17,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
 	"golang.org/x/net/dns/dnsmessage"
+	"xclient/config"
+	"xclient/logger"
 )
 
 // DNS 记录类型常量

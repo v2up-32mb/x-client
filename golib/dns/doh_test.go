@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"gcm/config"
-	"gcm/logger"
+	"xclient/config"
+	"xclient/logger"
 )
 
 func initTestLogger() {

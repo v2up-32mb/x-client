@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.gcm.client.app.SwipeRevealLayout
+<com.x.client.app.SwipeRevealLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/swipe_layout"
@@ -108,4 +108,4 @@
             android:contentDescription="删除"/>
     </LinearLayout>
 
-</com.gcm.client.app.SwipeRevealLayout>
+</com.x.client.app.SwipeRevealLayout>
