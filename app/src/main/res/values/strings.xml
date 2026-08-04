@@ -81,9 +81,6 @@
         <string name="xt_token">Token：</string>
         <string name="xt_relay_nodes">中转节点（逗号分隔）：</string>
         <string name="xt_connections">连接数：</string>
-        <string name="xt_enable_ech">启用 ECH</string>
-        <string name="xt_ech_domain">ECH 查询域名：</string>
-        <string name="xt_dns_server">DoH 服务器：</string>
         <string name="xt_insecure">跳过证书验证（Insecure）</string>
         <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
 

@@ -66,9 +66,7 @@ public class Preferences
         public static final String XT_TOKEN = "XtToken";
         public static final String XT_RELAY_NODES = "XtRelayNodes";
         public static final String XT_CONNECTIONS = "XtConnections";
-        public static final String XT_ENABLE_ECH = "XtEnableEch";
-        public static final String XT_ECH_DOMAIN = "XtEchDomain";
-        public static final String XT_DNS_SERVER = "XtDnsServer";
+        public static final String XT_DISABLE_ECH = "XtDisableEch";
         public static final String XT_INSECURE = "XtInsecure";
         public static final String XT_ENABLE_HOT_PAIR = "XtEnableHotPair";
         public static final int DEFAULT_XT_CONNECTIONS = 3;
@@ -503,22 +501,11 @@ public class Preferences
                 prefs.edit().putInt(getKey(XT_CONNECTIONS), Math.max(1, Math.min(n, 16))).apply();
         }
 
-        public boolean getXtEnableEch() { return prefs.getBoolean(getKey(XT_ENABLE_ECH), true); }
+        // ECH 域名与 DoH 服务器复用全局设置（SettingsActivity），不在此保存
+        public boolean getXtDisableEch() { return prefs.getBoolean(getKey(XT_DISABLE_ECH), false); }
 
-        public void setXtEnableEch(boolean enable) {
-                prefs.edit().putBoolean(getKey(XT_ENABLE_ECH), enable).apply();
-        }
-
-        public String getXtEchDomain() { return prefs.getString(getKey(XT_ECH_DOMAIN), "cloudflare-ech.com"); }
-
-        public void setXtEchDomain(String v) {
-                prefs.edit().putString(getKey(XT_ECH_DOMAIN), v).apply();
-        }
-
-        public String getXtDnsServer() { return prefs.getString(getKey(XT_DNS_SERVER), "https://doh.pub/dns-query"); }
-
-        public void setXtDnsServer(String v) {
-                prefs.edit().putString(getKey(XT_DNS_SERVER), v).apply();
+        public void setXtDisableEch(boolean disable) {
+                prefs.edit().putBoolean(getKey(XT_DISABLE_ECH), disable).apply();
         }
 
         public boolean getXtInsecure() { return prefs.getBoolean(getKey(XT_INSECURE), false); }

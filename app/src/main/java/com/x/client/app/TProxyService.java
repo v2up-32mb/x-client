@@ -319,9 +319,10 @@ public class TProxyService extends VpnService {
         params.put("token", prefs.getXtToken());
         params.put("connections", prefs.getXtConnections());
         params.put("relay_nodes", prefs.getXtRelayNodes());
-        params.put("enable_ech", prefs.getXtEnableEch());
-        params.put("ech_domain", prefs.getXtEchDomain());
-        params.put("dns_server", prefs.getXtDnsServer());
+        // ECH 域名与 DoH 服务器复用全局设置（与 GCM 协议一致）
+        params.put("enable_ech", !prefs.getXtDisableEch());
+        params.put("ech_domain", prefs.getEchDomain());
+        params.put("dns_server", prefs.getEchDns());
         params.put("insecure", prefs.getXtInsecure());
         params.put("enable_hot_pair", prefs.getXtEnableHotPair());
         return params;

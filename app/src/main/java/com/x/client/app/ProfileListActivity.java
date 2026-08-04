@@ -479,9 +479,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String xtToken = prefs.getXtToken();
         String xtRelayNodes = prefs.getXtRelayNodes();
         int xtConnections = prefs.getXtConnections();
-        boolean xtEnableEch = prefs.getXtEnableEch();
-        String xtEchDomain = prefs.getXtEchDomain();
-        String xtDnsServer = prefs.getXtDnsServer();
+        boolean xtDisableEch = prefs.getXtDisableEch();
         boolean xtInsecure = prefs.getXtInsecure();
         boolean xtEnableHotPair = prefs.getXtEnableHotPair();
 
@@ -502,18 +500,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                 if (xtQuery.length() > 0) xtQuery.append("&");
                 xtQuery.append("connections=").append(xtConnections);
             }
-            if (!xtEnableEch) {
+            if (xtDisableEch) {
                 if (xtQuery.length() > 0) xtQuery.append("&");
                 xtQuery.append("ech=0");
             }
-            if (!xtEchDomain.isEmpty() && !xtEchDomain.equals("cloudflare-ech.com")) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("domain=").append(xtEchDomain);
-            }
-            if (!xtDnsServer.isEmpty() && !xtDnsServer.equals("https://doh.pub/dns-query")) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("dns=").append(xtDnsServer);
-            }
+            // ECH 域名与 DoH 服务器复用全局设置，不写入 URI
             if (xtInsecure) {
                 if (xtQuery.length() > 0) xtQuery.append("&");
                 xtQuery.append("insecure=1");
@@ -729,9 +720,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         String xtToken = "";
         String xtRelayNodes = "";
         int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
-        boolean xtEnableEch = true;
-        String xtEchDomain = "";
-        String xtDnsServer = "";
+        boolean xtDisableEch = false;
         boolean xtInsecure = false;
         boolean xtEnableHotPair = false;
         if (!query.isEmpty()) {
@@ -769,13 +758,12 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                             }
                             break;
                         case "ech":
-                            xtEnableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            // ech=0 表示禁用 ECH（与 GCM 的 disable_ech 语义一致）
+                            xtDisableEch = value.equals("0") || value.equalsIgnoreCase("false") || value.equalsIgnoreCase("no");
                             break;
+                        // 兼容旧 URI：domain/dns 参数忽略，复用全局设置
                         case "domain":
-                            xtEchDomain = value;
-                            break;
                         case "dns":
-                            xtDnsServer = value;
                             break;
                         case "insecure":
                             xtInsecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
@@ -803,7 +791,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 询问用户配置名称
         showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
                 wssAddr, prefIp, fallbackIp, userId, disableEch,
-                xtToken, xtRelayNodes, xtConnections, xtEnableEch, xtEchDomain, xtDnsServer, xtInsecure, xtEnableHotPair);
+                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair);
     }
 
     private void showImportNameDialog(final String id, final String defaultName,
@@ -812,8 +800,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                                       final String fallbackIp, final String userId,
                                       final boolean disableEch,
                                       final String xtToken, final String xtRelayNodes,
-                                      final int xtConnections, final boolean xtEnableEch,
-                                      final String xtEchDomain, final String xtDnsServer,
+                                      final int xtConnections, final boolean xtDisableEch,
                                       final boolean xtInsecure, final boolean xtEnableHotPair) {
         final EditText input = new EditText(this);
         input.setText(defaultName);
@@ -844,9 +831,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         prefs.setXtToken(xtToken);
                         prefs.setXtRelayNodes(xtRelayNodes);
                         prefs.setXtConnections(xtConnections);
-                        prefs.setXtEnableEch(xtEnableEch);
-                        prefs.setXtEchDomain(xtEchDomain);
-                        prefs.setXtDnsServer(xtDnsServer);
+                        prefs.setXtDisableEch(xtDisableEch);
                         prefs.setXtInsecure(xtInsecure);
                         prefs.setXtEnableHotPair(xtEnableHotPair);
                     } else {
