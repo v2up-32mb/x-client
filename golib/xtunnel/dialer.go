@@ -47,8 +47,8 @@ func (p *clientPool) dialWebSocket(chID int, relayIP string) (*websocket.Conn, e
 		tlsCfg, err := p.echManager.GetTlsConfig(serverName, p.config.EnableECH)
 		if err != nil {
 			if i < maxRetries && p.config.EnableECH {
-				// ECH 失败时尝试刷新配置
-				_ = p.echManager.Refresh(serverName)
+				// ECH 失败时尝试刷新配置（缓存键是 ECH 查询域名）
+				_ = p.echManager.Refresh(p.config.ECHDomain)
 				select {
 				case <-p.ctx.Done():
 					return nil, p.ctx.Err()
@@ -93,7 +93,7 @@ func (p *clientPool) dialWebSocket(chID int, relayIP string) (*websocket.Conn, e
 			}
 			// ECH 相关错误时重试
 			if p.config.EnableECH && (strings.Contains(err.Error(), "ECH") || strings.Contains(err.Error(), "ech")) && i < maxRetries {
-				_ = p.echManager.Refresh(serverName)
+				_ = p.echManager.Refresh(p.config.ECHDomain)
 				select {
 				case <-p.ctx.Done():
 					return nil, p.ctx.Err()
