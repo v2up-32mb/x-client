@@ -276,6 +276,9 @@ public class TProxyService extends VpnService {
             params = buildGCMParams(prefs);
         }
 
+        // 诊断：将实际传递的参数写入运行日志（排查 server_addr/token 传递问题）
+        appendRuntimeLog("启动参数(" + protocol + "): " + params.toString());
+
         Xclient.startSocksProxy(
                 prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
                 protocol,

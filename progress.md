@@ -124,3 +124,10 @@
 - 导入 bug：xtunnel:// 链接的 token 参数落入 GCM user_id 变量（xtToken 恒空）→ 按协议分支解析（列表页 + 编辑页）
 - 健壮性：导入拒绝无 host 链接（`链接缺少服务器地址，无法导入`）；Go 侧 buildConfig 校验 ServerAddr 必须含 host，启动即报清晰错误（不再出现 TLS `ServerName` 谜之报错）
 - 说明：旧格式分享链接（第一轮反馈的 `xtunnel://?token=...`）本身不含服务器地址，无法导入；请用新版本重新分享后再导入
+
+## 2026-08-05 真机反馈第六轮：xtunnel TLS ServerName 报错排查（进行中）
+
+- 用户澄清：导入链接带服务器地址、编辑页显示正确、token 为空，但启动仍报 `tls: either ServerName or InsecureSkipVerify must be specified`
+- 排查结论：Go 侧全链路实测正常（buildConfig → url.Parse → Hostname）；Java 侧 Preferences per-profile 读写、TProxyService 组装、gomobile 绑定均无断裂；ServerAddr 仅一处赋值；app/libs 无提交（AAR 每次 CI 重建）
+- 已加防御与诊断：① Go 侧 buildConfig 校验 ServerAddr 必须含 host（dfe43d3，启动即报清晰错误）；② TProxyService 启动时把实际 paramsJSON 写入运行日志（App 内「运行日志」可见）
+- 待真机复测：若 `启动参数(xtunnel)` 中 server_addr 正确仍报 TLS 错，则需完整启动日志进一步定位
