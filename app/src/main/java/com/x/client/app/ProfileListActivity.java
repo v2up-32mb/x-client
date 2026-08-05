@@ -483,25 +483,24 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         boolean enableDynamicPool = prefs.getEnableDynamicPool();
         int dynamicPoolMax = prefs.getDynamicPoolMax();
 
-        // X-Tunnel 配置：读取协议参数
+        // X-Tunnel 配置：读取协议参数（必须在恢复当前配置之前读取）
         String xtToken = prefs.getXtToken();
         String xtRelayNodes = prefs.getXtRelayNodes();
         int xtConnections = prefs.getXtConnections();
         boolean xtDisableEch = prefs.getXtDisableEch();
         boolean xtInsecure = prefs.getXtInsecure();
         boolean xtEnableHotPair = prefs.getXtEnableHotPair();
+        String xtServerAddr = prefs.getXtServerAddr();
+        if (xtServerAddr.startsWith("wss://")) {
+            xtServerAddr = xtServerAddr.substring(6);
+        } else if (xtServerAddr.startsWith("ws://")) {
+            xtServerAddr = xtServerAddr.substring(5);
+        }
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
 
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
-            // X-Tunnel 的服务器地址存在 XtServerAddr（worker_host 为空）
-            String xtServerAddr = prefs.getXtServerAddr();
-            if (xtServerAddr.startsWith("wss://")) {
-                xtServerAddr = xtServerAddr.substring(6);
-            } else if (xtServerAddr.startsWith("ws://")) {
-                xtServerAddr = xtServerAddr.substring(5);
-            }
             // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/insecure/hotpair
             StringBuilder xtQuery = new StringBuilder();
             if (!xtToken.isEmpty()) {
@@ -730,6 +729,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         if (!wssAddr.startsWith("wss://")) {
             wssAddr = "wss://" + wssAddr;
         }
+        // 拒绝缺少服务器主机的链接（如旧版 xtunnel://?token=... 无 host）
+        if (wssAddr.startsWith("wss://") && wssAddr.length() <= 6) {
+            Toast.makeText(this, "链接缺少服务器地址，无法导入", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         // 解析查询参数：ip= 优选中转节点，fip= 出口代理 IP，user_id= 用户标识。
         // 旧文档中的 dns/domain 参数被忽略，它们现在属于全局设置。
@@ -784,7 +788,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                             break;
                         case "token":
                         case "user_id":
-                            userId = value;
+                            if (isXtunnel) {
+                                xtToken = value;
+                            } else {
+                                userId = value;
+                            }
                             break;
                         case "relay_nodes":
                             xtRelayNodes = value;

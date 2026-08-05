@@ -117,3 +117,10 @@
 - **网络切换响应慢**：xtunnel Backend.Reconnect/NotifyNetworkChanged 原为 no-op，需等 TCP 死链检测（日志中约 7 秒+）。修复：pool 增加 reconnectLoop + Reconnect()，收到信号立即关闭全部当前 WebSocket 强制在新网络重建；Client.Reconnect 接线到 Backend
 - dialer ECH 失败重试的 Refresh 改用 `p.config.ECHDomain`（原误用目标服务器名，与缓存键不一致）
 - 新增 TestPoolReconnectClosesCurrentChannels；全量 14 包测试/vet/gofmt/diff --check/gobind 通过
+
+## 2026-08-05 真机反馈第五轮修复：xtunnel 分享导入 token 丢失 + 无 host 链接
+
+- 导出 bug：xtunnel 分支读取 XtServerAddr 发生在「恢复当前配置」之后（分享非当前 profile 时读到旧 profile 的值）→ 移到恢复前读取
+- 导入 bug：xtunnel:// 链接的 token 参数落入 GCM user_id 变量（xtToken 恒空）→ 按协议分支解析（列表页 + 编辑页）
+- 健壮性：导入拒绝无 host 链接（`链接缺少服务器地址，无法导入`）；Go 侧 buildConfig 校验 ServerAddr 必须含 host，启动即报清晰错误（不再出现 TLS `ServerName` 谜之报错）
+- 说明：旧格式分享链接（第一轮反馈的 `xtunnel://?token=...`）本身不含服务器地址，无法导入；请用新版本重新分享后再导入

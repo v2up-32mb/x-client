@@ -2,6 +2,7 @@ package xtunnel
 
 import (
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -125,6 +126,11 @@ func buildConfig(params map[string]string) (*Config, error) {
 	}
 	if !strings.HasPrefix(c.ServerAddr, "wss://") && !strings.HasPrefix(c.ServerAddr, "ws://") {
 		return nil, fmt.Errorf("server address must start with wss:// or ws://")
+	}
+	// 防御：URL 缺少主机时（如 "wss://"）在启动前给出明确错误，
+	// 而不是等到 TLS 握手才报 "either ServerName or InsecureSkipVerify must be specified"。
+	if u, err := url.Parse(c.ServerAddr); err != nil || strings.TrimSpace(u.Hostname()) == "" {
+		return nil, fmt.Errorf("server address must include a host (e.g. wss://host:443)")
 	}
 	c.Token = stringParam(params, ParamToken, "")
 

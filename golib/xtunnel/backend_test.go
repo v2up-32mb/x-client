@@ -77,6 +77,8 @@ func TestBuildConfigErrors(t *testing.T) {
 	}{
 		{"missing server", map[string]string{}, "server address is required"},
 		{"bad scheme", map[string]string{ParamServerAddr: "tcp://x"}, "wss:// or ws://"},
+		{"missing host", map[string]string{ParamServerAddr: "wss://"}, "must include a host"},
+		{"empty host query", map[string]string{ParamServerAddr: "wss://?token=x"}, "must include a host"},
 		{"bad connections", map[string]string{ParamServerAddr: "wss://x", ParamConnections: "abc"}, `"connections"`},
 		{"bad ech bool", map[string]string{ParamServerAddr: "wss://x", ParamEnableECH: "yes"}, `"enable_ech"`},
 		{"bad hotpair bool", map[string]string{ParamServerAddr: "wss://x", ParamEnableHotPair: "maybe"}, `"enable_hot_pair"`},
