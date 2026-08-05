@@ -78,7 +78,11 @@
 - x-tunnel 原 module 为 `go 1.25.5`，集成时需降级适配
 - 旧的 x-client 项目已存档为 `/root/projects/x-client.legacy`
 
-### 阶段 8：全局日志等级 + 日志时区对齐（代码完成，待提交 + CI 验证）
+### 阶段 8：全局日志等级 + 日志时区对齐（完成，CI 已验证）
+
+提交 `adbb4af` 推送成功，CI run `31019772769` 通过，4 ABI APK 产出
+（arm64-v8a 9.2MB / armeabi-v7a 9.4MB / x86 9.7MB / x86_64 9.5MB，
+体积增量来自嵌入 `time/tzdata`）。
 
 需求：全局设置页新增「日志等级」下拉框，控制代理协议输出到运行日志的详细程度；
 代理日志时间戳时区与 Android 系统时区一致（当前为 UTC）。
@@ -92,4 +96,4 @@
 - [x] Android `TProxyService.java`：两协议 paramsJSON 增加 `log_level`；onCreate 同步时区 + `ACTION_TIMEZONE_CHANGED` 广播更新
 - [x] Android `XclientApplication.java`：应用启动时同步系统时区
 - [x] strings（中文 + 俄语）补齐日志等级文案
-- [ ] 验证：`go test ./... -count=3`（14 包通过）、vet、gofmt、diff --check、gobind（`setTimeZone` 导出验证通过）→ 提交推送 → CI 构建 4 ABI APK
+- [x] 验证：`go test ./... -count=3`（14 包通过）、vet、gofmt、diff --check、gobind（`setTimeZone` 导出验证通过）→ 提交推送 → CI 构建 4 ABI APK
