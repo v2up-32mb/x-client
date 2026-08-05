@@ -131,3 +131,9 @@
 - 排查结论：Go 侧全链路实测正常（buildConfig → url.Parse → Hostname）；Java 侧 Preferences per-profile 读写、TProxyService 组装、gomobile 绑定均无断裂；ServerAddr 仅一处赋值；app/libs 无提交（AAR 每次 CI 重建）
 - 已加防御与诊断：① Go 侧 buildConfig 校验 ServerAddr 必须含 host（dfe43d3，启动即报清晰错误）；② TProxyService 启动时把实际 paramsJSON 写入运行日志（App 内「运行日志」可见）
 - 待真机复测：若 `启动参数(xtunnel)` 中 server_addr 正确仍报 TLS 错，则需完整启动日志进一步定位
+
+## 2026-08-05 v1.1.1 Release 发布成功
+
+- 修复：xtunnel 分享链接导入 host 解析——`"xtunnel://"` 为 10 字符，导入误用 `substring(9)` 导致服务器地址解析成 `wss:///ech-us.ics.de5.net:443`（多一个 `/`）；列表/编辑两处导入均改为 `substring(10)`，并加前导斜杠容错（兼容旧链接）
+- CI 策略变更：build-debug.yml 仅 `workflow_dispatch` 手动触发（push 不再自动构建）；release.yml 保留 tag 触发
+- v1.1.1 发布成功（run 30983082578）：5 个签名 APK（arm64-v8a/armeabi-v7a/x86/x86_64/universal）
