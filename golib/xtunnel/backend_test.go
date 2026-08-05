@@ -4,6 +4,8 @@ import (
 	"net"
 	"strings"
 	"testing"
+
+	"xclient/shared/config"
 )
 
 func TestBuildConfigFullParams(t *testing.T) {
@@ -128,5 +130,26 @@ func TestBackendStartStopReleasesSOCKS5Port(t *testing.T) {
 	// 幂等停止
 	if err := b.Stop(); err != nil {
 		t.Fatalf("second Stop() error = %v", err)
+	}
+}
+
+func TestLogLevelFromParams(t *testing.T) {
+	// 显式 log_level 优先于 verbose
+	if got := logLevelFromParams(map[string]string{ParamLogLevel: "warn"}, true); got != config.WARN {
+		t.Fatalf("explicit warn = %v, want WARN", got)
+	}
+	if got := logLevelFromParams(map[string]string{ParamLogLevel: "ERROR"}, false); got != config.ERROR {
+		t.Fatalf("explicit ERROR = %v, want ERROR", got)
+	}
+	// 无显式参数：verbose 兼容
+	if got := logLevelFromParams(nil, true); got != config.DEBUG {
+		t.Fatalf("verbose = %v, want DEBUG", got)
+	}
+	if got := logLevelFromParams(nil, false); got != config.INFO {
+		t.Fatalf("default = %v, want INFO", got)
+	}
+	// 未知级别回退 INFO
+	if got := logLevelFromParams(map[string]string{ParamLogLevel: "verbose"}, true); got != config.INFO {
+		t.Fatalf("unknown level = %v, want INFO fallback", got)
 	}
 }

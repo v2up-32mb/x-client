@@ -57,6 +57,12 @@ public class Preferences
         public static final int MAX_DYNAMIC_POOL_LIMIT = 64;
         // IPv6 路由禁用
         public static final String DISABLE_IPV6_ROUTE = "DisableIpv6Route";
+        // 全局设置：代理日志等级（DEBUG/INFO/WARN/ERROR），默认 INFO
+        public static final String LOG_LEVEL = "LogLevel";
+        public static final String LOG_LEVEL_DEBUG = "DEBUG";
+        public static final String LOG_LEVEL_INFO = "INFO";
+        public static final String LOG_LEVEL_WARN = "WARN";
+        public static final String LOG_LEVEL_ERROR = "ERROR";
         // 代理协议（gcm / xtunnel），默认 gcm
         public static final String PROTOCOL = "Protocol";
         public static final String PROTOCOL_GCM = "gcm";
@@ -463,6 +469,30 @@ public class Preferences
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putBoolean(getKey(DISABLE_IPV6_ROUTE), disable);
                 editor.commit();
+        }
+
+        // 代理日志等级（全局，默认 INFO；未知值回退 INFO）
+        public String getLogLevel() {
+                String level = prefs.getString(LOG_LEVEL, LOG_LEVEL_INFO);
+                if (level == null) {
+                        return LOG_LEVEL_INFO;
+                }
+                level = level.trim().toUpperCase(java.util.Locale.US);
+                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
+                        return LOG_LEVEL_INFO;
+                }
+                return level;
+        }
+
+        public void setLogLevel(String level) {
+                if (level == null) {
+                        return;
+                }
+                level = level.trim().toUpperCase(java.util.Locale.US);
+                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
+                        return;
+                }
+                prefs.edit().putString(LOG_LEVEL, level).apply();
         }
 
         // 代理协议（per-profile）

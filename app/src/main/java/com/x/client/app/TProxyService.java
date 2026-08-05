@@ -78,6 +78,7 @@ public class TProxyService extends VpnService {
     private Network defaultNetwork;
     private boolean networkReconnectPending;
     private BroadcastReceiver screenReceiver;
+    private BroadcastReceiver timeZoneReceiver;
     private long screenOffElapsedRealtime = -1L;
     private boolean logRequestOnly;
 
@@ -85,6 +86,8 @@ public class TProxyService extends VpnService {
     public void onCreate() {
         super.onCreate();
         initNotificationChannel();
+        syncSystemTimeZone();
+        registerTimeZoneReceiver();
     }
 
     @Override
@@ -127,6 +130,7 @@ public class TProxyService extends VpnService {
 
     @Override
     public void onDestroy() {
+        unregisterTimeZoneReceiver();
         if (logRequestOnly) {
             logRequestOnly = false;
             super.onDestroy();
@@ -313,6 +317,7 @@ public class TProxyService extends VpnService {
         params.put("bypass_rules", prefs.getBypassRules());
         params.put("enable_dynamic_pool", prefs.getEnableDynamicPool());
         params.put("dynamic_pool_max", prefs.getDynamicPoolMax());
+        params.put("log_level", prefs.getLogLevel());
         return params;
     }
 
@@ -328,7 +333,52 @@ public class TProxyService extends VpnService {
         params.put("dns_server", prefs.getEchDns());
         params.put("insecure", prefs.getXtInsecure());
         params.put("enable_hot_pair", prefs.getXtEnableHotPair());
+        params.put("log_level", prefs.getLogLevel());
         return params;
+    }
+
+    private void syncSystemTimeZone() {
+        try {
+            Xclient.setTimeZone(java.util.TimeZone.getDefault().getID());
+        } catch (Throwable error) {
+            Log.w(TAG, "Failed to sync system timezone", error);
+        }
+    }
+
+    private void registerTimeZoneReceiver() {
+        if (timeZoneReceiver != null) {
+            return;
+        }
+        BroadcastReceiver receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (!Intent.ACTION_TIMEZONE_CHANGED.equals(intent.getAction())) {
+                    return;
+                }
+                syncSystemTimeZone();
+                appendRuntimeLog("系统时区已变更: " + java.util.TimeZone.getDefault().getID());
+            }
+        };
+        try {
+            ContextCompat.registerReceiver(this, receiver,
+                    new IntentFilter(Intent.ACTION_TIMEZONE_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED);
+            timeZoneReceiver = receiver;
+        } catch (RuntimeException error) {
+            Log.w(TAG, "Failed to register timezone receiver", error);
+        }
+    }
+
+    private void unregisterTimeZoneReceiver() {
+        BroadcastReceiver receiver = timeZoneReceiver;
+        timeZoneReceiver = null;
+        if (receiver != null) {
+            try {
+                unregisterReceiver(receiver);
+            } catch (RuntimeException error) {
+                Log.w(TAG, "Failed to unregister timezone receiver", error);
+            }
+        }
     }
 
     private void failStartup(Preferences prefs, Throwable error) {

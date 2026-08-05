@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
+	_ "time/tzdata" // 嵌入 IANA 时区数据库，保证 Android 系统缺少 zoneinfo 时 LoadLocation 可用
 
 	"xclient/gcm"
 	"xclient/shared/logger"
@@ -106,6 +108,71 @@ func newBackend(protocol string) (ProxyBackend, error) {
 	default:
 		return nil, fmt.Errorf("unsupported protocol %q", protocol)
 	}
+}
+
+// SetTimeZone 将 Go 运行时的本地时区与 Android 系统时区对齐。
+//
+// gomobile 环境下 Go 的 time.Local 默认为 UTC（Android 不会把系统时区作为
+// TZ 环境变量传入），导致运行日志时间戳显示 UTC 而非系统时区。Android 侧在
+// 应用/服务启动以及 ACTION_TIMEZONE_CHANGED 时传入
+// TimeZone.getDefault().getID()（如 "Asia/Shanghai" 或 "GMT+08:00"）。
+func SetTimeZone(tz string) {
+	tz = strings.TrimSpace(tz)
+	if tz == "" {
+		return
+	}
+	loc, err := time.LoadLocation(tz)
+	if err != nil {
+		loc = parseFixedZone(tz)
+		if loc == nil {
+			fmt.Printf("SetTimeZone: unknown timezone %q: %v\n", tz, err)
+			return
+		}
+	}
+	time.Local = loc
+}
+
+// parseFixedZone 解析 Android 可能返回的固定偏移时区 ID（"GMT+08:00"、
+// "GMT-05:30"、"UTC+8" 等）。IANA 名称（如 "Asia/Shanghai"）由 LoadLocation 处理。
+func parseFixedZone(tz string) *time.Location {
+	rest := tz
+	for _, prefix := range []string{"GMT", "UTC"} {
+		if strings.HasPrefix(rest, prefix) {
+			rest = strings.TrimPrefix(rest, prefix)
+			break
+		}
+	}
+	// "GMT" / "UTC" 本身
+	if rest == "" {
+		return time.UTC
+	}
+	sign := 1
+	switch {
+	case strings.HasPrefix(rest, "+"):
+		rest = rest[1:]
+	case strings.HasPrefix(rest, "-"):
+		sign = -1
+		rest = rest[1:]
+	default:
+		return nil
+	}
+	if rest == "" {
+		return nil
+	}
+	parts := strings.SplitN(rest, ":", 2)
+	hours, err := strconv.Atoi(parts[0])
+	if err != nil || hours < 0 || hours > 23 {
+		return nil
+	}
+	minutes := 0
+	if len(parts) == 2 {
+		minutes, err = strconv.Atoi(parts[1])
+		if err != nil || minutes < 0 || minutes > 59 {
+			return nil
+		}
+	}
+	offset := (hours*60 + minutes) * 60 * sign
+	return time.FixedZone(tz, offset)
 }
 
 // ValidateBypassRules validates newline-separated manual routing rules without
