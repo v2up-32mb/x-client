@@ -1,13 +1,6 @@
 name: Build Debug
 
 on:
-  push:
-    branches:
-      - 'main'
-      - 'develop'
-      - 'feat/*'
-      - 'fix/*'
-      - 'repair/*'
   workflow_dispatch:
 
 jobs:

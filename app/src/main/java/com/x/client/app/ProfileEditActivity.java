@@ -420,7 +420,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             Toast.makeText(this, "无效的协议格式", Toast.LENGTH_SHORT).show();
             return;
         }
-        int schemeLen = isXtunnel ? 9 : 6;
+        int schemeLen = isXtunnel ? 10 : 6; // "xtunnel://" 为 10 个字符
         String rest = protocol.substring(schemeLen); // 去掉 scheme 前缀
         // 分离 fragment
         String fragment = "";
@@ -437,6 +437,10 @@ public class ProfileEditActivity extends AppCompatActivity {
             query = rest.substring(qmark + 1);
         } else {
             wssAddr = rest;
+        }
+        // 容错：剥离 host 前的多余斜杠（旧版分享链接可能多一个 /）
+        while (wssAddr.startsWith("/")) {
+            wssAddr = wssAddr.substring(1);
         }
         // 确保 wss:// 前缀
         if (!wssAddr.startsWith("wss://") && !wssAddr.startsWith("ws://")) {
