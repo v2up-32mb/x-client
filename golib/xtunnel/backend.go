@@ -9,6 +9,7 @@ import (
 
 	"xclient/shared/config"
 	"xclient/shared/logger"
+	"xclient/shared/routing"
 )
 
 // Param keys accepted by Backend.Start（与 Android 侧 X_TUNNEL Profile 字段对齐）。
@@ -24,6 +25,12 @@ const (
 	ParamInsecure      = "insecure"
 	ParamEnableHotPair = "enable_hot_pair"
 	ParamLogLevel      = "log_level"
+
+	// 路由绕过（键与 GCM 后端一致，Android 全局设置共用）
+	ParamBypassPrivate   = "bypass_private"
+	ParamBypassGeoIPCN   = "bypass_geoip_cn"
+	ParamBypassGeoSiteCN = "bypass_geosite_cn"
+	ParamBypassRules     = "bypass_rules"
 )
 
 // Backend 运行 x-tunnel 协议栈：多通道 WebSocket 隧道 + 通道竞争/Hot Pair/
@@ -54,6 +61,10 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	if err != nil {
 		return err
 	}
+	bypassMatcher, err := routing.NewMatcher(cfg.BypassPrivate, cfg.BypassGeoIPCN, cfg.BypassGeoSiteCN, cfg.BypassRules)
+	if err != nil {
+		return fmt.Errorf("invalid bypass rules: %w", err)
+	}
 
 	logger.ClearRuntimeLogs()
 	sharedCfg := newSharedConfig(cfg)
@@ -68,6 +79,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 		logger.Close()
 		return err
 	}
+	c.SetBypassMatcher(bypassMatcher)
 	if err := c.Start(); err != nil {
 		logger.Close()
 		return err
@@ -167,6 +179,17 @@ func buildConfig(params map[string]string) (*Config, error) {
 	} else {
 		c.EnableHotPair = v
 	}
+
+	// 路由绕过：先校验布尔类型，Matcher 在 Start 中构建（错误路径统一报 invalid bypass rules）
+	for _, key := range []string{ParamBypassPrivate, ParamBypassGeoIPCN, ParamBypassGeoSiteCN} {
+		if _, err := boolParam(params, key, false); err != nil {
+			return nil, err
+		}
+	}
+	c.BypassPrivate, _ = boolParam(params, ParamBypassPrivate, false)
+	c.BypassGeoIPCN, _ = boolParam(params, ParamBypassGeoIPCN, false)
+	c.BypassGeoSiteCN, _ = boolParam(params, ParamBypassGeoSiteCN, false)
+	c.BypassRules = stringParam(params, ParamBypassRules, "")
 	return c, nil
 }
 

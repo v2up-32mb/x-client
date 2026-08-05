@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"xclient/shared/routing"
 )
 
 // Client 客户端接口
@@ -94,6 +95,16 @@ func (c *Client) Reconnect(reason string) {
 	defer c.mu.Unlock()
 	if c.pool != nil {
 		c.pool.Reconnect(reason)
+	}
+}
+
+// SetBypassMatcher 设置路由绕过匹配器（SOCKS5/HTTP 入口直连分流）。
+// 必须在 Start 之前或之后调用均可；nil 表示不启用绕过。
+func (c *Client) SetBypassMatcher(matcher *routing.Matcher) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pool != nil {
+		c.pool.bypassMatcher = matcher
 	}
 }
 

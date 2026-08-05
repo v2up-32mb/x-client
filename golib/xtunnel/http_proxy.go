@@ -81,6 +81,11 @@ func (p *clientPool) handleHTTPProxyConn(c net.Conn, cfgp *ProxyConfig) {
 	switch req.Method {
 	case http.MethodConnect:
 		target := ensureHTTPProxyTarget(req.Host, "443")
+		// 路由绕过：命中规则直接连接目标，不经过隧道。
+		if p.shouldBypass(target) {
+			p.handleHTTPProxyDirectConnect(c, target)
+			return
+		}
 		p.handleHTTPProxyConnect(c, target)
 	default:
 		target := httpProxyTargetFromRequest(req)
@@ -98,8 +103,65 @@ func (p *clientPool) handleHTTPProxyConn(c net.Conn, cfgp *ProxyConfig) {
 			writeHTTPProxyResponse(c, http.StatusBadRequest, "Bad Request", nil)
 			return
 		}
+		// 路由绕过：命中规则把请求直接转发到目标，不经过隧道。
+		if p.shouldBypass(target) {
+			p.handleHTTPProxyDirectForward(c, reader, target, first, pending)
+			return
+		}
 		p.handleHTTPProxyForward(c, reader, target, first, pending, "HTTP Proxy")
 	}
+}
+
+// bufioProxyConn 让 bufio.Reader 中已缓冲的数据优先被读取（HTTP 普通请求直连时，
+// 客户端剩余数据可能已读入 bufio 缓冲区，不能直接从底层 conn 读取）。
+type bufioProxyConn struct {
+	net.Conn
+	r *bufio.Reader
+}
+
+func (b *bufioProxyConn) Read(p []byte) (int, error) {
+	return b.r.Read(p)
+}
+
+// handleHTTPProxyDirectConnect 处理命中路由绕过的 HTTP CONNECT：直接连接目标。
+func (p *clientPool) handleHTTPProxyDirectConnect(c net.Conn, target string) {
+	targetConn, err := p.dialBypassTarget(target)
+	if err != nil {
+		sysLog.Warn("[客户端] HTTP CONNECT 直连绕过失败 -> %s: %v", target, err)
+		writeHTTPProxyResponse(c, http.StatusBadGateway, "Bad Gateway", nil)
+		return
+	}
+	defer targetConn.Close()
+
+	if _, err := c.Write([]byte("HTTP/1.1 200 Connection Established\r\n\r\n")); err != nil {
+		sysLog.Debug("[客户端] HTTP CONNECT 直连绕过响应失败: %v", err)
+		return
+	}
+	sysLog.Info("[客户端] HTTP CONNECT 直连绕过 -> %s", target)
+	relayBypassConnections(c, asTCP(c), targetConn, asTCP(targetConn))
+}
+
+// handleHTTPProxyDirectForward 处理命中路由绕过的普通 HTTP 请求：把重建的
+// 上游请求与缓冲字节直接发送到目标，再双向转发。
+func (p *clientPool) handleHTTPProxyDirectForward(c net.Conn, reader *bufio.Reader, target string, first, pending []byte) {
+	targetConn, err := p.dialBypassTarget(target)
+	if err != nil {
+		sysLog.Warn("[客户端] HTTP 直连绕过失败 -> %s: %v", target, err)
+		writeHTTPProxyResponse(c, http.StatusBadGateway, "Bad Gateway", nil)
+		return
+	}
+	defer targetConn.Close()
+
+	if _, err := targetConn.Write(first); err != nil {
+		return
+	}
+	if len(pending) > 0 {
+		if _, err := targetConn.Write(pending); err != nil {
+			return
+		}
+	}
+	sysLog.Info("[客户端] HTTP 直连绕过 -> %s", target)
+	relayBypassConnections(&bufioProxyConn{Conn: c, r: reader}, nil, targetConn, asTCP(targetConn))
 }
 
 func (p *clientPool) handleHTTPProxyConnect(c net.Conn, target string) {

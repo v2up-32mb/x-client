@@ -15,7 +15,7 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 - **多协议**：GCM / X-Tunnel，每个 Profile 独立选择
 - **ECH + DoH**：DoH 多服务器 fallback → UDP DNS（8.8.8.8:53）→ 标准 TLS 1.3 三级回退
 - **连接池**：WebSocket 多路复用、动态扩容、Relay 评分加权负载均衡、质量监控
-- **路由绕过**：本地/局域网、GeoIP:CN、GeoSite:CN、手动规则
+- **路由绕过**：本地/局域网、GeoIP:CN、GeoSite:CN、手动规则（GCM 与 X-Tunnel 均支持）
 - **节点管理**：多 Profile、命名、导入/导出、二维码扫描
 - **全局设置**：SOCKS5 端口、DoH 服务器、ECH 域名、DNS 预热、日志等级
 - **运行日志**：内存环形缓冲，日志等级可调，时间戳跟随 Android 系统时区
@@ -32,7 +32,7 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 | 选路 | Relay 评分 + 负载均衡 | 通道竞争 + Hot Pair 预绑定 |
 | UDP | 不支持 | 完整 UDP associate |
 | HTTP 代理 | 流内传输 | 独立监听器 |
-| 路由绕过 | ✅ | ❌（无） |
+| 路由绕过 | ✅ | ✅（阶段 9 起，SOCKS5/HTTP 直连分流；UDP 暂不参与） |
 | ECH/DoH | ✅ 共享模块 | ✅ 共享模块 |
 
 ## 下载
@@ -145,7 +145,8 @@ VPN TUN ──► hev-socks5-tunnel ──► 本地 SOCKS5 ──► Go 协议�
 
 **X-Tunnel 参数键**：`server_addr`（wss:// 必填）、`token`、`connections`、
 `relay_nodes`、`enable_ech`、`ech_domain`、`dns_server`、`insecure`、
-`enable_hot_pair`、`log_level`（`client_id` 在 Go 侧保留支持）
+`enable_hot_pair`、`log_level`、`bypass_private`、`bypass_geoip_cn`、
+`bypass_geosite_cn`、`bypass_rules`（`client_id` 在 Go 侧保留支持）
 
 ## 开发注意事项
 
