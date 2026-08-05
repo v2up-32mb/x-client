@@ -442,6 +442,11 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (!wssAddr.startsWith("wss://") && !wssAddr.startsWith("ws://")) {
             wssAddr = "wss://" + wssAddr;
         }
+        // 拒绝缺少服务器主机的链接（如旧版 xtunnel://?token=... 无 host）
+        if (wssAddr.startsWith("wss://") && wssAddr.length() <= 6) {
+            Toast.makeText(this, "链接缺少服务器地址，无法导入", Toast.LENGTH_LONG).show();
+            return;
+        }
 
         // 解析查询参数
         String prefIp = "";
@@ -474,8 +479,11 @@ public class ProfileEditActivity extends AppCompatActivity {
                             break;
                         case "token":
                         case "user_id":
-                            token = value;
-                            userId = value;
+                            if (isXtunnel) {
+                                token = value;
+                            } else {
+                                userId = value;
+                            }
                             break;
                         case "ws_conn":
                             try {
