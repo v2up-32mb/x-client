@@ -107,3 +107,13 @@
 - 修复过程：① `secrets.GITHUB_TOKEN` → `github.token`（原引用不存在的 secret 导致 Create Release 403）；② 仓库 Actions 权限改为 write（`/actions/permissions/workflow`）；③ 新增 `workflow_dispatch` 便于重试；④ v1.1 tag 移至 af50487（含修复）
 - Secrets：SIGNING_KEY / ALIAS=xclient / KEY_STORE_PASSWORD / KEY_PASSWORD（check-keystore workflow 验证通过）
 - 签名密钥备份：`/root/secrets/x-client/`（xclient-release.p12 + CREDENTIALS.env，600 权限）——必须离线备份，丢失后无法签署后续版本
+
+## 2026-08-05 真机日志定位并修复：ECH 缓存击穿 + 断线重连后通道失效
+
+日志证据（xtunnel 配置，21 通道）：启动时 20+ 次重复 DoH 查询（ECH 缓存被并发击穿）；00:30:36 全部通道 close 1006 断开后重连，随后大量 `ping发送失败: use of closed network connection`，00:38 起 SOCKS5 全部超时（TX - RX -）。
+
+- **ECH 缓存击穿**：shared/ech 增加 singleflight（inflight map），同一域名并发取配置只执行一次网络查询，其余等待在途结果；新增并发测试（8 个 goroutine 只触发 1 次查询）
+- **断线重连失效**：根因是写队列 `writeQueues[idx]` 跨会话共享——旧连接遗留的 writeWorker 存活期间会与新连接的 writeWorker 抢队列数据包，把请求写进已关闭连接（日志中的 ping 失败即旧 worker），导致新通道收不到请求（SOCKS5 超时）。修复：**会话级写队列**（每次连接创建独立 queue 并原子替换），旧 worker 只能消费旧队列，很快自行退出
+- **网络切换响应慢**：xtunnel Backend.Reconnect/NotifyNetworkChanged 原为 no-op，需等 TCP 死链检测（日志中约 7 秒+）。修复：pool 增加 reconnectLoop + Reconnect()，收到信号立即关闭全部当前 WebSocket 强制在新网络重建；Client.Reconnect 接线到 Backend
+- dialer ECH 失败重试的 Refresh 改用 `p.config.ECHDomain`（原误用目标服务器名，与缓存键不一致）
+- 新增 TestPoolReconnectClosesCurrentChannels；全量 14 包测试/vet/gofmt/diff --check/gobind 通过

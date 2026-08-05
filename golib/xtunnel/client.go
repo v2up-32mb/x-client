@@ -88,6 +88,15 @@ func (c *Client) Shutdown() error {
 	return nil
 }
 
+// Reconnect 请求连接池立即重建通道（网络切换/手动重连）。
+func (c *Client) Reconnect(reason string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.pool != nil {
+		c.pool.Reconnect(reason)
+	}
+}
+
 // ListenSOCKS5 启动 SOCKS5 代理监听器
 func (c *Client) ListenSOCKS5(addr string) error {
 	return c.pool.ListenSOCKS5(addr)

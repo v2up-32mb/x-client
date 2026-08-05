@@ -3,7 +3,7 @@
 ## 当前状态
 
 阶段 0-5 全部完成并验证（7 次 CI 全绿，4 ABI APK）。
-真机反馈两轮问题已修复：第一轮 3 个 + 第二轮 6 个 + 第三轮 1 个（GCM 分享链接补 ws_conn/enable_dynamic_pool/dynamic_pool_max，导出与导入同步）。
+真机反馈多轮问题已修复（第一轮 3 个 + 第二轮 6 个 + 第三轮 1 个 + 第四轮：ECH 缓存 singleflight、会话级写队列、网络切换主动重连——见 progress.md）。
 1. paramsJSON 数字/布尔解析失败 → Go `parseParamsJSON` 支持标量类型（GCM 的 ws_conn 等数字参数同样受益）
 2. x-tunnel 页面删除 ECH 查询域名/DoH 服务器设置项，复用全局设置（SettingsActivity）
 3. ECH 文案统一为「禁用 ECH（标准 TLS 1.3）」，checkbox 默认未选中（= 默认启用 ECH），x-tunnel 存储改为 XtDisableEch 语义

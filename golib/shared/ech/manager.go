@@ -19,6 +19,13 @@ type cacheEntry struct {
 	expiresAt time.Time // 过期时间
 }
 
+// inflightFetch 在途查询（singleflight）：同一域名的并发请求共享一次网络查询。
+type inflightFetch struct {
+	done chan struct{}
+	cfg  []byte
+	err  error
+}
+
 // EchManager ECH 配置管理器
 type EchManager struct {
 	mu              sync.RWMutex
@@ -30,6 +37,9 @@ type EchManager struct {
 	refreshInterval time.Duration                // 定时刷新间隔
 	stopChan        chan struct{}                // 停止信号
 	log             *logger.Logger
+
+	flightMu sync.Mutex
+	inflight map[string]*inflightFetch
 }
 
 // NewEchManager 创建 ECH 管理器
@@ -52,6 +62,7 @@ func NewEchManager(dohClient *dns.DoHClient, echDomain string, cacheTTL time.Dur
 		cacheTTL:        cacheTTL,
 		refreshInterval: refreshInterval,
 		stopChan:        make(chan struct{}),
+		inflight:        make(map[string]*inflightFetch),
 		log:             logger.GetLogger("ECH"),
 	}
 	// DoH 优先（内部多服务器 fallback），失败后回退 UDP DNS（x-tunnel 能力）。
@@ -102,7 +113,7 @@ func (em *EchManager) GetTlsConfig(domain string, useEch bool) (*tls.Config, err
 	return tlsConfig, nil
 }
 
-// getECHConfig 获取 ECH 配置（带缓存）
+// getECHConfig 获取 ECH 配置（带缓存 + singleflight）
 // domain 参数保留用于日志，实际查询使用 em.echDomain
 func (em *EchManager) getECHConfig(domain string) ([]byte, error) {
 	// 使用 echDomain 作为缓存键
@@ -112,16 +123,32 @@ func (em *EchManager) getECHConfig(domain string) ([]byte, error) {
 	em.mu.RLock()
 	entry, exists := em.cache[cacheKey]
 	em.mu.RUnlock()
-
-	// 缓存命中且未过期
 	if exists && time.Now().Before(entry.expiresAt) {
 		em.log.Debug("ECH 缓存命中: %s (查询域名: %s)", cacheKey, domain)
 		return entry.echConfig, nil
 	}
 
-	// 缓存未命中或已过期，需要查询
-	em.log.Debug("ECH 缓存未命中或已过期: %s，开始查询", cacheKey)
-	return em.fetchAndCache(cacheKey)
+	// singleflight：同一域名的并发取配置只执行一次网络查询，
+	// 避免 21 条连接同时启动时对 DoH/UDP 发起重复请求。
+	em.flightMu.Lock()
+	if f, ok := em.inflight[cacheKey]; ok {
+		em.flightMu.Unlock()
+		<-f.done
+		return f.cfg, f.err
+	}
+	f := &inflightFetch{done: make(chan struct{})}
+	em.inflight[cacheKey] = f
+	em.flightMu.Unlock()
+
+	// 在锁外执行网络查询
+	cfg, err := em.fetchAndCache(cacheKey)
+	f.cfg, f.err = cfg, err
+	close(f.done)
+
+	em.flightMu.Lock()
+	delete(em.inflight, cacheKey)
+	em.flightMu.Unlock()
+	return cfg, err
 }
 
 // fetchAndCache 从 DoH 查询 ECH 配置并缓存

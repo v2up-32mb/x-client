@@ -83,6 +83,9 @@ type clientPool struct {
 	// 通道就绪计数（用于延迟启动 PairWarmer）
 	readyChannels int32
 
+	// 主动重连信号（网络切换时由 NotifyNetworkChanged 触发）
+	reconnectCh chan struct{}
+
 	// 本地代理监听器（SOCKS5/HTTP），Shutdown 时必须关闭释放端口
 	listenersMu sync.Mutex
 	listeners   []net.Listener
@@ -115,6 +118,7 @@ func newClientPool(cfg *Config, ctx context.Context, cancel context.CancelFunc) 
 		resumeCh:          make(chan struct{}, 1),
 		chReadyCh:         make(chan int, 64),
 		chInvalidCh:       make(chan int, 64),
+		reconnectCh:       make(chan struct{}, 1),
 	}
 
 	if cfg.EnableHotPair {
@@ -135,6 +139,9 @@ func newClientPool(cfg *Config, ctx context.Context, cancel context.CancelFunc) 
 
 // Start 启动连接池
 func (p *clientPool) Start(relayNodes []string) {
+	// 网络切换重连监听（Android NotifyNetworkChanged）
+	go p.reconnectLoop()
+
 	// 启动 ECH 定时刷新（配置懒加载，首次拨号时按需获取）
 	if p.config.EnableECH {
 		p.echManager.StartAutoRefresh()
@@ -208,6 +215,38 @@ func (p *clientPool) Start(relayNodes []string) {
 	// 启动 PairWarmer 延迟监听器（在所有通道就绪后才启动）
 	if p.config.EnableHotPair && p.pairWarmer != nil {
 		go p.delayedStartPairWarmer(p.config.Connections)
+	}
+}
+
+// reconnectLoop 响应主动重连信号：关闭所有当前 WebSocket，
+// 由 dialAndServe 循环在新网络上立即重建通道（无需等待 TCP 死链检测）。
+func (p *clientPool) reconnectLoop() {
+	for {
+		select {
+		case <-p.ctx.Done():
+			return
+		case <-p.reconnectCh:
+			sysLog.Info("[客户端] 收到重连信号，强制重建所有通道")
+			p.wsConnsMu.Lock()
+			for _, ws := range p.wsConns {
+				if ws != nil {
+					_ = ws.Close()
+				}
+			}
+			p.wsConnsMu.Unlock()
+		}
+	}
+}
+
+// Reconnect 请求连接池立即重建通道（Android 网络切换/手动重连）。
+func (p *clientPool) Reconnect(reason string) {
+	if p.reconnectCh == nil {
+		return
+	}
+	sysLog.Info("[客户端] 重连请求: %s", reason)
+	select {
+	case p.reconnectCh <- struct{}{}:
+	default:
 	}
 }
 
@@ -347,6 +386,9 @@ var (
 	dialAndServeMaxRetries = 20
 	dialAndServeBaseDelay  = 3 * time.Second
 	dialAndServeMaxDelay   = 60 * time.Second
+
+	// writeQueueSize 单通道写队列容量（会话级队列）
+	writeQueueSize = 4096
 )
 
 // fastRetryState 记录快速重连状态
@@ -498,12 +540,17 @@ func (p *clientPool) dialAndServe(idx int, ip string) {
 			lastIP = ip
 		}
 		sysLog.Info("[客户端] 通道 %d%s 已连接", chID, relayInfo)
+		// 会话级写队列：每次连接使用独立队列，旧连接遗留的 writeWorker
+		// 只能消费旧队列（其连接已关闭，很快自行退出），不会与新连接的
+		// writeWorker 抢数据包（修复断线重连后请求被旧 worker 吞掉的问题）。
+		queue := make(chan writeJob, writeQueueSize)
 		p.wsConnsMu.Lock()
 		p.wsConns[idx] = wsConn
+		p.writeQueues[idx] = queue
 		p.wsConnsMu.Unlock()
 
 		// 先启动写工作者，确保 availableChannels 返回该通道时已有消费者就绪
-		go p.writeWorker(idx, wsConn, p.writeQueues[idx])
+		go p.writeWorker(idx, wsConn, queue)
 
 		// 增加就绪通道计数
 		atomic.AddInt32(&p.readyChannels, 1)

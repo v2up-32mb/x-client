@@ -97,13 +97,19 @@ func (b *Backend) Stop() error {
 	return err
 }
 
-// Reconnect 触发重连。x-tunnel 连接池自带持续重连循环，
-// 此处记录请求即可；通道断开后会自动重连。
+// Reconnect 触发重连：强制关闭现有 WebSocket 通道，
+// 连接池会立即在新网络上重建（Android 网络切换时不再等待 TCP 死链检测）。
 func (b *Backend) Reconnect(reason string) {
 	if reason = strings.TrimSpace(reason); reason == "" {
 		reason = "Android reconnect requested"
 	}
-	sysLog.Info("[客户端] 收到重连请求: %s（通道断开后自动重连）", reason)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.client != nil {
+		b.client.Reconnect(reason)
+	} else {
+		sysLog.Info("[客户端] 收到重连请求: %s（后端未运行）", reason)
+	}
 }
 
 // NotifyNetworkChanged 通知网络变更。

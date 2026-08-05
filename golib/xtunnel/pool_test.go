@@ -585,3 +585,32 @@ func TestDialAndServeKeepsRetryingAfterRetryLimit(t *testing.T) {
 		t.Fatalf("dialAndServe() did not exit after cancellation")
 	}
 }
+
+func TestPoolReconnectClosesCurrentChannels(t *testing.T) {
+	cfg := DefaultConfig()
+	cfg.EnableECH = false
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	p, err := newClientPool(cfg, ctx, cancel)
+	if err != nil {
+		t.Fatalf("newClientPool() error = %v", err)
+	}
+
+	clientConn, serverConn, cleanup := newClientTestWebSocketPair(t)
+	defer cleanup()
+
+	p.wsConnsMu.Lock()
+	p.wsConns = append(p.wsConns, clientConn)
+	p.wsConnsMu.Unlock()
+
+	go p.reconnectLoop()
+	p.Reconnect("test network switch")
+
+	// 服务端应观察到连接被关闭
+	serverConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, _, err = serverConn.ReadMessage()
+	if err == nil {
+		t.Fatal("expected channel to be closed after Reconnect()")
+	}
+}
