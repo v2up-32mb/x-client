@@ -181,10 +181,13 @@ jobs:
             local type="$1"
             local title="$2"
 
+            # -E：git log --grep 默认 BRE，^fix(\([^)]*\))?: 会被解释成
+            # "fix + 字面( + 可选内容 + : "，导致 "fix: xxx" 永不匹配；
+            # 扩展正则下 \( \) 才是字面括号，分组 ( ... )? 可选。
             COMMITS=$(git log $RANGE \
               --pretty=format:"- \`%h\` %s" \
-              --grep="^${type}(\([^)]*\))\?: " \
-              -i)
+              --grep="^${type}(\([^)]*\))?: " \
+              -i -E)
 
             if [ -n "$COMMITS" ]; then
               echo "#### $title"
