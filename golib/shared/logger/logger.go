@@ -382,10 +382,12 @@ var (
 	loggerMapMu      sync.RWMutex
 )
 
-// InitGlobalLogger 初始化全局日志器
+// InitGlobalLogger 初始化全局日志器，并把级别传播到已创建的 Logger。
+// xtunnel 的包级 sysLog 在 init 阶段（此时 globalLevel 还是默认值）就已创建，
+// 只更新 globalLevel 不会改变它的实际输出级别，因此必须统一走 SetGlobalLevel。
 func InitGlobalLogger(cfg *config.Config) {
-	globalLevel = cfg.LogLevel
 	globalFileLogger = NewFileLogger(cfg)
+	SetGlobalLevel(cfg.LogLevel)
 }
 
 // GetLogger 获取指定作用域的日志器

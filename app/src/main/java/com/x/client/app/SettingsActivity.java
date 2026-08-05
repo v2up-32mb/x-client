@@ -10,9 +10,11 @@ package com.x.client.app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -31,7 +33,15 @@ public class SettingsActivity extends AppCompatActivity {
     private EditText edittext_ech_dns;
     private EditText edittext_ech_domain;
     private CheckBox checkbox_enable_dns_warmup;
+    private Spinner spinner_log_level;
     private Button btn_save;
+
+    private static final String[] LOG_LEVEL_VALUES = {
+            Preferences.LOG_LEVEL_DEBUG,
+            Preferences.LOG_LEVEL_INFO,
+            Preferences.LOG_LEVEL_WARN,
+            Preferences.LOG_LEVEL_ERROR
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -54,7 +64,20 @@ public class SettingsActivity extends AppCompatActivity {
         edittext_ech_dns = findViewById(R.id.edittext_ech_dns);
         edittext_ech_domain = findViewById(R.id.edittext_ech_domain);
         checkbox_enable_dns_warmup = findViewById(R.id.checkbox_enable_dns_warmup);
+        spinner_log_level = findViewById(R.id.spinner_log_level);
         btn_save = findViewById(R.id.btn_save);
+
+        // 日志等级选择器：显示本地化文案，值与 Preferences LOG_LEVEL_* 一一对应
+        String[] logLevelLabels = new String[]{
+                getString(R.string.log_level_debug),
+                getString(R.string.log_level_info),
+                getString(R.string.log_level_warn),
+                getString(R.string.log_level_error)
+        };
+        ArrayAdapter<String> logLevelAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, logLevelLabels);
+        logLevelAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner_log_level.setAdapter(logLevelAdapter);
 
         // 加载当前设置
         loadSettings();
@@ -85,6 +108,17 @@ public class SettingsActivity extends AppCompatActivity {
         edittext_ech_domain.setText(prefs.getEchDomain());
         checkbox_enable_dns_warmup.setChecked(prefs.getEnableDnsWarmup());
 
+        // 加载日志等级
+        String logLevel = prefs.getLogLevel();
+        int logLevelPosition = 1; // 默认 INFO
+        for (int i = 0; i < LOG_LEVEL_VALUES.length; i++) {
+            if (LOG_LEVEL_VALUES[i].equals(logLevel)) {
+                logLevelPosition = i;
+                break;
+            }
+        }
+        spinner_log_level.setSelection(logLevelPosition);
+
         // 检查 VPN 是否正在运行
         boolean isVpnRunning = prefs.getEnable();
         if (isVpnRunning) {
@@ -99,6 +133,7 @@ public class SettingsActivity extends AppCompatActivity {
             edittext_ech_dns.setEnabled(false);
             edittext_ech_domain.setEnabled(false);
             checkbox_enable_dns_warmup.setEnabled(false);
+            spinner_log_level.setEnabled(false);
             btn_save.setEnabled(false);
 
             Toast.makeText(this, "VPN 正在运行，无法修改全局设置", Toast.LENGTH_LONG).show();
@@ -144,6 +179,7 @@ public class SettingsActivity extends AppCompatActivity {
         prefs.setEchDns(edittext_ech_dns.getText().toString().trim());
         prefs.setEchDomain(edittext_ech_domain.getText().toString().trim());
         prefs.setEnableDnsWarmup(checkbox_enable_dns_warmup.isChecked());
+        prefs.setLogLevel(LOG_LEVEL_VALUES[spinner_log_level.getSelectedItemPosition()]);
 
         return true;
     }

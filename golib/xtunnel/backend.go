@@ -23,6 +23,7 @@ const (
 	ParamDNSServer     = "dns_server"
 	ParamInsecure      = "insecure"
 	ParamEnableHotPair = "enable_hot_pair"
+	ParamLogLevel      = "log_level"
 )
 
 // Backend 运行 x-tunnel 协议栈：多通道 WebSocket 隧道 + 通道竞争/Hot Pair/
@@ -56,11 +57,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 
 	logger.ClearRuntimeLogs()
 	sharedCfg := newSharedConfig(cfg)
-	if verbose {
-		sharedCfg.LogLevel = config.DEBUG
-	} else {
-		sharedCfg.LogLevel = config.INFO
-	}
+	sharedCfg.LogLevel = logLevelFromParams(params, verbose)
 	logger.InitGlobalLogger(sharedCfg)
 	systemLog := logger.GetLogger("System")
 	systemLog.Info("启动 X-Tunnel: Server=%s, 连接数=%d, ECH=%v, RelayNodes=%d, HotPair=%v",
@@ -171,6 +168,18 @@ func buildConfig(params map[string]string) (*Config, error) {
 		c.EnableHotPair = v
 	}
 	return c, nil
+}
+
+// logLevelFromParams 解析代理日志等级：显式 log_level 参数优先，
+// verbose 布尔开关保留向后兼容（缺省时 verbose=true → DEBUG，否则 INFO）。
+func logLevelFromParams(params map[string]string, verbose bool) config.LogLevel {
+	if v := strings.TrimSpace(stringParam(params, ParamLogLevel, "")); v != "" {
+		return config.ParseLogLevel(v)
+	}
+	if verbose {
+		return config.DEBUG
+	}
+	return config.INFO
 }
 
 func stringParam(params map[string]string, key, def string) string {

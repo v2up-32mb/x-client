@@ -3,6 +3,7 @@ package xclient
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseParamsJSON(t *testing.T) {
@@ -126,4 +127,36 @@ func TestValidateBypassRules(t *testing.T) {
 	if err := ValidateBypassRules("not a valid rule!"); err == nil {
 		t.Fatal("ValidateBypassRules() error = nil")
 	}
+}
+
+func TestSetTimeZone(t *testing.T) {
+	oldLocal := time.Local
+	t.Cleanup(func() { time.Local = oldLocal })
+
+	// IANA 命名时区
+	SetTimeZone("Asia/Shanghai")
+	if time.Local.String() != "Asia/Shanghai" {
+		t.Fatalf("time.Local = %q, want Asia/Shanghai", time.Local.String())
+	}
+	if got := time.Now().Location().String(); got != "Asia/Shanghai" {
+		t.Fatalf("time.Now().Location() = %q, want Asia/Shanghai", got)
+	}
+
+	// Android 固定偏移时区 ID
+	SetTimeZone("GMT+08:00")
+	if _, offset := time.Now().Zone(); offset != 8*3600 {
+		t.Fatalf("GMT+08:00 offset = %d, want %d", offset, 8*3600)
+	}
+	SetTimeZone("GMT-05:30")
+	if _, offset := time.Now().Zone(); offset != -(5*3600 + 30*60) {
+		t.Fatalf("GMT-05:30 offset = %d", offset)
+	}
+
+	// 未知/空时区不应 panic，也不应清空当前设置
+	SetTimeZone("Not/AZone")
+	if time.Local.String() != "GMT-05:30" {
+		t.Fatalf("unknown tz changed time.Local to %q", time.Local.String())
+	}
+	SetTimeZone("")
+	SetTimeZone("  ")
 }

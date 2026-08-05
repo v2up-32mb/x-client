@@ -45,6 +45,7 @@ const (
 	ParamBypassRules       = "bypass_rules"
 	ParamEnableDynamicPool = "enable_dynamic_pool"
 	ParamDynamicPoolMax    = "dynamic_pool_max"
+	ParamLogLevel          = "log_level"
 )
 
 // Backend runs the GCM protocol stack. It implements the xclient.ProxyBackend
@@ -259,7 +260,10 @@ func buildConfig(listenAddr string, params map[string]string, verbose bool) (*co
 			return nil, err
 		}
 	}
-	if verbose {
+	// 日志等级：显式 log_level 参数优先，verbose 布尔开关保留向后兼容。
+	if v := strings.TrimSpace(stringParam(params, ParamLogLevel, "")); v != "" {
+		c.LogLevel = config.ParseLogLevel(v)
+	} else if verbose {
 		c.LogLevel = config.DEBUG
 	} else {
 		c.LogLevel = config.INFO

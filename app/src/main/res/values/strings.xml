@@ -84,6 +84,14 @@
         <string name="xt_insecure">跳过证书验证（Insecure）</string>
         <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
 
+        <!-- Log level -->
+        <string name="log_level_label">日志等级：</string>
+        <string name="log_level_hint">控制代理协议输出到运行日志的详细程度，下次启动 VPN 时生效</string>
+        <string name="log_level_debug">调试（DEBUG）</string>
+        <string name="log_level_info">信息（INFO）</string>
+        <string name="log_level_warn">警告（WARN）</string>
+        <string name="log_level_error">错误（ERROR）</string>
+
         <!-- Route bypass -->
         <string name="bypass_routes">路由绕过</string>
         <string name="bypass_private">绕过本地和局域网地址</string>

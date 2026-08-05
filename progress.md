@@ -137,3 +137,27 @@
 - 修复：xtunnel 分享链接导入 host 解析——`"xtunnel://"` 为 10 字符，导入误用 `substring(9)` 导致服务器地址解析成 `wss:///ech-us.ics.de5.net:443`（多一个 `/`）；列表/编辑两处导入均改为 `substring(10)`，并加前导斜杠容错（兼容旧链接）
 - CI 策略变更：build-debug.yml 仅 `workflow_dispatch` 手动触发（push 不再自动构建）；release.yml 保留 tag 触发
 - v1.1.1 发布成功（run 30983082578）：5 个签名 APK（arm64-v8a/armeabi-v7a/x86/x86_64/universal）
+
+## 2026-08-05 阶段 8：全局日志等级 + 日志时区对齐
+
+### 需求
+1. 全局设置页新增「日志等级」下拉框，控制代理协议（GCM / X-Tunnel）输出到运行日志的详细程度
+2. 代理日志时间戳时区与 Android 系统时区一致（此前显示 UTC）
+
+### Go 侧
+- `shared/logger`：`InitGlobalLogger` 改为统一走 `SetGlobalLevel`，把级别传播到已创建的 Logger——修复 xtunnel 包级 `sysLog` 在包 init 阶段创建、此前不随 verbose/log_level 生效的隐藏问题
+- `gcm/backend.go` + `xtunnel/backend.go`：新增 `log_level` 参数（DEBUG/INFO/WARN/ERROR）；显式参数优先，`verbose` 布尔保留向后兼容；xtunnel 侧收敛为 `logLevelFromParams` 助手
+- `android.go`：导出 `SetTimeZone(tz)` + 嵌入 `time/tzdata`（Android 无 zoneinfo 时 LoadLocation 可用）；支持 IANA 名称（Asia/Shanghai）与 Android 固定偏移 ID（GMT+08:00 / GMT-05:30 / UTC+8）
+- 测试：`TestBuildConfigLogLevelPrecedence`、`TestLogLevelFromParams`、`TestInitGlobalLoggerPropagatesToExistingLoggers`、`TestSetTimeZone` 全部通过
+
+### Android 侧
+- `Preferences.java`：全局 `LogLevel` 键（默认 INFO，未知值回退 INFO），`getLogLevel/setLogLevel`
+- `activity_settings.xml` + `SettingsActivity.java`：日志等级 Spinner（调试/信息/警告/错误），VPN 运行中禁用，保存写入偏好
+- `TProxyService.java`：GCM/X-Tunnel paramsJSON 均增加 `log_level`；`onCreate` 同步系统时区并注册 `ACTION_TIMEZONE_CHANGED` 接收器（VPN 运行中改时区即时生效），`onDestroy` 注销
+- `XclientApplication.java`：应用启动时同步系统时区（主进程）
+- strings 中文 + 俄语补齐文案
+
+### 验证
+- `go test ./... -count=3`：14 包全部通过；`go vet`、`gofmt -l`、`git diff --check` 干净
+- XML 三个资源文件 well-formed 校验通过
+- gobind 完整验证：`go get golang.org/x/mobile/bind` 后 `gobind -lang=java` 成功（exit 0），`Xclient.setTimeZone(String)` 导出确认；go.mod/go.sum 改动已还原不提交

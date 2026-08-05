@@ -3,6 +3,8 @@ package gcm
 import (
 	"strings"
 	"testing"
+
+	"xclient/shared/config"
 )
 
 func TestBuildConfigFullParams(t *testing.T) {
@@ -150,5 +152,55 @@ func TestNormalizeWorkerHost(t *testing.T) {
 		if got := normalizeWorkerHost(tc.in); got != tc.want {
 			t.Fatalf("normalizeWorkerHost(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+}
+
+func TestBuildConfigLogLevelPrecedence(t *testing.T) {
+	base := map[string]string{ParamWorkerHost: "worker.example"}
+
+	// 显式 log_level 优先于 verbose
+	params := map[string]string{ParamWorkerHost: "worker.example", ParamLogLevel: "warn"}
+	cfg, err := buildConfig("127.0.0.1:1080", params, true)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.LogLevel != config.WARN {
+		t.Fatalf("explicit warn LogLevel = %v, want WARN", cfg.LogLevel)
+	}
+
+	// 大写/小写均接受（ParseLogLevel 语义）
+	params[ParamLogLevel] = "debug"
+	cfg, err = buildConfig("127.0.0.1:1080", params, false)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.LogLevel != config.DEBUG {
+		t.Fatalf("explicit debug LogLevel = %v, want DEBUG", cfg.LogLevel)
+	}
+
+	// 无显式参数：verbose 兼容
+	cfg, err = buildConfig("127.0.0.1:1080", base, true)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.LogLevel != config.DEBUG {
+		t.Fatalf("verbose LogLevel = %v, want DEBUG", cfg.LogLevel)
+	}
+	cfg, err = buildConfig("127.0.0.1:1080", base, false)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.LogLevel != config.INFO {
+		t.Fatalf("default LogLevel = %v, want INFO", cfg.LogLevel)
+	}
+
+	// 未知级别按 ParseLogLevel 语义回退 INFO
+	params[ParamLogLevel] = "verbose"
+	cfg, err = buildConfig("127.0.0.1:1080", params, true)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.LogLevel != config.INFO {
+		t.Fatalf("unknown level LogLevel = %v, want INFO fallback", cfg.LogLevel)
 	}
 }

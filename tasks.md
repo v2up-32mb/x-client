@@ -77,3 +77,19 @@
 - Go module 版本：当前 `go 1.23`，CI 使用 `go-version: '1.25'`，gomobile bind 需确认兼容
 - x-tunnel 原 module 为 `go 1.25.5`，集成时需降级适配
 - 旧的 x-client 项目已存档为 `/root/projects/x-client.legacy`
+
+### 阶段 8：全局日志等级 + 日志时区对齐（代码完成，待提交 + CI 验证）
+
+需求：全局设置页新增「日志等级」下拉框，控制代理协议输出到运行日志的详细程度；
+代理日志时间戳时区与 Android 系统时区一致（当前为 UTC）。
+
+- [x] Go `shared/logger`：`InitGlobalLogger` 将新级别传播到已创建的 Logger（修复 xtunnel 包级 sysLog 在 init 时创建、不随 verbose/log_level 生效的问题）
+- [x] Go `gcm/backend.go` + `xtunnel/backend.go`：新增 `log_level` 参数（DEBUG/INFO/WARN/ERROR，显式参数优先，`verbose` 布尔保留向后兼容）
+- [x] Go `android.go`：导出 `SetTimeZone(tz)`（`time/tzdata` 嵌入 IANA 数据库 + 固定偏移 GMT±HH:MM 解析），Android 侧传入系统时区
+- [x] Go 测试：log_level 优先级、logger 级别传播、SetTimeZone 命名时区/固定偏移/未知值
+- [x] Android `Preferences.java`：全局 `LogLevel` 键 + 校验 getter/setter（默认 INFO）
+- [x] Android `activity_settings.xml` + `SettingsActivity.java`：日志等级 Spinner（调试/信息/警告/错误），VPN 运行中禁用，保存写入偏好
+- [x] Android `TProxyService.java`：两协议 paramsJSON 增加 `log_level`；onCreate 同步时区 + `ACTION_TIMEZONE_CHANGED` 广播更新
+- [x] Android `XclientApplication.java`：应用启动时同步系统时区
+- [x] strings（中文 + 俄语）补齐日志等级文案
+- [ ] 验证：`go test ./... -count=3`（14 包通过）、vet、gofmt、diff --check、gobind（`setTimeZone` 导出验证通过）→ 提交推送 → CI 构建 4 ABI APK
