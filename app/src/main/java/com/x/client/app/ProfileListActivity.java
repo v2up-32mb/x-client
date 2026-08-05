@@ -705,7 +705,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         }
         String rest;
         if (isXtunnel) {
-            rest = protocol.substring(9); // "xtunnel://" 之后
+            rest = protocol.substring(10); // "xtunnel://" 之后（10 个字符）
         } else {
             rest = protocol.substring(6); // "gcm://" / "ech://" 之后
         }
@@ -724,6 +724,10 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             query = rest.substring(qmark + 1);
         } else {
             wssAddr = rest;
+        }
+        // 容错：剥离 host 前的多余斜杠（旧版分享链接可能多一个 /）
+        while (wssAddr.startsWith("/")) {
+            wssAddr = wssAddr.substring(1);
         }
         // 确保 wss:// 前缀
         if (!wssAddr.startsWith("wss://")) {
