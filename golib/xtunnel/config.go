@@ -60,6 +60,12 @@ type Config struct {
 	// SOCKS5 连接限制
 	MaxSOCKS5Connections int // SOCKS5 最大并发连接数 (0 表示无限制)
 
+	// 路由绕过（与 GCM 后端共享 routing.Matcher 语义）
+	BypassPrivate   bool   // 绕过本地/局域网地址
+	BypassGeoIPCN   bool   // 绕过 GEOIP:CN
+	BypassGeoSiteCN bool   // 绕过 GEOSITE:CN
+	BypassRules     string // 手动规则（每行一条）
+
 	// Hot Pair 配置
 	EnableHotPair          bool          // 是否启用热通道对
 	HotPairCount           int           // Hot Pair 数量，默认 1

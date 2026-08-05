@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"xclient/shared/ech"
+	"xclient/shared/routing"
 	common "xclient/xtunnel/protocol"
 	"xclient/xtunnel/relay"
 )
@@ -53,13 +55,14 @@ type clientPool struct {
 	bytesSent        uint64
 	bytesReceived    uint64
 
-	config       *Config
-	ctx          context.Context
-	cancel       context.CancelFunc
-	clientID     string
-	relayManager *relay.RelayNodeManager
-	echManager   *ech.EchManager
-	pairWarmer   *PairWarmer
+	config        *Config
+	ctx           context.Context
+	cancel        context.CancelFunc
+	clientID      string
+	bypassMatcher *routing.Matcher
+	relayManager  *relay.RelayNodeManager
+	echManager    *ech.EchManager
+	pairWarmer    *PairWarmer
 
 	wsConnsMu       sync.RWMutex
 	wsConns         []*websocket.Conn
@@ -1604,4 +1607,57 @@ func (p *clientPool) getBackpressureDelay() time.Duration {
 	default:
 		return 0 // 正常，无延迟
 	}
+}
+
+// shouldBypass 判断目标地址是否命中路由绕过规则。
+// xtunnel 不做客户端 DNS 解析（域名由服务端解析），因此：
+//   - IP/CIDR/private 规则与域名规则（domain/suffix/full/geosite）直接生效；
+//   - GEOIP 类规则只对 IP 目标生效（域名目标不触发本地解析）。
+func (p *clientPool) shouldBypass(target string) bool {
+	if p.bypassMatcher == nil {
+		return false
+	}
+	host, _, err := net.SplitHostPort(target)
+	if err != nil {
+		return false
+	}
+	return p.bypassMatcher.Match(host, host)
+}
+
+// dialBypassTarget 建立绕过隧道的直连 TCP 连接。
+func (p *clientPool) dialBypassTarget(target string) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(p.ctx, p.connectTimeout())
+	defer cancel()
+	return (&net.Dialer{}).DialContext(ctx, "tcp", target)
+}
+
+// relayBypassConnections 双向转发两个数据流直到一端结束。
+// 对 *net.TCPConn 主动半关闭（CloseWrite），保证流式协议（SOCKS5/HTTP）
+// 的 EOF 语义；a 侧可以是 bufio 包装（HTTP 普通请求的已缓冲字节）。
+func relayBypassConnections(a io.ReadWriter, aTCP *net.TCPConn, b io.ReadWriter, bTCP *net.TCPConn) {
+	done := make(chan struct{}, 2)
+	go func() {
+		_, _ = io.Copy(b, a)
+		if bTCP != nil {
+			_ = bTCP.CloseWrite()
+		}
+		done <- struct{}{}
+	}()
+	go func() {
+		_, _ = io.Copy(a, b)
+		if aTCP != nil {
+			_ = aTCP.CloseWrite()
+		}
+		done <- struct{}{}
+	}()
+	<-done
+	<-done
+}
+
+// asTCP 返回连接对应的 *net.TCPConn（用于半关闭），非 TCP 连接返回 nil。
+func asTCP(c net.Conn) *net.TCPConn {
+	if tc, ok := c.(*net.TCPConn); ok {
+		return tc
+	}
+	return nil
 }

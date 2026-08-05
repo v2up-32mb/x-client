@@ -161,3 +161,38 @@
 - `go test ./... -count=3`：14 包全部通过；`go vet`、`gofmt -l`、`git diff --check` 干净
 - XML 三个资源文件 well-formed 校验通过
 - gobind 完整验证：`go get golang.org/x/mobile/bind` 后 `gobind -lang=java` 成功（exit 0），`Xclient.setTimeZone(String)` 导出确认；go.mod/go.sum 改动已还原不提交
+
+## 2026-08-05 阶段 9：X-Tunnel 启用路由绕过
+
+### 需求
+全局设置的路由绕过（本地/局域网、GeoIP:CN、GeoSite:CN、手动规则）在 X-Tunnel 协议下同样生效。
+此前该能力只在 GCM 后端接线（gcm/backend.go 构建 routing.Matcher + shared/socks5.SetBypassMatcher），
+xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法分流。
+
+### Go 侧
+- `xtunnel/config.go`：Config 新增 `BypassPrivate/BypassGeoIPCN/BypassGeoSiteCN/BypassRules` 4 字段
+- `xtunnel/backend.go`：新增 4 个参数常量（键与 GCM 一致）；buildConfig 解析并校验布尔类型；Start 中构建
+  `routing.NewMatcher`（非法规则在启动网络前报 `invalid bypass rules`）；`Client.SetBypassMatcher` 注入
+- `xtunnel/pool.go`：`clientPool.bypassMatcher` + `shouldBypass`（域名/IP/CIDR/private/geosite 直接生效；
+  GEOIP 类规则仅对 IP 目标生效——xtunnel 不做客户端 DNS 解析，域名由服务端解析）+ `dialBypassTarget`
+  （复用 connectTimeout）+ `relayBypassConnections`（TCP 半关闭语义，支持 bufio 包装）+ `asTCP`
+- `xtunnel/socks5.go`：`handleSOCKS5Connect` 命中绕过 → `handleSOCKS5Direct` 直连（失败发标准 SOCKS5 失败应答）；
+  UDP ASSOCIATE 不参与绕过（与 GCM 一致，GCM wire 协议无 UDP）
+- `xtunnel/http_proxy.go`：CONNECT 命中 → 直连 + 200；普通请求命中 → 重建上游请求 + 缓冲字节直连转发
+  （`bufioProxyConn` 保证 bufio 已缓冲字节不被跳过）
+
+### Android 侧
+- `TProxyService.buildXtunnelParams`：增加 `bypass_private/bypass_geoip_cn/bypass_geosite_cn/bypass_rules`
+  （与 GCM 共用全局设置偏好）
+
+### 测试（golib/xtunnel/bypass_test.go）
+- `TestShouldBypassRules`：14 组规则表（private/geoip/geosite/manual domain+suffix/full/IP/CIDR/IPv6）
+- `TestBuildConfigBypassParams`：参数解析 + 布尔类型错误在启动前报错
+- `TestBackendStartInvalidBypassRules`：非法规则报 `invalid bypass rules`
+- `TestBackendSOCKS5BypassDirect`：隧道不可达（wss://127.0.0.1:1）时直连仍完成 SOCKS5 握手 + echo 往返
+- `TestHTTPProxyBypassDirect`：HTTP CONNECT 与普通 GET 均直连成功
+
+### 验证
+- `go test ./... -count=3`：14 包全部通过；`go vet`、`gofmt -l`、`git diff --check` 干净
+- gobind 导出面不变（7 个 API，含 setTimeZone）
+- README 同步：X-Tunnel 路由绕过标 ✅，参数键表补 4 键

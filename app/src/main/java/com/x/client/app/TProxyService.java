@@ -334,6 +334,11 @@ public class TProxyService extends VpnService {
         params.put("insecure", prefs.getXtInsecure());
         params.put("enable_hot_pair", prefs.getXtEnableHotPair());
         params.put("log_level", prefs.getLogLevel());
+        // 路由绕过（全局设置，与 GCM 协议共用同一组偏好）
+        params.put("bypass_private", prefs.getBypassPrivate());
+        params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
+        params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
+        params.put("bypass_rules", prefs.getBypassRules());
         return params;
     }
 

@@ -296,6 +296,12 @@ func (p *clientPool) handleSOCKS5UserPassAuth(c net.Conn, cfgp *ProxyConfig) err
 
 // handleSOCKS5Connect 处理 SOCKS5 CONNECT 请求
 func (p *clientPool) handleSOCKS5Connect(c net.Conn, cfgp *ProxyConfig, target string) {
+	// 路由绕过：命中规则的目标直接建立本机 TCP 连接，不经过隧道。
+	if p.shouldBypass(target) {
+		p.handleSOCKS5Direct(c, target)
+		return
+	}
+
 	connID := uuid.New().String()
 
 	// reply success (BND.ADDR/BND.PORT ignored)
@@ -371,6 +377,29 @@ func (p *clientPool) handleSOCKS5Connect(c net.Conn, cfgp *ProxyConfig, target s
 			p.broadcastWrite(websocket.BinaryMessage, common.EncodeMessage(common.MsgTCPData, connID, nil, buf[:n]))
 		}
 	}
+}
+
+// handleSOCKS5Direct 处理命中路由绕过的 SOCKS5 CONNECT：直接连接目标。
+// UDP ASSOCIATE 不参与绕过（与 GCM 一致：GCM wire 协议无 UDP；UDP 直连
+// 需要额外的本机 UDP relay，暂不在客户端实现）。
+func (p *clientPool) handleSOCKS5Direct(c net.Conn, target string) {
+	startedAt := time.Now()
+	targetConn, err := p.dialBypassTarget(target)
+	if err != nil {
+		sysLog.Warn("[客户端] SOCKS5 直连绕过失败 -> %s: %v", target, err)
+		_, _ = c.Write([]byte{0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
+		return
+	}
+	defer targetConn.Close()
+
+	if _, err := c.Write([]byte{0x05, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0}); err != nil {
+		sysLog.Debug("[客户端] SOCKS5 直连绕过响应失败: %v", err)
+		return
+	}
+	sysLog.Info("[客户端] SOCKS5 直连绕过 -> %s", target)
+
+	relayBypassConnections(c, asTCP(c), targetConn, asTCP(targetConn))
+	sysLog.Debug("[客户端] SOCKS5 直连完成 -> %s | 耗时=%dms", target, time.Since(startedAt).Milliseconds())
 }
 
 // handleSOCKS5UDP 处理 SOCKS5 UDP ASSOCIATE 请求

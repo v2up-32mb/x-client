@@ -97,3 +97,14 @@
 - [x] Android `XclientApplication.java`：应用启动时同步系统时区
 - [x] strings（中文 + 俄语）补齐日志等级文案
 - [x] 验证：`go test ./... -count=3`（14 包通过）、vet、gofmt、diff --check、gobind（`setTimeZone` 导出验证通过）→ 提交推送 → CI 构建 4 ABI APK
+
+### 阶段 9：X-Tunnel 启用路由绕过（完成，待发布验证）
+
+需求：全局设置的路由绕过（本地/局域网、GeoIP:CN、GeoSite:CN、手动规则）在 X-Tunnel
+协议下同样生效（此前仅 GCM 接线，xtunnel 不解析 bypass_* 参数）。
+
+- [x] Go `xtunnel`：解析 `bypass_private/bypass_geoip_cn/bypass_geosite_cn/bypass_rules` 参数，构建 `routing.Matcher`（Config 新增 4 字段，Start 中构建 matcher，非法规则启动前报错）
+- [x] Go `xtunnel`：SOCKS5 与 HTTP 代理入口接入 bypass——命中规则的目标走直连（`shouldBypass`/`dialBypassTarget`/`relayBypassConnections`），不经过隧道；UDP ASSOCIATE 不参与（与 GCM 一致）
+- [x] Android `TProxyService.java`：`buildXtunnelParams` 增加 4 个 bypass 键（与 GCM 共用全局偏好）
+- [x] Go 测试：`TestShouldBypassRules`（14 组规则）、`TestBuildConfigBypassParams`、`TestBackendStartInvalidBypassRules`、`TestBackendSOCKS5BypassDirect`（隧道不可达时直连往返）、`TestHTTPProxyBypassDirect`（CONNECT + GET 直连）
+- [x] 验证：`go test ./... -count=3`（14 包）、vet、gofmt、diff --check、gobind 导出面不变 → 提交推送 + v1.1.3 标签（Release 自动构建，不手动触发 debug 构建）
