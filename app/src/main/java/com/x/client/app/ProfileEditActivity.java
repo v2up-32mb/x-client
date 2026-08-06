@@ -493,6 +493,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         boolean disableEch = false;
         boolean insecure = false;
         boolean enableHotPair = false;
+        int hotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -553,7 +554,19 @@ public class ProfileEditActivity extends AppCompatActivity {
                             insecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
                             break;
                         case "hotpair":
-                            enableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            // hotpair=1/true/yes 兼容旧格式（启用 1 对）；hotpair=2..8 表示启用 N 对
+                            int hotPairValue = 1;
+                            try {
+                                hotPairValue = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            if (hotPairValue >= 2 && hotPairValue <= Preferences.MAX_XT_HOT_PAIR_COUNT) {
+                                enableHotPair = true;
+                                hotPairCount = hotPairValue;
+                            } else {
+                                enableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                                hotPairCount = 1;
+                            }
                             break;
                     }
                 }
@@ -580,6 +593,8 @@ public class ProfileEditActivity extends AppCompatActivity {
             checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
             checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
+            edittext_xt_hot_pair_count.setText(String.valueOf(hotPairCount));
+            edittext_xt_hot_pair_count.setEnabled(enableHotPair);
         } else {
             // GCM 配置
             setProtocolSelection(Preferences.PROTOCOL_GCM);

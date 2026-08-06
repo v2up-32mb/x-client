@@ -125,3 +125,13 @@
 - [x] `TProxyService.buildXtunnelParams`：传 hot_pair_count
 - [x] Go `xtunnel/backend.go`：解析 hot_pair_count → cfg.HotPairCount（1..8 校验）+ 测试（默认/显式/非法/超限）
 - [x] 验证：go test/vet/gofmt/diff/XML/gobind → 提交推送 → v1.1.4 标签
+### 阶段 11：v1.1.4 真机反馈 5 项修复（完成，待发布验证）
+
+- [x] URI 导出 `hotpair=<对数>`（启用时写 prefs.getXtHotPairCount()）；导入解析 `hotpair=2..8` 为数量、`hotpair=1/true/yes` 兼容旧格式（启用 1 对），列表页与编辑页两处导入均设置 XtHotPairCount
+- [x] `Preferences.getLogLevel/setLogLevel` 白名单补上 LOG_LEVEL_INFO（此前 INFO 保存被静默拒绝，DEBUG/WARN/ERROR 均可存）
+- [x] hot-pair 创建日志计数 `(readyCount+1)/PairCount`，从 (1/N) 起；x-tunnel 主体 main/win7-compat 一并修
+- [x] Pair ID 由 UUID 改为两位十六进制（generatePairID 原子计数器 + 活动 Pair 去重；预绑定内部 connID 仍用 UUID）；pool.go 日志去掉 [:16] 截断；主体一并修
+- [x] 多 Pair 周期刷新先构建候选：候选通道与最老 Pair 完全一致时放弃候选、旧 Pair 继续服务；构建失败/通道不足时保留现有 Pair；主体一并修（x-tunnel main 8fc3ed6 / win7-compat c8d76d6 已推送）
+- [x] Go 测试：pairChannelsEqual / generatePairID 格式与去重 / discardCandidatePair（refs=0 立即移除、refs>0 转 Draining）
+- [x] README：URI 示例 hotpair=1 → hotpair=<对数 1..8> + 兼容说明
+验证：go test -count=3（14 包）、vet、gofmt、diff --check、XML、gobind 导出面不变 → 提交推送 → v1.1.5 标签（Release 自动构建，不手动触发 debug 构建）

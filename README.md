@@ -92,9 +92,10 @@ Release 流程：打附注标签（如 `v1.1.2`）并推送，`release.yml` 自�
 
 ```
 gcm://<workerHost>?ip=<优选中转IP:端口>&fip=<出口代理IP>&user_id=<用户ID>&dns=<DoH服务器>&domain=<ECH查询域名>&disable_ech=1#<配置名称>
-xtunnel://<serverAddr>?token=<Token>&relay_nodes=<节点,逗号分隔>&connections=<连接数>&ech=0|1&domain=<ECH域名>&dns=<DoH服务器>&insecure=1&hotpair=1#<配置名称>
+xtunnel://<serverAddr>?token=<Token>&relay_nodes=<节点,逗号分隔>&connections=<连接数>&ech=0|1&domain=<ECH域名>&dns=<DoH服务器>&insecure=1&hotpair=<对数 1..8>#<配置名称>
 ```
 
+- `hotpair=1`（或 `true`/`yes`）兼容旧格式（启用 1 对）；`hotpair=2..8` 表示启用 N 对
 - Profile 编辑页按协议显示字段；列表页显示协议徽标与服务器地址
 - 全局设置（DoH 服务器、ECH 域名、DNS 预热）对两种协议共用
 
