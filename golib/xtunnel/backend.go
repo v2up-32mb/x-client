@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"xclient/shared/config"
 	"xclient/shared/logger"
@@ -34,6 +35,19 @@ const (
 	ParamBypassGeoIPCN   = "bypass_geoip_cn"
 	ParamBypassGeoSiteCN = "bypass_geosite_cn"
 	ParamBypassRules     = "bypass_rules"
+
+	// 高级参数（毫秒/字节整数，0 或缺省使用默认值；不进入分享链接）
+	ParamBackpressureLimit     = "backpressure_limit"
+	ParamWriteQueueWaitTimeout = "write_queue_wait_timeout"
+	ParamDialTimeout           = "dial_timeout"
+	ParamHandshakeTimeout      = "handshake_timeout"
+	ParamReadTimeout           = "read_timeout"
+	ParamWriteTimeout          = "write_timeout"
+	ParamPingInterval          = "ping_interval"
+	ParamReconnectDelay        = "reconnect_delay"
+	ParamConnectTimeout        = "connect_timeout"
+	ParamMaxSocks5Connections  = "max_socks5_connections"
+	ParamUDPBlockedPorts       = "udp_blocked_ports"
 )
 
 // Backend 运行 x-tunnel 协议栈：多通道 WebSocket 隧道 + 通道竞争/Hot Pair/
@@ -201,6 +215,68 @@ func buildConfig(params map[string]string) (*Config, error) {
 	c.BypassGeoIPCN, _ = boolParam(params, ParamBypassGeoIPCN, false)
 	c.BypassGeoSiteCN, _ = boolParam(params, ParamBypassGeoSiteCN, false)
 	c.BypassRules = stringParam(params, ParamBypassRules, "")
+
+	// 高级参数解析（字节/毫秒整数；负值非法，0 或缺省使用默认值）
+	if v, err := intParam(params, ParamBackpressureLimit, 0); err != nil {
+		return nil, err
+	} else if v < 0 {
+		return nil, fmt.Errorf("param %q: must not be negative", ParamBackpressureLimit)
+	} else if v > 0 {
+		c.BackpressureLimitBytes = v
+	}
+	if v, err := intParam(params, ParamWriteQueueWaitTimeout, 0); err != nil {
+		return nil, err
+	} else if v < 0 {
+		return nil, fmt.Errorf("param %q: must not be negative", ParamWriteQueueWaitTimeout)
+	} else if v > 0 {
+		c.WriteQueueWaitTimeout = time.Duration(v) * time.Millisecond
+	}
+	for _, item := range []struct {
+		key string
+		dst *time.Duration
+	}{
+		{ParamDialTimeout, &c.DialTimeout},
+		{ParamHandshakeTimeout, &c.HandshakeTimeout},
+		{ParamReadTimeout, &c.ReadTimeout},
+		{ParamWriteTimeout, &c.WriteTimeout},
+		{ParamPingInterval, &c.PingInterval},
+		{ParamReconnectDelay, &c.ReconnectDelay},
+		{ParamConnectTimeout, &c.ConnectTimeout},
+	} {
+		if v, err := intParam(params, item.key, 0); err != nil {
+			return nil, err
+		} else if v < 0 {
+			return nil, fmt.Errorf("param %q: must not be negative", item.key)
+		} else if v > 0 {
+			*item.dst = time.Duration(v) * time.Millisecond
+		}
+	}
+	// max_socks5_connections 单独处理：0 有"无限制"语义，因此仅在显式提供时覆盖默认值
+	if v, ok := params[ParamMaxSocks5Connections]; ok && strings.TrimSpace(v) != "" {
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		if err != nil {
+			return nil, fmt.Errorf("param %q: invalid integer %q", ParamMaxSocks5Connections, v)
+		}
+		if n < 0 {
+			return nil, fmt.Errorf("param %q: must not be negative", ParamMaxSocks5Connections)
+		}
+		c.MaxSOCKS5Connections = n
+	}
+	if v := stringParam(params, ParamUDPBlockedPorts, ""); v != "" {
+		var ports []int
+		for _, item := range strings.Split(v, ",") {
+			item = strings.TrimSpace(item)
+			if item == "" {
+				continue
+			}
+			port, err := strconv.Atoi(item)
+			if err != nil || port < 1 || port > 65535 {
+				return nil, fmt.Errorf("param %q: invalid port %q", ParamUDPBlockedPorts, item)
+			}
+			ports = append(ports, port)
+		}
+		c.UDPBlockedPorts = ports
+	}
 	return c, nil
 }
 

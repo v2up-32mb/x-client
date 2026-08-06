@@ -26,3 +26,13 @@ func TestDefaultConfigHasHotPairDefaults(t *testing.T) {
 		t.Fatalf("MaxFastRetryConsecutive default = %d, want 3", cfg.MaxFastRetryConsecutive)
 	}
 }
+
+func TestDefaultConfigBackpressureDefaults(t *testing.T) {
+	cfg := DefaultConfig()
+	if cfg.BackpressureLimitBytes != DefaultBackpressureLimitBytes {
+		t.Fatalf("BackpressureLimitBytes default = %d, want %d (8MB)", cfg.BackpressureLimitBytes, DefaultBackpressureLimitBytes)
+	}
+	if cfg.WriteQueueWaitTimeout != 100*time.Millisecond {
+		t.Fatalf("WriteQueueWaitTimeout default = %v, want 100ms", cfg.WriteQueueWaitTimeout)
+	}
+}
