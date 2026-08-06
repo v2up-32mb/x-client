@@ -135,7 +135,7 @@ func (b *Backend) Reconnect(reason string) {
 	if b.client != nil {
 		b.client.Reconnect(reason)
 	} else {
-		sysLog.Info("[客户端] 收到重连请求: %s（后端未运行）", reason)
+		sysLog.Warn("[客户端] 收到重连请求: %s（后端未运行）", reason)
 	}
 }
 

@@ -168,3 +168,27 @@
 - [x] Android `TProxyService.buildXtunnelParams`：合并高级 JSON（优先级最高，覆盖基础参数）；分享链接不包含高级参数
 - [x] Go 测试：默认 8MB/显式值/毫秒转换/非法负值/非法端口；x-tunnel 主体 main 8a0a9a2 / win7-compat cf44c81 同步默认值 8MB
 验证：go test -count=3（14 包）、vet、gofmt、diff --check、XML；未打标签，等待构建/真机验证
+
+### 阶段 14：v1.1.6 真机反馈 3 项修复（代码完成，待提交/构建验证）
+
+需求：
+1. hot-pair ID 持续递增（Pair 20/21/22）不对；设置 N 对时 ID 应稳定为 1..N（两位十进制 01..08）。
+   构建新 pair 时不应急于分配 ID：候选与旧 pair 通道一致 → 放弃候选、旧 pair 保留原 ID 继续服务；
+   通道不同 → 新 pair 继承旧 pair 的槽位 ID，底层 prebind connID 仍为 UUID，不影响旧 pair drain。
+2. socks5 最大连接数限制语义应为并发数而非历史承载数（信号量本为并发语义，实测顺序短连接无泄漏；
+   真机误拒来自突发短连接尖峰 + 误导性文案）。修复：拒绝前增加 100ms 软等待窗口吸收突发，
+   文案改为「并发连接数已达上限 (N)，拒绝新连接，请稍后重试」，级别 Warn；HTTP 代理同改。
+3. 两个协议日志完全没有 WARN/ERROR：全面重新分级。
+   xtunnel 84 处 Info → 约 30 处升级 Warn（连接失败/断开/通道失效/构建失败/写队列满/直连失败等）+ 1 处 Error
+   （PairWarmer 启动超时且无就绪通道放弃启动）；gcm 侧分级已完善（Warn/Error 已有），未改。
+
+- [x] `pair_warmer.go`：删除 generatePairID/pairIDCounter，新增 assignPairSlot（1..8 最小未占用槽位，%02d）；
+  BuildPair 不再预分配 ID；tryBuildPairs 构建成功后分配；periodicRefresh 替换路径继承旧 ID、一致路径放弃候选
+- [x] `socks5.go`/`http_proxy.go`：acquireProxySlot 助手（100ms 软等待窗口）+ 并发文案 + Warn 级别
+- [x] xtunnel 全量日志分级（pool.go 15 处、pair_warmer.go 9 处、socks5 3 处、relay 3 处、backend 1 处升级 Warn；启动放弃 1 处 Error）
+- [x] 测试：TestPairWarmerAssignPairSlot（槽位分配/释放复用/继承）、TestSOCKS5SoftLimitWaitWindowAbsorbsBurst（等待窗口吸收突发）；
+  semaphore 测试证明并发语义（10 次顺序短连接无泄漏、3 并发占满后第 4 拒绝）
+- [x] x-tunnel 主体同步（main + win7-compat）：pair 槽位 ID + socks5/HTTP 并发软等待与文案（待提交推送）
+验证：go test -count=3（14 包）、vet、gofmt、diff --check；x-tunnel main 仅剩 3 个改动前即存在的 flaky 失败
+（TestHandleSOCKS5ConnectUsesConfiguredConnectTimeout / TestHandleHTTPProxyConnUsesConfiguredConnectTimeout /
+TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，stash 验证与本次改动无关）；未打标签

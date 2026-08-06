@@ -45,16 +45,8 @@ func (p *clientPool) acceptProxyLoop(l net.Listener, cfgp *ProxyConfig, handler 
 			continue
 		}
 		if p.socks5Sem != nil {
-			select {
-			case p.socks5Sem <- struct{}{}:
-				go func(conn net.Conn) {
-					defer func() { <-p.socks5Sem }()
-					handler(conn, cfgp)
-				}(c)
-			default:
-				sysLog.Info("[客户端] 本地代理连接数已达上限,拒绝新 HTTP 连接")
-				_ = c.Close()
-			}
+			// 与 SOCKS5 相同的并发语义：限制并发连接数，拒绝前预留突发等待窗口
+			p.acquireProxySlot(c, "HTTP 代理", cfgp, handler)
 		} else {
 			go handler(c, cfgp)
 		}

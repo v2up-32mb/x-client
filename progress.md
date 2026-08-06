@@ -228,3 +228,32 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - go test ./... -count=3（14 包）、vet、gofmt、diff --check、XML well-formed、gobind 导出面不变（8 API）
 - 新增 TestBuildConfigHotPairCount（默认 1 / 显式 4 / 非数字 / 9 超限）
 - 发布 v1.1.4（Release 自动触发）
+
+## 2026-08-06 阶段 14：v1.1.6 真机反馈 3 项修复（代码完成）
+
+### 1. hot-pair ID 稳定为槽位 ID（不再递增）
+- 现象：Pair 20/21/22 持续递增；期望设置 2 对时 ID 恒为 01/02。
+- 修复：删除 generatePairID（全局递增）+ pairIDCounter；新增 assignPairSlot 分配 1..8 最小未占用槽位（%02d）。
+  BuildPair 不再预分配 ID（「准备构建时不急于设置 ID」）；tryBuildPairs 构建成功后分配。
+  周期刷新替换路径：候选与最老 Pair 通道一致 → 放弃候选（不分配 ID），旧 Pair 保留原 ID 继续服务；
+  通道不同 → 候选继承旧 Pair 槽位 ID，旧 Pair 正常 Draining；底层 prebind connID 仍为 UUID。
+
+### 2. SOCKS5 最大连接数：确认并发语义 + 突发软等待 + 文案修正
+- 根因排查：信号量获取/释放逻辑正确（defer 释放），新增测试证明顺序 10 次短连接无泄漏、
+  3 并发占满后第 4 个被拒 → 语义本来就是并发限制，非累计 bug。
+- 真机误拒来自应用突发短连接尖峰（10 个连接几乎同时打开）与误导性文案。
+- 修复：acquireProxySlot 助手（socks5/http 共用），拒绝前等待 100ms 软窗口吸收突发；
+  文案改为「SOCKS5 并发连接数已达上限 (N)，拒绝新连接，请稍后重试」（HTTP 代理同改），级别 Warn。
+
+### 3. 两协议日志重新分级
+- xtunnel：84 处 Info → 52 处 Info / 32 处 Warn / 1 处 Error / 3 处 Debug。
+  升级类：通道连接失败/断开重连/重试超限/无健康节点/写队列满/背压拥堵/ping-pong 失败/
+  读取消息失败/Hot Pair 上行发送失败回退广播/无可用通道/构建 Pair 失败/通道失效重建/
+  可用通道不足/SOCKS5 连接失败与超时/发送数据失败/中转节点测速与标记失败/后端未运行收到重连请求等；
+  Error：PairWarmer 启动超时且无就绪通道放弃启动。
+- gcm：核查后分级已完善（Warn/Error 已有：ECH 预取失败、预热失败/panic、拨号失败、节点连续失败、连接满载等），未改动。
+
+### 验证
+- go test ./...（14 包全过）；新增 TestPairWarmerAssignPairSlot、TestSOCKS5SoftLimitWaitWindowAbsorbsBurst
+- x-tunnel 主体同步（main + win7-compat）：pair 槽位 ID + socks5/HTTP 并发软等待与文案，待提交推送
+- x-tunnel main 仅剩 3 个改动前即存在的 flaky 失败（超时类测试，stash 验证无关）；未打标签

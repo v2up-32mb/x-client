@@ -142,18 +142,10 @@ func (p *clientPool) ListenSOCKS5(addr string) error {
 			}
 			// 检查连接数限制
 			if p.socks5Sem != nil {
-				select {
-				case p.socks5Sem <- struct{}{}:
-					// 获得信号量,继续处理
-					go func(conn net.Conn) {
-						defer func() { <-p.socks5Sem }()
-						p.handleSOCKS5(conn, cfgp)
-					}(c)
-				default:
-					// 达到连接上限,拒绝连接
-					sysLog.Info("[客户端] SOCKS5 连接数已达上限,拒绝新连接")
-					c.Close()
-				}
+				// 限制的是“并发连接数”：信号量随请求处理结束立即释放。
+				// 为吸收应用突发打开的短连接尖峰，先等待 softLimitWait 窗口，
+				// 窗口内若有槽位释放则照常处理，避免误拒。
+				p.acquireProxySlot(c, "SOCKS5", cfgp, p.handleSOCKS5)
 			} else {
 				// 无连接限制
 				go p.handleSOCKS5(c, cfgp)
@@ -162,6 +154,27 @@ func (p *clientPool) ListenSOCKS5(addr string) error {
 	}()
 
 	return nil
+}
+
+// softLimitWait 并发连接数达到上限后，为突发短连接预留的等待窗口。
+// 窗口内释放的连接槽位可被复用，避免将一个生命周期极短的请求误拒。
+const softLimitWait = 100 * time.Millisecond
+
+// acquireProxySlot 尝试获取本地代理（SOCKS5/HTTP）的并发连接槽位。
+// 成功时启动处理协程（handler 携带具体代理处理逻辑）；在 softLimitWait 窗口内
+// 均无空位时记录 Warn 日志并关闭该连接。限制的是并发数而非历史承载数：
+// 处理协程结束时立即释放槽位。
+func (p *clientPool) acquireProxySlot(c net.Conn, name string, cfgp *ProxyConfig, handler func(net.Conn, *ProxyConfig)) {
+	select {
+	case p.socks5Sem <- struct{}{}:
+		go func(conn net.Conn) {
+			defer func() { <-p.socks5Sem }()
+			handler(conn, cfgp)
+		}(c)
+	case <-time.After(softLimitWait):
+		sysLog.Warn("[客户端] %s 并发连接数已达上限 (%d)，拒绝新连接，请稍后重试", name, cap(p.socks5Sem))
+		_ = c.Close()
+	}
 }
 
 // handleSOCKS5 处理 SOCKS5 连接
@@ -328,7 +341,7 @@ func (p *clientPool) handleSOCKS5Connect(c net.Conn, cfgp *ProxyConfig, target s
 		case ok := <-connected:
 			if !ok {
 				// 无可用通道：发送标准失败应答并关闭连接
-				sysLog.Info("[客户端] SOCKS5 连接 %s 失败: 无可用通道", target)
+				sysLog.Warn("[客户端] SOCKS5 连接 %s 失败: 无可用通道", target)
 				_, _ = c.Write([]byte{0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
 				_ = c.Close()
 				p.Unregister(connID)
@@ -337,7 +350,7 @@ func (p *clientPool) handleSOCKS5Connect(c net.Conn, cfgp *ProxyConfig, target s
 			// 连接成功，继续正常处理
 		case <-time.After(p.connectTimeout()):
 			// 连接超时，发送错误响应并关闭连接
-			sysLog.Info("[客户端] SOCKS5 连接 %s 超时", target)
+			sysLog.Warn("[客户端] SOCKS5 连接 %s 超时", target)
 			_, _ = c.Write([]byte{0x05, 0x01, 0x00, 0x01, 0, 0, 0, 0, 0, 0})
 			_ = c.Close()
 			p.Unregister(connID)
@@ -369,7 +382,7 @@ func (p *clientPool) handleSOCKS5Connect(c net.Conn, cfgp *ProxyConfig, target s
 		}
 		if chID, ok := p.GetUplinkChannel(connID); ok {
 			if err := p.SendDataDirect(chID, connID, buf[:n]); err != nil {
-				sysLog.Info("[客户端] 发送数据失败: %v, ID:%s", err, common.ShortID(connID))
+				sysLog.Warn("[客户端] 发送数据失败: %v, ID:%s", err, common.ShortID(connID))
 				return
 			}
 		} else {

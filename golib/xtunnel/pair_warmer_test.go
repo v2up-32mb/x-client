@@ -2,7 +2,6 @@ package xtunnel
 
 import (
 	"context"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -315,35 +314,39 @@ func TestPairChannelsEqual(t *testing.T) {
 	}
 }
 
-func TestPairWarmerGeneratePairID(t *testing.T) {
+func TestPairWarmerAssignPairSlot(t *testing.T) {
 	cfg := DefaultConfig()
 	p := newTestClientPool(cfg)
 	w := NewPairWarmer(p, cfg)
 
-	// 未注册任何 Pair 时连续生成 16 个，应为两位十六进制且互不重复
-	ids := map[string]bool{}
-	for i := 0; i < 16; i++ {
-		id := w.generatePairID()
-		if len(id) != 2 {
-			t.Fatalf("pair ID %q length != 2", id)
-		}
-		if _, err := strconv.ParseUint(id, 16, 8); err != nil {
-			t.Fatalf("pair ID %q is not hex: %v", id, err)
-		}
-		if ids[id] {
-			t.Fatalf("duplicate pair ID %q generated without registration", id)
-		}
-		ids[id] = true
+	// 顺序构建 2 对：槽位 ID 应稳定为 01、02，不随构建次数递增
+	p1 := &HotChannelPair{UplinkChID: 1, DownlinkChID: 2}
+	p2 := &HotChannelPair{UplinkChID: 3, DownlinkChID: 4}
+	w.mu.Lock()
+	w.pairs = append(w.pairs, p1, p2)
+	w.mu.Unlock()
+	w.assignPairSlot(p1)
+	w.assignPairSlot(p2)
+	if p1.ID != "01" || p2.ID != "02" {
+		t.Fatalf("expected slot IDs 01/02, got %q/%q", p1.ID, p2.ID)
 	}
 
-	// 注册一个已存在 ID，再次生成时应跳过占用值
+	// 移除 01 后重新构建：应复用已释放的槽位 01，而不是继续递增
+	p3 := &HotChannelPair{UplinkChID: 5, DownlinkChID: 6}
 	w.mu.Lock()
-	w.pairs = append(w.pairs, &HotChannelPair{ID: "01", UplinkChID: 1, DownlinkChID: 2})
+	w.removePair(p1)
+	w.pairs = append(w.pairs, p3)
 	w.mu.Unlock()
-	for i := 0; i < 16; i++ {
-		if id := w.generatePairID(); id == "01" {
-			t.Fatalf("generatePairID returned in-use ID 01")
-		}
+	w.assignPairSlot(p3)
+	if p3.ID != "01" {
+		t.Fatalf("expected freed slot 01 to be reused, got %q", p3.ID)
+	}
+
+	// 替换路径：候选直接继承旧 Pair 的槽位 ID，不额外占用新槽位
+	candidate := &HotChannelPair{UplinkChID: 7, DownlinkChID: 8}
+	candidate.ID = p2.ID
+	if candidate.ID != "02" {
+		t.Fatalf("expected candidate to inherit old pair ID %q, got %q", p2.ID, candidate.ID)
 	}
 }
 
