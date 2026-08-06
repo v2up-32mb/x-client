@@ -19,8 +19,18 @@
 	<string name="xt_insecure">Пропустить проверку сертификата</string>
 	<string name="xt_enable_hot_pair">Hot Pair (тёплая пара каналов)</string>
 	<string name="xt_hot_pair_count">Hot Pair (пар каналов, 1-8):</string>
-	<string name="xt_advanced_params">Доп. параметры (JSON, не входят в ссылку):</string>
-	<string name="xt_advanced_params_hint">{"backpressure_limit": 8388608, "read_timeout": 20000}</string>
+	<string name="xt_advanced_params">Доп. параметры (нажмите, чтобы развернуть; пусто = по умолчанию)</string>
+	<string name="xt_adv_backpressure">Лимит буфера записи (МБ, по умолч. 8)</string>
+	<string name="xt_adv_write_queue_wait">Таймаут ожидания очереди (мс, по умолч. 100)</string>
+	<string name="xt_adv_dial_timeout">Таймаут подключения (с, по умолч. 3)</string>
+	<string name="xt_adv_handshake_timeout">Таймаут TLS-рукопожатия (с, по умолч. 5)</string>
+	<string name="xt_adv_read_timeout">Таймаут чтения (с, по умолч. 15)</string>
+	<string name="xt_adv_write_timeout">Таймаут записи (с, по умолч. 5)</string>
+	<string name="xt_adv_ping_interval">Интервал Ping (с, по умолч. 5)</string>
+	<string name="xt_adv_reconnect_delay">Задержка переподключения (с, по умолч. 1)</string>
+	<string name="xt_adv_connect_timeout">Таймаут соединения (с, по умолч. 15)</string>
+	<string name="xt_adv_max_socks5">Макс. соединений SOCKS5 (по умолч. 1024, 0 = без лимита)</string>
+	<string name="xt_adv_udp_ports">Блокируемые UDP-порты (через запятую, по умолч. 443)</string>
 	<string name="log_level_label">Уровень журнала:</string>
 	<string name="log_level_hint">Управляет подробностью журнала протокола; применяется при следующем запуске VPN</string>
 	<string name="log_level_debug">Отладка (DEBUG)</string>
