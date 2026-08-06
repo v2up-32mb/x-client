@@ -135,3 +135,20 @@
 - [x] Go 测试：pairChannelsEqual / generatePairID 格式与去重 / discardCandidatePair（refs=0 立即移除、refs>0 转 Draining）
 - [x] README：URI 示例 hotpair=1 → hotpair=<对数 1..8> + 兼容说明
 验证：go test -count=3（14 包）、vet、gofmt、diff --check、XML、gobind 导出面不变 → 提交推送 → v1.1.5 标签（Release 自动构建，不手动触发 debug 构建）
+
+### 阶段 12：v1.1.5 真机反馈——Draining Pair 积累 + 息屏恢复健壮性（代码完成，待真机验证）
+
+需求：
+1. BUG：设置 hot-pair=2 但日志出现 20+ 个 Draining Pair。
+   根因：periodicRefresh 多 Pair 替换路径只把最老 Ready Pair 标记 Draining，
+   refs=0 的 Pair 无任何移除路径（ReleasePair 仅在 refs 1→0 时移除），每 30s 积累一个。
+   另：ReleasePair 移除 primary 后未重新选举，出现 Ready=2 但 primary 为空。
+2. 改进（可选）：息屏后长时间不使用、亮屏后大概率连不上代理网络（未截获复现日志）。
+
+- [x] `pair_warmer.go`：新增 invalidatePair（refs==0 立即移除 + ensurePrimaryLocked），替换路径改用它
+- [x] `pair_warmer.go`：ReleasePair 移除后 ensurePrimaryLocked（修 primary 为空）
+- [x] `pair_warmer.go`：periodicRefresh 开头 pruneIdleDrainingPairs 清理存量
+- [x] `pair_warmer.go`：多 Pair 刷新前 validatePrimaryChannels 验证 primary 通道（通道已断立即重建）
+- [x] Go 测试：invalidatePair（refs=0 立即移除/refs>0 转 Draining）、pruneIdleDrainingPairs、ReleasePair 重新选举
+- [x] x-tunnel 主体同步：main c6e8515 / win7-compat 5963039 已推送（gitea）
+验证：go test -count=3（14 包）、vet、gofmt、diff --check 全过；未打新标签，等待真机验证
