@@ -18,6 +18,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.journeyapps.barcodescanner.ScanOptions;
@@ -60,7 +61,19 @@ public class ProfileEditActivity extends AppCompatActivity {
     private CheckBox checkbox_xt_insecure;
     private CheckBox checkbox_xt_enable_hot_pair;
     private EditText edittext_xt_hot_pair_count;
-    private EditText edittext_xt_advanced_params;
+    private TextView xt_advanced_header;
+    private LinearLayout xt_advanced_container;
+    private EditText edittext_xt_adv_backpressure;
+    private EditText edittext_xt_adv_write_queue_wait;
+    private EditText edittext_xt_adv_dial_timeout;
+    private EditText edittext_xt_adv_handshake_timeout;
+    private EditText edittext_xt_adv_read_timeout;
+    private EditText edittext_xt_adv_write_timeout;
+    private EditText edittext_xt_adv_ping_interval;
+    private EditText edittext_xt_adv_reconnect_delay;
+    private EditText edittext_xt_adv_connect_timeout;
+    private EditText edittext_xt_adv_max_socks5;
+    private EditText edittext_xt_adv_udp_ports;
 
     private Button btn_import;
     private Button btn_save;
@@ -107,7 +120,26 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
         edittext_xt_hot_pair_count = findViewById(R.id.xt_hot_pair_count);
-        edittext_xt_advanced_params = findViewById(R.id.xt_advanced_params);
+        xt_advanced_header = findViewById(R.id.xt_advanced_header);
+        xt_advanced_container = findViewById(R.id.xt_advanced_container);
+        edittext_xt_adv_backpressure = findViewById(R.id.xt_adv_backpressure);
+        edittext_xt_adv_write_queue_wait = findViewById(R.id.xt_adv_write_queue_wait);
+        edittext_xt_adv_dial_timeout = findViewById(R.id.xt_adv_dial_timeout);
+        edittext_xt_adv_handshake_timeout = findViewById(R.id.xt_adv_handshake_timeout);
+        edittext_xt_adv_read_timeout = findViewById(R.id.xt_adv_read_timeout);
+        edittext_xt_adv_write_timeout = findViewById(R.id.xt_adv_write_timeout);
+        edittext_xt_adv_ping_interval = findViewById(R.id.xt_adv_ping_interval);
+        edittext_xt_adv_reconnect_delay = findViewById(R.id.xt_adv_reconnect_delay);
+        edittext_xt_adv_connect_timeout = findViewById(R.id.xt_adv_connect_timeout);
+        edittext_xt_adv_max_socks5 = findViewById(R.id.xt_adv_max_socks5);
+        edittext_xt_adv_udp_ports = findViewById(R.id.xt_adv_udp_ports);
+        // 高级参数默认折叠，点击标题展开/收起
+        xt_advanced_header.setText(getString(R.string.xt_advanced_params) + " ▸");
+        xt_advanced_header.setOnClickListener(v -> {
+            boolean visible = xt_advanced_container.getVisibility() == View.VISIBLE;
+            xt_advanced_container.setVisibility(visible ? View.GONE : View.VISIBLE);
+            xt_advanced_header.setText(getString(R.string.xt_advanced_params) + (visible ? " ▸" : " ▾"));
+        });
         // Hot Pair 关闭时数量输入框禁用
         checkbox_xt_enable_hot_pair.setOnCheckedChangeListener((buttonView, isChecked) ->
                 edittext_xt_hot_pair_count.setEnabled(isChecked));
@@ -199,7 +231,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         edittext_xt_hot_pair_count.setEnabled(prefs.getXtEnableHotPair());
-        edittext_xt_advanced_params.setText(prefs.getXtAdvancedParams());
+        loadXtAdvancedParams(prefs.getXtAdvancedParams());
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
@@ -228,7 +260,17 @@ public class ProfileEditActivity extends AppCompatActivity {
             checkbox_xt_insecure.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
             edittext_xt_hot_pair_count.setEnabled(false);
-            edittext_xt_advanced_params.setEnabled(false);
+            edittext_xt_adv_backpressure.setEnabled(false);
+            edittext_xt_adv_write_queue_wait.setEnabled(false);
+            edittext_xt_adv_dial_timeout.setEnabled(false);
+            edittext_xt_adv_handshake_timeout.setEnabled(false);
+            edittext_xt_adv_read_timeout.setEnabled(false);
+            edittext_xt_adv_write_timeout.setEnabled(false);
+            edittext_xt_adv_ping_interval.setEnabled(false);
+            edittext_xt_adv_reconnect_delay.setEnabled(false);
+            edittext_xt_adv_connect_timeout.setEnabled(false);
+            edittext_xt_adv_max_socks5.setEnabled(false);
+            edittext_xt_adv_udp_ports.setEnabled(false);
             spinner_protocol.setEnabled(false);
             btn_save.setEnabled(false);
 
@@ -343,17 +385,13 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
-        // 校验 X-Tunnel 高级参数（可选 JSON，非空时必须可解析）
+        // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
         String xtAdvancedParams = "";
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
-            xtAdvancedParams = edittext_xt_advanced_params.getText().toString().trim();
-            if (!xtAdvancedParams.isEmpty()) {
-                try {
-                    new JSONObject(xtAdvancedParams);
-                } catch (JSONException e) {
-                    Toast.makeText(this, "高级参数必须是合法的 JSON 对象", Toast.LENGTH_SHORT).show();
-                    return false;
-                }
+            xtAdvancedParams = collectXtAdvancedParams();
+            if (xtAdvancedParams == null) {
+                Toast.makeText(this, "高级参数数值无效，请检查输入（留空表示使用默认值）", Toast.LENGTH_SHORT).show();
+                return false;
             }
         }
 
@@ -396,6 +434,117 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setCurrentProfileId(originalId);
 
         return true;
+    }
+
+    // ======================== X-Tunnel 高级参数 ========================
+
+    // 从各输入框收集高级参数并组装 JSON；数值非法时返回 null（留空项不写入，使用默认值）
+    private String collectXtAdvancedParams() {
+        try {
+            JSONObject adv = new JSONObject();
+            String mb = edittext_xt_adv_backpressure.getText().toString().trim();
+            if (!mb.isEmpty()) {
+                int n = Integer.parseInt(mb);
+                if (n < 1) {
+                    return null;
+                }
+                adv.put("backpressure_limit", n * 1048576L);
+            }
+            String wq = edittext_xt_adv_write_queue_wait.getText().toString().trim();
+            if (!wq.isEmpty()) {
+                int n = Integer.parseInt(wq);
+                if (n < 1) {
+                    return null;
+                }
+                adv.put("write_queue_wait_timeout", n);
+            }
+            putTimeoutSeconds(adv, "dial_timeout", edittext_xt_adv_dial_timeout);
+            putTimeoutSeconds(adv, "handshake_timeout", edittext_xt_adv_handshake_timeout);
+            putTimeoutSeconds(adv, "read_timeout", edittext_xt_adv_read_timeout);
+            putTimeoutSeconds(adv, "write_timeout", edittext_xt_adv_write_timeout);
+            putTimeoutSeconds(adv, "ping_interval", edittext_xt_adv_ping_interval);
+            putTimeoutSeconds(adv, "reconnect_delay", edittext_xt_adv_reconnect_delay);
+            putTimeoutSeconds(adv, "connect_timeout", edittext_xt_adv_connect_timeout);
+            String max = edittext_xt_adv_max_socks5.getText().toString().trim();
+            if (!max.isEmpty()) {
+                int n = Integer.parseInt(max);
+                if (n < 0) {
+                    return null;
+                }
+                adv.put("max_socks5_connections", n);
+            }
+            String ports = edittext_xt_adv_udp_ports.getText().toString().trim();
+            if (!ports.isEmpty()) {
+                for (String item : ports.split(",")) {
+                    int port = Integer.parseInt(item.trim());
+                    if (port < 1 || port > 65535) {
+                        return null;
+                    }
+                }
+                adv.put("udp_blocked_ports", ports);
+            }
+            return adv.length() > 0 ? adv.toString() : "";
+        } catch (JSONException e) {
+            return null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // 秒（可小数）-> 毫秒整数写入 JSON；留空不写入
+    private void putTimeoutSeconds(JSONObject adv, String key, EditText input) throws JSONException {
+        String text = input.getText().toString().trim();
+        if (text.isEmpty()) {
+            return;
+        }
+        double seconds = Double.parseDouble(text);
+        if (seconds <= 0) {
+            throw new NumberFormatException("timeout must be positive");
+        }
+        adv.put(key, Math.round(seconds * 1000));
+    }
+
+    // 从已保存的 JSON 填充各输入框（损坏数据忽略，使用默认值）
+    private void loadXtAdvancedParams(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return;
+        }
+        try {
+            JSONObject o = new JSONObject(json);
+            long mb = o.optLong("backpressure_limit", 0);
+            if (mb > 0) {
+                edittext_xt_adv_backpressure.setText(String.valueOf(mb / 1048576));
+            }
+            int wq = o.optInt("write_queue_wait_timeout", 0);
+            if (wq > 0) {
+                edittext_xt_adv_write_queue_wait.setText(String.valueOf(wq));
+            }
+            fillTimeoutSeconds(o, "dial_timeout", edittext_xt_adv_dial_timeout);
+            fillTimeoutSeconds(o, "handshake_timeout", edittext_xt_adv_handshake_timeout);
+            fillTimeoutSeconds(o, "read_timeout", edittext_xt_adv_read_timeout);
+            fillTimeoutSeconds(o, "write_timeout", edittext_xt_adv_write_timeout);
+            fillTimeoutSeconds(o, "ping_interval", edittext_xt_adv_ping_interval);
+            fillTimeoutSeconds(o, "reconnect_delay", edittext_xt_adv_reconnect_delay);
+            fillTimeoutSeconds(o, "connect_timeout", edittext_xt_adv_connect_timeout);
+            int max = o.optInt("max_socks5_connections", -1);
+            if (max >= 0) {
+                edittext_xt_adv_max_socks5.setText(String.valueOf(max));
+            }
+            String ports = o.optString("udp_blocked_ports", "");
+            if (!ports.isEmpty()) {
+                edittext_xt_adv_udp_ports.setText(ports);
+            }
+        } catch (JSONException ignored) {
+            // 损坏数据忽略，使用默认值
+        }
+    }
+
+    // 毫秒 -> 秒填充输入框
+    private void fillTimeoutSeconds(JSONObject o, String key, EditText input) {
+        long ms = o.optLong(key, 0);
+        if (ms > 0) {
+            input.setText(String.valueOf(ms / 1000));
+        }
     }
 
     // ======================== 导入功能 ========================

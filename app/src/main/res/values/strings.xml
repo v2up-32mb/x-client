@@ -84,8 +84,18 @@
         <string name="xt_insecure">跳过证书验证（Insecure）</string>
         <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
         <string name="xt_hot_pair_count">热通道对数（1-8）：</string>
-        <string name="xt_advanced_params">高级参数（JSON，可选，不写入分享链接）：</string>
-        <string name="xt_advanced_params_hint">{"backpressure_limit": 8388608, "read_timeout": 20000}</string>
+        <string name="xt_advanced_params">高级参数（点击展开，留空使用默认值）</string>
+        <string name="xt_adv_backpressure">背压上限（MB，默认 8）</string>
+        <string name="xt_adv_write_queue_wait">写队列等待超时（毫秒，默认 100）</string>
+        <string name="xt_adv_dial_timeout">拨号超时（秒，默认 3）</string>
+        <string name="xt_adv_handshake_timeout">TLS 握手超时（秒，默认 5）</string>
+        <string name="xt_adv_read_timeout">读取超时（秒，默认 15）</string>
+        <string name="xt_adv_write_timeout">写入超时（秒，默认 5）</string>
+        <string name="xt_adv_ping_interval">Ping 间隔（秒，默认 5）</string>
+        <string name="xt_adv_reconnect_delay">重连延迟（秒，默认 1）</string>
+        <string name="xt_adv_connect_timeout">连接建立超时（秒，默认 15）</string>
+        <string name="xt_adv_max_socks5">SOCKS5 最大连接数（默认 1024，0 无限制）</string>
+        <string name="xt_adv_udp_ports">UDP 拦截端口（逗号分隔，默认 443）</string>
 
         <!-- Log level -->
         <string name="log_level_label">日志等级：</string>

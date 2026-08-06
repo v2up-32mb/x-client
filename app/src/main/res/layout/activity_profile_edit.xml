@@ -228,19 +228,162 @@
                 android:singleLine="true"/>
 
             <TextView
+                android:id="@+id/xt_advanced_header"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingTop="8dp"
                 android:text="@string/xt_advanced_params"
                 android:textStyle="bold"/>
-            <EditText android:id="@+id/xt_advanced_params"
+
+            <LinearLayout android:id="@+id/xt_advanced_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="top"
-                android:hint="@string/xt_advanced_params_hint"
-                android:inputType="textMultiLine"
-                android:maxLines="4"
-                android:minLines="2"/>
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_backpressure"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_backpressure"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="8"
+                    android:inputType="number"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_write_queue_wait"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_write_queue_wait"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="100"
+                    android:inputType="number"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_dial_timeout"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_dial_timeout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="3"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_handshake_timeout"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_handshake_timeout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="5"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_read_timeout"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_read_timeout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="15"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_write_timeout"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_write_timeout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="5"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_ping_interval"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_ping_interval"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="5"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_reconnect_delay"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_reconnect_delay"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="1"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_connect_timeout"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_connect_timeout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="15"
+                    android:inputType="numberDecimal"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_max_socks5"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_max_socks5"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="1024"
+                    android:inputType="number"
+                    android:singleLine="true"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp"
+                    android:text="@string/xt_adv_udp_ports"
+                    android:textStyle="bold"/>
+                <EditText android:id="@+id/xt_adv_udp_ports"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="443"
+                    android:inputType="text"
+                    android:singleLine="true"/>
+            </LinearLayout>
         </LinearLayout>
 
         <!-- 导入按钮 -->

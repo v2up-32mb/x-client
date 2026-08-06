@@ -149,8 +149,9 @@ VPN TUN ──► hev-socks5-tunnel ──► 本地 SOCKS5 ──► Go 协议�
 `enable_hot_pair`、`hot_pair_count`、`log_level`、`bypass_private`、
 `bypass_geoip_cn`、`bypass_geosite_cn`、`bypass_rules`（`client_id` 在 Go 侧保留支持）
 
-**X-Tunnel 高级参数键**（Profile 编辑页「高级参数（JSON）」输入框，仅本机生效、
-不写入分享链接；字节/毫秒为整数，缺省或 0 用默认值，负值非法）：
+**X-Tunnel 高级参数**（Profile 编辑页「高级参数」折叠区，点击展开后每项对应一个
+数值输入框：背压上限按 MB、超时类按秒（可小数），留空使用默认值；仅本机生效、
+不写入分享链接）。对应的 Go 参数键（字节/毫秒整数，负值非法）：
 `backpressure_limit`（字节，默认 8MB）、`write_queue_wait_timeout`（毫秒，默认 100）、
 `dial_timeout` / `handshake_timeout` / `read_timeout` / `write_timeout` /
 `ping_interval` / `reconnect_delay` / `connect_timeout`（毫秒）、
