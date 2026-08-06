@@ -153,3 +153,34 @@ func TestLogLevelFromParams(t *testing.T) {
 		t.Fatalf("unknown level = %v, want INFO fallback", got)
 	}
 }
+
+func TestBuildConfigHotPairCount(t *testing.T) {
+	base := map[string]string{ParamServerAddr: "wss://tunnel.example.com"}
+
+	// 默认 1 对
+	cfg, err := buildConfig(base)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.HotPairCount != 1 {
+		t.Fatalf("default HotPairCount = %d, want 1", cfg.HotPairCount)
+	}
+
+	// 显式数量
+	params := map[string]string{ParamServerAddr: "wss://tunnel.example.com", ParamHotPairCount: "4"}
+	cfg, err = buildConfig(params)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.HotPairCount != 4 {
+		t.Fatalf("HotPairCount = %d, want 4", cfg.HotPairCount)
+	}
+
+	// 非法值
+	if _, err := buildConfig(map[string]string{ParamServerAddr: "wss://x", ParamHotPairCount: "abc"}); err == nil || !strings.Contains(err.Error(), `"hot_pair_count"`) {
+		t.Fatalf("bad hot_pair_count error = %v, want containing %q", err, "hot_pair_count")
+	}
+	if _, err := buildConfig(map[string]string{ParamServerAddr: "wss://x", ParamHotPairCount: "9"}); err == nil || !strings.Contains(err.Error(), "exceeds max") {
+		t.Fatalf("oversized hot_pair_count error = %v, want containing 'exceeds max'", err)
+	}
+}

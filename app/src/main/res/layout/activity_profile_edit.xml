@@ -213,6 +213,19 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/xt_enable_hot_pair"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text="@string/xt_hot_pair_count"
+                android:textStyle="bold"/>
+            <EditText android:id="@+id/xt_hot_pair_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="1"
+                android:inputType="number"
+                android:singleLine="true"/>
         </LinearLayout>
 
         <!-- 导入按钮 -->

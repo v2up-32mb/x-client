@@ -75,6 +75,9 @@ public class Preferences
         public static final String XT_DISABLE_ECH = "XtDisableEch";
         public static final String XT_INSECURE = "XtInsecure";
         public static final String XT_ENABLE_HOT_PAIR = "XtEnableHotPair";
+        public static final String XT_HOT_PAIR_COUNT = "XtHotPairCount";
+        public static final int DEFAULT_XT_HOT_PAIR_COUNT = 1;
+        public static final int MAX_XT_HOT_PAIR_COUNT = 8;
         public static final int DEFAULT_XT_CONNECTIONS = 3;
         
         // Profile Management
@@ -88,7 +91,36 @@ public class Preferences
         public Preferences(Context context) {
                 prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_MULTI_PROCESS);
                 currentProfileId = prefs.getString(CURRENT_PROFILE_ID, null);
-                migrateGlobalNetworkSettings();
+                // 迁移（含任何写盘）只允许在主进程执行：:vpn 进程可能持有
+                // 陈旧缓存，全量写回会覆盖主进程刚保存的全局设置（如日志等级）。
+                if (isMainProcess(context)) {
+                        migrateGlobalNetworkSettings();
+                }
+        }
+
+        // 判断当前是否为主进程（进程名 == 包名；:vpn 服务进程名为 "包名:vpn"）。
+        private static boolean isMainProcess(Context context) {
+                String packageName = context.getPackageName();
+                String processName = null;
+                try {
+                        java.io.BufferedReader reader = new java.io.BufferedReader(
+                                new java.io.FileReader("/proc/self/cmdline"));
+                        try {
+                                processName = reader.readLine();
+                        } finally {
+                                reader.close();
+                        }
+                } catch (Exception ignored) {
+                }
+                if (processName != null) {
+                        int nul = processName.indexOf('\0');
+                        if (nul > 0) {
+                                processName = processName.substring(0, nul);
+                        }
+                        return packageName.equals(processName);
+                }
+                // 读不到时保守返回 true（迁移只在旧版本升级时触发，幂等）
+                return true;
         }
 
         private void migrateGlobalNetworkSettings() {
@@ -553,6 +585,18 @@ public class Preferences
 
         public void setXtEnableHotPair(boolean enable) {
                 prefs.edit().putBoolean(getKey(XT_ENABLE_HOT_PAIR), enable).apply();
+        }
+
+        // Hot Pair 启用对数（默认 1，上限 8）
+        public int getXtHotPairCount() {
+                return Math.max(1, Math.min(
+                        prefs.getInt(getKey(XT_HOT_PAIR_COUNT), DEFAULT_XT_HOT_PAIR_COUNT),
+                        MAX_XT_HOT_PAIR_COUNT));
+        }
+
+        public void setXtHotPairCount(int n) {
+                prefs.edit().putInt(getKey(XT_HOT_PAIR_COUNT),
+                        Math.max(1, Math.min(n, MAX_XT_HOT_PAIR_COUNT))).apply();
         }
 
         // ======================== 辅助方法（用于配置列表页） ========================

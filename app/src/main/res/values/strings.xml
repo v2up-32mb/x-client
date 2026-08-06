@@ -83,6 +83,7 @@
         <string name="xt_connections">连接数：</string>
         <string name="xt_insecure">跳过证书验证（Insecure）</string>
         <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
+        <string name="xt_hot_pair_count">热通道对数（1-8）：</string>
 
         <!-- Log level -->
         <string name="log_level_label">日志等级：</string>
