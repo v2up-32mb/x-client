@@ -54,6 +54,9 @@ type PairWarmer struct {
 	cancel  context.CancelFunc
 
 	prebindResultCh chan prebindResult
+
+	// pairIDCounter 用于生成展示用的两位十六进制 Pair ID（预绑定内部 connID 仍用 UUID）
+	pairIDCounter uint32
 }
 
 // prebindResult 预绑定结果
@@ -302,7 +305,7 @@ func (w *PairWarmer) BuildPair(available []int) (*HotChannelPair, error) {
 					return nil, fmt.Errorf("PairWarmer 已关闭")
 				}
 				pair := &HotChannelPair{
-					ID:           connID,
+					ID:           w.generatePairID(),
 					UplinkChID:   res.uplinkChID,
 					DownlinkChID: res.downlinkChID,
 					state:        int32(PairStateReady),
@@ -343,6 +346,49 @@ func (w *PairWarmer) HandlePrebindResult(connID string, uplinkChID, downlinkChID
 	case w.prebindResultCh <- res:
 	default:
 	}
+}
+
+// pairChannelsEqual 判断两个 Hot Pair 的通道是否完全一致
+func pairChannelsEqual(a, b *HotChannelPair) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.UplinkChID == b.UplinkChID && a.DownlinkChID == b.DownlinkChID
+}
+
+// generatePairID 生成两位十六进制的 Pair ID（用于日志展示），保证与当前存在的 Pair 不重复
+func (w *PairWarmer) generatePairID() string {
+	for i := 0; i < 256; i++ {
+		n := atomic.AddUint32(&w.pairIDCounter, 1) & 0xff
+		id := fmt.Sprintf("%02x", n)
+		used := false
+		w.mu.RLock()
+		for _, pair := range w.pairs {
+			if pair.ID == id {
+				used = true
+				break
+			}
+		}
+		w.mu.RUnlock()
+		if !used {
+			return id
+		}
+	}
+	return "ff" // 理论不可达：Pair 上限 8
+}
+
+// discardCandidatePair 移除重建时通道与旧 Pair 一致的冗余候选，保留旧 Pair 继续服务。
+// 若候选已被会话引用，则标记 Draining，等引用归零后由 ReleasePair 移除。
+func (w *PairWarmer) discardCandidatePair(pair *HotChannelPair) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if atomic.LoadInt32(&pair.refs) <= 0 {
+		pair.setState(PairStateClosed)
+		w.removePair(pair)
+		w.ensurePrimaryLocked()
+		return
+	}
+	pair.setState(PairStateDraining)
 }
 
 // Run 启动 PairWarmer 主循环，监听通道就绪/失效通知并构建/刷新 Pair
@@ -399,7 +445,7 @@ func (w *PairWarmer) tryBuildPairs() {
 	}
 
 	for readyCount < w.config.PairCount {
-		sysLog.Info("[PairWarmer] 尝试构建 Pair (%d/%d)，可用通道: %v", readyCount, w.config.PairCount, available)
+		sysLog.Info("[PairWarmer] 尝试构建 Pair (%d/%d)，可用通道: %v", readyCount+1, w.config.PairCount, available)
 		pair, err := w.BuildPair(available)
 		if err != nil {
 			sysLog.Info("[PairWarmer] 构建 Pair 失败: %v", err)
@@ -463,7 +509,7 @@ func (w *PairWarmer) periodicRefresh() {
 	readyCount := 0
 	stateList := make([]string, 0, len(w.pairs))
 	for _, pair := range w.pairs {
-		stateList = append(stateList, fmt.Sprintf("%s[%s,refs=%d]", pair.ID[:16], pairStateString(pair.State()), atomic.LoadInt32(&pair.refs)))
+		stateList = append(stateList, fmt.Sprintf("%s[%s,refs=%d]", pair.ID, pairStateString(pair.State()), atomic.LoadInt32(&pair.refs)))
 		if pair.State() == PairStateReady {
 			readyCount++
 		}
@@ -508,8 +554,10 @@ func (w *PairWarmer) periodicRefresh() {
 				return
 			}
 		} else {
-			// 多 Pair 模式：把最老的 Ready Pair 标记为 Draining，触发重建
-			w.mu.Lock()
+			// 多 Pair 模式：先构建候选 Pair 再决策。
+			// 若候选通道与选定的最老 Ready Pair 完全一致，则放弃候选、保留旧 Pair 继续服务，
+			// 避免无意义的重建与废弃；否则将旧 Pair 标记为 Draining，由候选 Pair 顶替。
+			w.mu.RLock()
 			var oldest *HotChannelPair
 			for _, pair := range w.pairs {
 				if pair.State() == PairStateReady {
@@ -518,11 +566,34 @@ func (w *PairWarmer) periodicRefresh() {
 					}
 				}
 			}
-			if oldest != nil {
+			w.mu.RUnlock()
+			if oldest == nil {
+				w.tryBuildPairs()
+				return
+			}
+			available := w.pool.availableChannels()
+			if len(available) < 2 {
+				sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d，可用通道不足 (%d)，无法构建候选，保留现有 Pair", readyCount, w.config.PairCount, len(available))
+				return
+			}
+			candidate, err := w.BuildPair(available)
+			if err != nil {
+				sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d, 构建候选 Pair 失败: %v，保留现有 Pair", readyCount, w.config.PairCount, err)
+				return
+			}
+			if pairChannelsEqual(candidate, oldest) {
+				w.discardCandidatePair(candidate)
+				sysLog.Info("[PairWarmer] 周期性刷新触发: 候选 Pair %s 与最旧 Pair %s 通道完全一致 (上行:%d, 下行:%d)，跳过重建，旧 Pair 继续服务",
+					candidate.ID, oldest.ID, oldest.UplinkChID, oldest.DownlinkChID)
+				return
+			}
+			w.mu.Lock()
+			if oldest.State() == PairStateReady {
 				oldest.setState(PairStateDraining)
-				sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d, primary=%s, allPairs=%v，将最老 Pair %s 标记为 Draining 以触发重建", readyCount, w.config.PairCount, primaryID, stateList, oldest.ID)
+				sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d, primary=%s, allPairs=%v，将最老 Pair %s 标记为 Draining 以触发替换", readyCount, w.config.PairCount, primaryID, stateList, oldest.ID)
 			}
 			w.mu.Unlock()
+			return
 		}
 	} else {
 		sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d (不足), primary=%s, allPairs=%v，尝试补充", readyCount, w.config.PairCount, primaryID, stateList)

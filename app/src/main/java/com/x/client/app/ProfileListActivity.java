@@ -525,7 +525,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             }
             if (xtEnableHotPair) {
                 if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("hotpair=1");
+                xtQuery.append("hotpair=").append(prefs.getXtHotPairCount());
             }
             String xtProtocol = "xtunnel://" + xtServerAddr;
             if (xtQuery.length() > 0) {
@@ -754,6 +754,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         boolean xtDisableEch = false;
         boolean xtInsecure = false;
         boolean xtEnableHotPair = false;
+        int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -819,7 +820,19 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                             xtInsecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
                             break;
                         case "hotpair":
-                            xtEnableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                            // hotpair=1/true/yes 兼容旧格式（启用 1 对）；hotpair=2..8 表示启用 N 对
+                            int hotPairValue = 1;
+                            try {
+                                hotPairValue = Integer.parseInt(value);
+                            } catch (NumberFormatException ignored) {
+                            }
+                            if (hotPairValue >= 2 && hotPairValue <= Preferences.MAX_XT_HOT_PAIR_COUNT) {
+                                xtEnableHotPair = true;
+                                xtHotPairCount = hotPairValue;
+                            } else {
+                                xtEnableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
+                                xtHotPairCount = 1;
+                            }
                             break;
                     }
                 }
@@ -842,7 +855,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
                 wssAddr, prefIp, fallbackIp, userId, disableEch,
                 wsConn, enableDynamicPool, dynamicPoolMax,
-                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair);
+                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair, xtHotPairCount);
     }
 
     private void showImportNameDialog(final String id, final String defaultName,
@@ -854,7 +867,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                                       final int dynamicPoolMax,
                                       final String xtToken, final String xtRelayNodes,
                                       final int xtConnections, final boolean xtDisableEch,
-                                      final boolean xtInsecure, final boolean xtEnableHotPair) {
+                                      final boolean xtInsecure, final boolean xtEnableHotPair,
+                                      final int xtHotPairCount) {
         final EditText input = new EditText(this);
         input.setText(defaultName);
         new AlertDialog.Builder(this)
@@ -887,6 +901,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         prefs.setXtDisableEch(xtDisableEch);
                         prefs.setXtInsecure(xtInsecure);
                         prefs.setXtEnableHotPair(xtEnableHotPair);
+                        prefs.setXtHotPairCount(xtHotPairCount);
                     } else {
                         prefs.setWorkerHost(wssAddr);
                         prefs.setPrefIp(prefIp);

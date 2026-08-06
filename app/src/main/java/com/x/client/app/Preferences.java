@@ -510,7 +510,7 @@ public class Preferences
                         return LOG_LEVEL_INFO;
                 }
                 level = level.trim().toUpperCase(java.util.Locale.US);
-                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
+                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_INFO.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
                         return LOG_LEVEL_INFO;
                 }
                 return level;
@@ -521,7 +521,7 @@ public class Preferences
                         return;
                 }
                 level = level.trim().toUpperCase(java.util.Locale.US);
-                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
+                if (!LOG_LEVEL_DEBUG.equals(level) && !LOG_LEVEL_INFO.equals(level) && !LOG_LEVEL_WARN.equals(level) && !LOG_LEVEL_ERROR.equals(level)) {
                         return;
                 }
                 prefs.edit().putString(LOG_LEVEL, level).apply();

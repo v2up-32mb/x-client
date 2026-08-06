@@ -2,6 +2,7 @@ package xtunnel
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -295,5 +296,117 @@ func TestPairWarmerHandlePrebindResultChannelFull(t *testing.T) {
 
 	if len(w.prebindResultCh) != 8 {
 		t.Fatalf("expected channel to remain at capacity 8, got %d", len(w.prebindResultCh))
+	}
+}
+
+func TestPairChannelsEqual(t *testing.T) {
+	a := &HotChannelPair{UplinkChID: 1, DownlinkChID: 2}
+	b := &HotChannelPair{UplinkChID: 1, DownlinkChID: 2}
+	c := &HotChannelPair{UplinkChID: 1, DownlinkChID: 3}
+	d := &HotChannelPair{UplinkChID: 3, DownlinkChID: 2}
+	if !pairChannelsEqual(a, b) {
+		t.Fatal("expected equal channels (1,2)/(1,2)")
+	}
+	if pairChannelsEqual(a, c) || pairChannelsEqual(a, d) {
+		t.Fatal("expected different channels to be unequal")
+	}
+	if pairChannelsEqual(nil, a) || pairChannelsEqual(a, nil) {
+		t.Fatal("expected nil pair to be unequal")
+	}
+}
+
+func TestPairWarmerGeneratePairID(t *testing.T) {
+	cfg := DefaultConfig()
+	p := newTestClientPool(cfg)
+	w := NewPairWarmer(p, cfg)
+
+	// 未注册任何 Pair 时连续生成 16 个，应为两位十六进制且互不重复
+	ids := map[string]bool{}
+	for i := 0; i < 16; i++ {
+		id := w.generatePairID()
+		if len(id) != 2 {
+			t.Fatalf("pair ID %q length != 2", id)
+		}
+		if _, err := strconv.ParseUint(id, 16, 8); err != nil {
+			t.Fatalf("pair ID %q is not hex: %v", id, err)
+		}
+		if ids[id] {
+			t.Fatalf("duplicate pair ID %q generated without registration", id)
+		}
+		ids[id] = true
+	}
+
+	// 注册一个已存在 ID，再次生成时应跳过占用值
+	w.mu.Lock()
+	w.pairs = append(w.pairs, &HotChannelPair{ID: "01", UplinkChID: 1, DownlinkChID: 2})
+	w.mu.Unlock()
+	for i := 0; i < 16; i++ {
+		if id := w.generatePairID(); id == "01" {
+			t.Fatalf("generatePairID returned in-use ID 01")
+		}
+	}
+}
+
+func TestPairWarmerDiscardCandidatePair(t *testing.T) {
+	cfg := DefaultConfig()
+	p := newTestClientPool(cfg)
+	w := NewPairWarmer(p, cfg)
+
+	old := &HotChannelPair{ID: "aa", UplinkChID: 1, DownlinkChID: 2}
+	old.SetStateForTest(PairStateReady)
+	candidate := &HotChannelPair{ID: "bb", UplinkChID: 1, DownlinkChID: 2}
+	candidate.SetStateForTest(PairStateReady)
+
+	w.mu.Lock()
+	w.pairs = append(w.pairs, old, candidate)
+	w.primary = old
+	w.mu.Unlock()
+
+	w.discardCandidatePair(candidate)
+
+	if candidate.State() != PairStateClosed {
+		t.Fatalf("expected candidate Closed after discard, got %d", candidate.State())
+	}
+	if w.PairCountForTest() != 1 {
+		t.Fatalf("expected 1 pair after discard, got %d", w.PairCountForTest())
+	}
+	w.mu.RLock()
+	prim := w.primary
+	w.mu.RUnlock()
+	if prim != old {
+		t.Fatal("expected old pair to remain primary")
+	}
+}
+
+func TestPairWarmerDiscardCandidatePairWithRefs(t *testing.T) {
+	cfg := DefaultConfig()
+	p := newTestClientPool(cfg)
+	w := NewPairWarmer(p, cfg)
+
+	candidate := &HotChannelPair{ID: "cd", UplinkChID: 1, DownlinkChID: 2}
+	candidate.SetStateForTest(PairStateReady)
+	candidate.refs = 1
+
+	w.mu.Lock()
+	w.pairs = append(w.pairs, candidate)
+	w.primary = candidate
+	w.mu.Unlock()
+
+	w.discardCandidatePair(candidate)
+
+	if candidate.State() != PairStateDraining {
+		t.Fatalf("expected candidate to be Draining with refs, got %d", candidate.State())
+	}
+	if w.PairCountForTest() != 1 {
+		t.Fatalf("expected candidate to stay until released, got %d", w.PairCountForTest())
+	}
+	if got := w.AcquirePrimary(); got != nil {
+		t.Fatal("expected AcquirePrimary to return nil for draining candidate")
+	}
+
+	w.ReleasePair(candidate)
+
+	if w.PairCountForTest() != 0 {
+		t.Fatalf("expected 0 pairs after release, got %d", w.PairCountForTest())
 	}
 }

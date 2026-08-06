@@ -964,7 +964,7 @@ func (p *clientPool) RegisterAndBroadcastTCP(connID, target string, first []byte
 			}
 			p.mu.Unlock()
 			msg := common.EncodeMessage(common.MsgTCPConnect, connID, meta, first)
-			sysLog.Info("[客户端] %s 使用 Hot Pair %s (TX %d RX %d) 发送首包，ID:%s", reqType, pair.ID[:16], pair.UplinkChID, pair.DownlinkChID, common.ShortID(connID))
+			sysLog.Info("[客户端] %s 使用 Hot Pair %s (TX %d RX %d) 发送首包，ID:%s", reqType, pair.ID, pair.UplinkChID, pair.DownlinkChID, common.ShortID(connID))
 			if err := p.asyncWriteDirect(pair.UplinkChID, websocket.BinaryMessage, msg); err == nil {
 				return
 			}
