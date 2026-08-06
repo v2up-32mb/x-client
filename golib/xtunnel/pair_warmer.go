@@ -129,6 +129,7 @@ func (w *PairWarmer) ReleasePair(pair *HotChannelPair) {
 		pair.setState(PairStateClosed)
 		w.mu.Lock()
 		w.removePair(pair)
+		w.ensurePrimaryLocked()
 		w.mu.Unlock()
 	}
 }
@@ -391,6 +392,70 @@ func (w *PairWarmer) discardCandidatePair(pair *HotChannelPair) {
 	pair.setState(PairStateDraining)
 }
 
+// invalidatePair 将指定 Pair 标记为 Draining；若当前无会话引用（refs==0）则立即移除并重新选举 primary，
+// 避免周期刷新替换路径积累大量无人使用的 Draining Pair。
+func (w *PairWarmer) invalidatePair(pair *HotChannelPair) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if pair == nil || pair.State() != PairStateReady {
+		return
+	}
+	pair.setState(PairStateDraining)
+	if atomic.LoadInt32(&pair.refs) <= 0 {
+		pair.setState(PairStateClosed)
+		w.removePair(pair)
+		w.ensurePrimaryLocked()
+	}
+}
+
+// pruneIdleDrainingPairs 清理 refs 为 0 的 Draining Pair（修复历史版本积累的存量）。
+func (w *PairWarmer) pruneIdleDrainingPairs() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	pruned := false
+	for _, pair := range w.pairs {
+		if pair.State() == PairStateDraining && atomic.LoadInt32(&pair.refs) <= 0 {
+			pair.setState(PairStateClosed)
+			w.removePair(pair)
+			pruned = true
+		}
+	}
+	if pruned {
+		w.ensurePrimaryLocked()
+	}
+}
+
+// validatePrimaryChannels 验证 primary 的通道是否仍可用；失效时清理并触发重建。
+// 返回 true 表示通道全部有效。mode 用于日志显示（单 Pair / 多 Pair）。
+func (w *PairWarmer) validatePrimaryChannels(primary *HotChannelPair, mode string) bool {
+	if primary == nil || primary.State() != PairStateReady {
+		return true
+	}
+	available := w.pool.availableChannels()
+	uplinkValid := false
+	downlinkValid := false
+	for _, chID := range available {
+		if chID == primary.UplinkChID {
+			uplinkValid = true
+		}
+		if chID == primary.DownlinkChID {
+			downlinkValid = true
+		}
+	}
+	if !uplinkValid || !downlinkValid {
+		sysLog.Info("[PairWarmer] %s模式下 primary %s 的通道已失效 (上行:%d 有效:%v, 下行:%d 有效:%v)，触发重建",
+			mode, primary.ID, primary.UplinkChID, uplinkValid, primary.DownlinkChID, downlinkValid)
+		if !uplinkValid {
+			w.InvalidateChannel(primary.UplinkChID)
+		}
+		if !downlinkValid {
+			w.InvalidateChannel(primary.DownlinkChID)
+		}
+		return false
+	}
+	return true
+}
+
 // Run 启动 PairWarmer 主循环，监听通道就绪/失效通知并构建/刷新 Pair
 func (w *PairWarmer) Run() {
 	sysLog.Info("[PairWarmer] 启动运行循环")
@@ -501,6 +566,9 @@ func (w *PairWarmer) tryRefresh() {
 // 在多 Pair 模式下，会将最老的 Ready Pair 标记为 Draining 并重建，
 // 从而持续验证通道质量并避免 Pair 长期不变。
 func (w *PairWarmer) periodicRefresh() {
+	// 清理历史版本遗留的 refs=0 的 Draining Pair，避免列表无限膨胀
+	w.pruneIdleDrainingPairs()
+
 	w.mu.RLock()
 	var primaryID string
 	if w.primary != nil {
@@ -554,9 +622,20 @@ func (w *PairWarmer) periodicRefresh() {
 				return
 			}
 		} else {
-			// 多 Pair 模式：先构建候选 Pair 再决策。
+			// 多 Pair 模式：先验证 primary 通道仍可用（息屏/网络切换后通道可能已断），
+			// 再构建候选 Pair 决策。
 			// 若候选通道与选定的最老 Ready Pair 完全一致，则放弃候选、保留旧 Pair 继续服务，
 			// 避免无意义的重建与废弃；否则将旧 Pair 标记为 Draining，由候选 Pair 顶替。
+			w.mu.RLock()
+			primary := w.primary
+			w.mu.RUnlock()
+			if primary != nil && primary.State() == PairStateReady {
+				if !w.validatePrimaryChannels(primary, "多 Pair") {
+					// InvalidateChannel 已废弃失效 pair，Ready 数不足时补建
+					w.tryBuildPairs()
+					return
+				}
+			}
 			w.mu.RLock()
 			var oldest *HotChannelPair
 			for _, pair := range w.pairs {
@@ -587,12 +666,11 @@ func (w *PairWarmer) periodicRefresh() {
 					candidate.ID, oldest.ID, oldest.UplinkChID, oldest.DownlinkChID)
 				return
 			}
-			w.mu.Lock()
 			if oldest.State() == PairStateReady {
-				oldest.setState(PairStateDraining)
 				sysLog.Info("[PairWarmer] 周期性刷新触发: Ready=%d/%d, primary=%s, allPairs=%v，将最老 Pair %s 标记为 Draining 以触发替换", readyCount, w.config.PairCount, primaryID, stateList, oldest.ID)
+				// refs==0 时立即移除，避免积累无引用的 Draining Pair
+				w.invalidatePair(oldest)
 			}
-			w.mu.Unlock()
 			return
 		}
 	} else {
