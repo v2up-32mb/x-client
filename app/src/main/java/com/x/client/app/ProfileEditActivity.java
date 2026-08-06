@@ -21,6 +21,8 @@ import android.widget.Spinner;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.journeyapps.barcodescanner.ScanOptions;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class ProfileEditActivity extends AppCompatActivity {
     public static final String EXTRA_PROFILE_ID = "EXTRA_PROFILE_ID";
@@ -58,6 +60,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private CheckBox checkbox_xt_insecure;
     private CheckBox checkbox_xt_enable_hot_pair;
     private EditText edittext_xt_hot_pair_count;
+    private EditText edittext_xt_advanced_params;
 
     private Button btn_import;
     private Button btn_save;
@@ -104,6 +107,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
         edittext_xt_hot_pair_count = findViewById(R.id.xt_hot_pair_count);
+        edittext_xt_advanced_params = findViewById(R.id.xt_advanced_params);
         // Hot Pair 关闭时数量输入框禁用
         checkbox_xt_enable_hot_pair.setOnCheckedChangeListener((buttonView, isChecked) ->
                 edittext_xt_hot_pair_count.setEnabled(isChecked));
@@ -195,6 +199,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         edittext_xt_hot_pair_count.setEnabled(prefs.getXtEnableHotPair());
+        edittext_xt_advanced_params.setText(prefs.getXtAdvancedParams());
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
@@ -223,6 +228,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             checkbox_xt_insecure.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
             edittext_xt_hot_pair_count.setEnabled(false);
+            edittext_xt_advanced_params.setEnabled(false);
             spinner_protocol.setEnabled(false);
             btn_save.setEnabled(false);
 
@@ -337,6 +343,20 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
+        // 校验 X-Tunnel 高级参数（可选 JSON，非空时必须可解析）
+        String xtAdvancedParams = "";
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            xtAdvancedParams = edittext_xt_advanced_params.getText().toString().trim();
+            if (!xtAdvancedParams.isEmpty()) {
+                try {
+                    new JSONObject(xtAdvancedParams);
+                } catch (JSONException e) {
+                    Toast.makeText(this, "高级参数必须是合法的 JSON 对象", Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+            }
+        }
+
         // 临时切换到目标配置以保存数据
         String originalId = prefs.getCurrentProfileId();
         prefs.setCurrentProfileId(profileId);
@@ -370,6 +390,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
         prefs.setXtHotPairCount(xtHotPairCount);
+        prefs.setXtAdvancedParams(xtAdvancedParams);
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);

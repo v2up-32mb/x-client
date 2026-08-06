@@ -4,6 +4,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"xclient/shared/config"
 )
@@ -182,5 +183,72 @@ func TestBuildConfigHotPairCount(t *testing.T) {
 	}
 	if _, err := buildConfig(map[string]string{ParamServerAddr: "wss://x", ParamHotPairCount: "9"}); err == nil || !strings.Contains(err.Error(), "exceeds max") {
 		t.Fatalf("oversized hot_pair_count error = %v, want containing 'exceeds max'", err)
+	}
+}
+
+func TestBuildConfigAdvancedParams(t *testing.T) {
+	base := map[string]string{ParamServerAddr: "wss://tunnel.example.com"}
+
+	// 缺省时使用 8MB 默认
+	cfg, err := buildConfig(base)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.BackpressureLimitBytes != DefaultBackpressureLimitBytes {
+		t.Fatalf("default BackpressureLimitBytes = %d, want %d", cfg.BackpressureLimitBytes, DefaultBackpressureLimitBytes)
+	}
+
+	// 显式字节/毫秒/端口/连接数
+	params := map[string]string{
+		ParamServerAddr:            "wss://tunnel.example.com",
+		ParamBackpressureLimit:     "16777216",
+		ParamWriteQueueWaitTimeout: "250",
+		ParamReadTimeout:           "20000",
+		ParamWriteTimeout:          "8000",
+		ParamPingInterval:          "10000",
+		ParamReconnectDelay:        "2000",
+		ParamConnectTimeout:        "30000",
+		ParamDialTimeout:           "5000",
+		ParamHandshakeTimeout:      "7000",
+		ParamMaxSocks5Connections:  "2048",
+		ParamUDPBlockedPorts:       "443,53",
+	}
+	cfg, err = buildConfig(params)
+	if err != nil {
+		t.Fatalf("buildConfig() error = %v", err)
+	}
+	if cfg.BackpressureLimitBytes != 16777216 {
+		t.Fatalf("BackpressureLimitBytes = %d, want 16777216", cfg.BackpressureLimitBytes)
+	}
+	if cfg.WriteQueueWaitTimeout != 250*time.Millisecond {
+		t.Fatalf("WriteQueueWaitTimeout = %v, want 250ms", cfg.WriteQueueWaitTimeout)
+	}
+	if cfg.ReadTimeout != 20*time.Second || cfg.WriteTimeout != 8*time.Second {
+		t.Fatalf("timeouts = %v/%v, want 20s/8s", cfg.ReadTimeout, cfg.WriteTimeout)
+	}
+	if cfg.PingInterval != 10*time.Second || cfg.ReconnectDelay != 2*time.Second {
+		t.Fatalf("ping/reconnect = %v/%v, want 10s/2s", cfg.PingInterval, cfg.ReconnectDelay)
+	}
+	if cfg.ConnectTimeout != 30*time.Second || cfg.DialTimeout != 5*time.Second || cfg.HandshakeTimeout != 7*time.Second {
+		t.Fatalf("connect/dial/handshake = %v/%v/%v, want 30s/5s/7s", cfg.ConnectTimeout, cfg.DialTimeout, cfg.HandshakeTimeout)
+	}
+	if cfg.MaxSOCKS5Connections != 2048 {
+		t.Fatalf("MaxSOCKS5Connections = %d, want 2048", cfg.MaxSOCKS5Connections)
+	}
+	if len(cfg.UDPBlockedPorts) != 2 || cfg.UDPBlockedPorts[0] != 443 || cfg.UDPBlockedPorts[1] != 53 {
+		t.Fatalf("UDPBlockedPorts = %v, want [443 53]", cfg.UDPBlockedPorts)
+	}
+
+	// 非法值必须报错
+	for _, bad := range []map[string]string{
+		{ParamServerAddr: "wss://x", ParamBackpressureLimit: "-1"},
+		{ParamServerAddr: "wss://x", ParamReadTimeout: "abc"},
+		{ParamServerAddr: "wss://x", ParamMaxSocks5Connections: "-5"},
+		{ParamServerAddr: "wss://x", ParamUDPBlockedPorts: "443,abc"},
+		{ParamServerAddr: "wss://x", ParamUDPBlockedPorts: "70000"},
+	} {
+		if _, err := buildConfig(bad); err == nil {
+			t.Fatalf("buildConfig(%v) expected error", bad)
+		}
 	}
 }

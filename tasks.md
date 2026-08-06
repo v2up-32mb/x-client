@@ -152,3 +152,19 @@
 - [x] Go 测试：invalidatePair（refs=0 立即移除/refs>0 转 Draining）、pruneIdleDrainingPairs、ReleasePair 重新选举
 - [x] x-tunnel 主体同步：main c6e8515 / win7-compat 5963039 已推送（gitea）
 验证：go test -count=3（14 包）、vet、gofmt、diff --check 全过；未打新标签，等待真机验证
+
+### 阶段 13：背压默认值提升 + X-Tunnel 高级参数手动控制（完成，待构建验证）
+
+需求：
+1. 背压默认 1MB 太小，下载文件易触发 → 默认提升到 8MB，并提供手动参数调整。
+2. x-tunnel 其他参数也希望可手动控制（不重要的参数不进入分享链接）。
+3. 提议 golib 启动函数通用化（协议名 + JSON）——v1.1.2 已实现
+   `startSocksProxy(listenAddr, protocol, paramsJSON, verbose)`，无需改动。
+
+- [x] Go `xtunnel/config.go`：`DefaultBackpressureLimitBytes = 8 << 20` 常量，默认 1MB→8MB；pool.go 兜底复用常量
+- [x] Go `xtunnel/backend.go`：新增高级参数键解析（backpressure_limit 字节 / write_queue_wait_timeout、dial_timeout、handshake_timeout、read_timeout、write_timeout、ping_interval、reconnect_delay、connect_timeout 毫秒 / max_socks5_connections / udp_blocked_ports 逗号分隔），负值或非法端口报错
+- [x] Android `Preferences.java`：`XtAdvancedParams` per-profile 键 + getter/setter
+- [x] Android `ProfileEditActivity` + `activity_profile_edit.xml` + strings：高级参数（JSON，可选）输入框，保存时 JSON 校验，VPN 运行中禁用
+- [x] Android `TProxyService.buildXtunnelParams`：合并高级 JSON（优先级最高，覆盖基础参数）；分享链接不包含高级参数
+- [x] Go 测试：默认 8MB/显式值/毫秒转换/非法负值/非法端口；x-tunnel 主体 main 8a0a9a2 / win7-compat cf44c81 同步默认值 8MB
+验证：go test -count=3（14 包）、vet、gofmt、diff --check、XML；未打标签，等待构建/真机验证

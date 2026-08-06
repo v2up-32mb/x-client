@@ -84,6 +84,8 @@
         <string name="xt_insecure">跳过证书验证（Insecure）</string>
         <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
         <string name="xt_hot_pair_count">热通道对数（1-8）：</string>
+        <string name="xt_advanced_params">高级参数（JSON，可选，不写入分享链接）：</string>
+        <string name="xt_advanced_params_hint">{"backpressure_limit": 8388608, "read_timeout": 20000}</string>
 
         <!-- Log level -->
         <string name="log_level_label">日志等级：</string>

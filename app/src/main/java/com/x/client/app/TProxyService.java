@@ -343,6 +343,21 @@ public class TProxyService extends VpnService {
         params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
         params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
         params.put("bypass_rules", prefs.getBypassRules());
+        // 高级参数（JSON，可选）：显式覆盖上面的基础参数，优先级最高
+        String advanced = prefs.getXtAdvancedParams();
+        if (advanced != null && !advanced.trim().isEmpty()) {
+            try {
+                JSONObject adv = new JSONObject(advanced);
+                java.util.Iterator<String> keys = adv.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    params.put(key, adv.get(key));
+                }
+            } catch (org.json.JSONException error) {
+                // 保存配置时已校验，正常情况下不会到达；忽略以免影响启动
+                Log.w(TAG, "Invalid xtunnel advanced params, ignored", error);
+            }
+        }
         return params;
     }
 

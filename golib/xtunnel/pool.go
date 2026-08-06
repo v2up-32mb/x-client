@@ -102,7 +102,7 @@ type clientPool struct {
 func newClientPool(cfg *Config, ctx context.Context, cancel context.CancelFunc) (*clientPool, error) {
 	limit := int64(cfg.BackpressureLimitBytes)
 	if limit <= 0 {
-		limit = 1024 * 1024 // 默认 1MB
+		limit = DefaultBackpressureLimitBytes // 默认 8MB
 	}
 	p := &clientPool{
 		config:            cfg,

@@ -76,6 +76,7 @@ public class Preferences
         public static final String XT_INSECURE = "XtInsecure";
         public static final String XT_ENABLE_HOT_PAIR = "XtEnableHotPair";
         public static final String XT_HOT_PAIR_COUNT = "XtHotPairCount";
+        public static final String XT_ADVANCED_PARAMS = "XtAdvancedParams";
         public static final int DEFAULT_XT_HOT_PAIR_COUNT = 1;
         public static final int MAX_XT_HOT_PAIR_COUNT = 8;
         public static final int DEFAULT_XT_CONNECTIONS = 3;
@@ -597,6 +598,17 @@ public class Preferences
         public void setXtHotPairCount(int n) {
                 prefs.edit().putInt(getKey(XT_HOT_PAIR_COUNT),
                         Math.max(1, Math.min(n, MAX_XT_HOT_PAIR_COUNT))).apply();
+        }
+
+        // X-Tunnel 高级参数（JSON，可选；仅 per-profile 存储，不进入分享链接）
+        public String getXtAdvancedParams() {
+                String v = prefs.getString(getKey(XT_ADVANCED_PARAMS), "");
+                return v == null ? "" : v.trim();
+        }
+
+        public void setXtAdvancedParams(String json) {
+                prefs.edit().putString(getKey(XT_ADVANCED_PARAMS),
+                        json == null ? "" : json.trim()).apply();
         }
 
         // ======================== 辅助方法（用于配置列表页） ========================

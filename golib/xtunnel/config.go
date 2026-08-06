@@ -54,7 +54,7 @@ type Config struct {
 	WriteBufferSize int // 写缓冲区大小
 
 	// 背压控制
-	BackpressureLimitBytes int           // 全局队列背压阈值（字节），0 表示使用默认值 1MB
+	BackpressureLimitBytes int           // 全局队列背压阈值（字节），0 表示使用默认值 8MB
 	WriteQueueWaitTimeout  time.Duration // 写队列满时的等待超时，0 表示使用默认值 100ms
 
 	// SOCKS5 连接限制
@@ -77,6 +77,9 @@ type Config struct {
 	MaxFastRetryConsecutive int           // 连续进入 fast retry 的最大次数，默认 3
 }
 
+// DefaultBackpressureLimitBytes 全局写队列背压阈值默认值（8MB，下载大文件时不易触发）
+const DefaultBackpressureLimitBytes = 8 << 20
+
 // DefaultConfig 返回带有合理默认值的配置
 func DefaultConfig() *Config {
 	return &Config{
@@ -94,7 +97,7 @@ func DefaultConfig() *Config {
 		IPStrategy:              common.IPStrategyDefault,
 		ReadBufferSize:          64 * 1024,
 		WriteBufferSize:         64 * 1024,
-		BackpressureLimitBytes:  1024 * 1024, // 默认 1MB
+		BackpressureLimitBytes:  DefaultBackpressureLimitBytes, // 默认 8MB
 		WriteQueueWaitTimeout:   100 * time.Millisecond,
 		UDPBlockedPorts:         []int{443},
 		MaxSOCKS5Connections:    1024, // 默认最大 1024 个并发连接

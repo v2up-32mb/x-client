@@ -146,8 +146,16 @@ VPN TUN ──► hev-socks5-tunnel ──► 本地 SOCKS5 ──► Go 协议�
 
 **X-Tunnel 参数键**：`server_addr`（wss:// 必填）、`token`、`connections`、
 `relay_nodes`、`enable_ech`、`ech_domain`、`dns_server`、`insecure`、
-`enable_hot_pair`、`log_level`、`bypass_private`、`bypass_geoip_cn`、
-`bypass_geosite_cn`、`bypass_rules`（`client_id` 在 Go 侧保留支持）
+`enable_hot_pair`、`hot_pair_count`、`log_level`、`bypass_private`、
+`bypass_geoip_cn`、`bypass_geosite_cn`、`bypass_rules`（`client_id` 在 Go 侧保留支持）
+
+**X-Tunnel 高级参数键**（Profile 编辑页「高级参数（JSON）」输入框，仅本机生效、
+不写入分享链接；字节/毫秒为整数，缺省或 0 用默认值，负值非法）：
+`backpressure_limit`（字节，默认 8MB）、`write_queue_wait_timeout`（毫秒，默认 100）、
+`dial_timeout` / `handshake_timeout` / `read_timeout` / `write_timeout` /
+`ping_interval` / `reconnect_delay` / `connect_timeout`（毫秒）、
+`max_socks5_connections`（默认 1024，0 表示无限制）、
+`udp_blocked_ports`（逗号分隔端口，如 `"443,53"`）
 
 ## 开发注意事项
 
