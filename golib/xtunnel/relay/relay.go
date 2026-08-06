@@ -195,7 +195,7 @@ func (m *RelayNodeManager) AddNodeAndTest(address string, defaultPort string) ([
 		resolvedAddr := formatIPPort(ip, port)
 		node := m.newNode(resolvedAddr, resolvedAddr)
 		if err := m.TestNodeSpeed(node); err != nil {
-			sysLog.Info("[中转节点] TCP连接测试失败: %s, 错误: %v (节点已加入列表,等待后台测速)", resolvedAddr, err)
+			sysLog.Warn("[中转节点] TCP连接测试失败: %s, 错误: %v (节点已加入列表,等待后台测速)", resolvedAddr, err)
 			node.mu.Lock()
 			node.Latency = 9999 * time.Second
 			node.SuccessRate = 0.0
@@ -229,7 +229,7 @@ func (m *RelayNodeManager) AddNodeAndTest(address string, defaultPort string) ([
 		resolvedAddr := formatIPPort(ip, port)
 		node := m.newNode(address, resolvedAddr)
 		if err := m.TestNodeSpeed(node); err != nil {
-			sysLog.Info("[中转节点] TCP连接测试失败: %s, 错误: %v (节点已加入列表,等待后台测速)", resolvedAddr, err)
+			sysLog.Warn("[中转节点] TCP连接测试失败: %s, 错误: %v (节点已加入列表,等待后台测速)", resolvedAddr, err)
 			node.mu.Lock()
 			node.Latency = 9999 * time.Second
 			node.SuccessRate = 0.0
@@ -485,7 +485,7 @@ func (m *RelayNodeManager) MarkNodeFailed(ip string) {
 	node.Score = 0.0
 	node.Weight = 0.0
 	node.mu.Unlock()
-	sysLog.Info("[中转节点] 节点 %s 标记失败 (连续失败: %d)", ip, failCount)
+	sysLog.Warn("[中转节点] 节点 %s 标记失败 (连续失败: %d)", ip, failCount)
 }
 
 // MarkNodeSuccess 标记节点成功

@@ -153,7 +153,7 @@ func (p *clientPool) Start(relayNodes []string) {
 	// 添加中转节点
 	for _, addr := range relayNodes {
 		if err := p.relayManager.AddNode(addr, "443"); err != nil {
-			sysLog.Info("[客户端] 添加中转节点失败: %v", err)
+			sysLog.Warn("[客户端] 添加中转节点失败: %v", err)
 		}
 	}
 	p.relayManager.Start()
@@ -206,7 +206,7 @@ func (p *clientPool) Start(relayNodes []string) {
 		}
 
 		// 如果所有节点初始测速都失败
-		sysLog.Info("[客户端] 所有中转节点初始测速失败,直连服务端,建立 %d 条连接", p.config.Connections)
+		sysLog.Warn("[客户端] 所有中转节点初始测速失败,直连服务端,建立 %d 条连接", p.config.Connections)
 	}
 
 	// 没有指定中转节点或所有节点不可用,直连服务端
@@ -327,7 +327,7 @@ func (p *clientPool) shutdown() {
 	select {
 	case <-doneCh:
 	case <-time.After(2 * time.Second):
-		sysLog.Info("[客户端] 等待拨号 goroutine 退出超时，强制返回")
+		sysLog.Warn("[客户端] 等待拨号 goroutine 退出超时，强制返回")
 	}
 
 	sysLog.Info("[客户端] 所有连接已关闭")
@@ -359,10 +359,10 @@ func (p *clientPool) delayedStartPairWarmer(expectedCount int) {
 		case <-timeout.C:
 			ready := int(atomic.LoadInt32(&p.readyChannels))
 			if ready > 0 {
-				sysLog.Info("[PairWarmer] 启动超时，但已有 %d/%d 通道就绪，继续启动", ready, expectedCount)
+				sysLog.Warn("[PairWarmer] 启动超时，但已有 %d/%d 通道就绪，继续启动", ready, expectedCount)
 				p.pairWarmer.Run()
 			} else {
-				sysLog.Info("[PairWarmer] 启动超时且无就绪通道，放弃启动")
+				sysLog.Error("[PairWarmer] 启动超时且无就绪通道，放弃启动")
 			}
 			return
 		case <-checkTicker.C:
@@ -451,7 +451,7 @@ func (p *clientPool) dialAndServe(idx int, ip string) {
 
 		// 检查重试次数
 		if retryCount >= dialAndServeMaxRetries && !slowRetryMode {
-			sysLog.Info("[客户端] 通道 %d 重试次数超限 (%d 次)，转入慢速持续重试", chID, dialAndServeMaxRetries)
+			sysLog.Warn("[客户端] 通道 %d 重试次数超限 (%d 次)，转入慢速持续重试", chID, dialAndServeMaxRetries)
 			slowRetryMode = true
 			retryCount = 0
 			currentDelay = dialAndServeMaxDelay
@@ -475,7 +475,7 @@ func (p *clientPool) dialAndServe(idx int, ip string) {
 				ip = newNode.IP
 				relayInfo = fmt.Sprintf(" [中转: %s]", ip)
 			} else {
-				sysLog.Info("[客户端] 通道 %d 重连:无可用的健康中转节点,使用原有节点", chID)
+				sysLog.Warn("[客户端] 通道 %d 重连:无可用的健康中转节点,使用原有节点", chID)
 			}
 		}
 		firstAttempt = false // 首次尝试后标记为 false
@@ -487,7 +487,7 @@ func (p *clientPool) dialAndServe(idx int, ip string) {
 			if relayInfo == "" && ip != "" {
 				relayInfo = fmt.Sprintf(" [中转: %s]", ip)
 			}
-			sysLog.Info("[客户端] 通道 %d%s 连接失败: %v (重试 %d/%d)", chID, relayInfo, err, retryCount, dialAndServeMaxRetries)
+			sysLog.Warn("[客户端] 通道 %d%s 连接失败: %v (重试 %d/%d)", chID, relayInfo, err, retryCount, dialAndServeMaxRetries)
 
 			// 标记节点失败
 			if ip != "" && p.relayCount > 0 {
@@ -591,7 +591,7 @@ func (p *clientPool) dialAndServe(idx int, ip string) {
 			p.relayManager.Release(ip)
 		}
 
-		sysLog.Info("[客户端] 通道 %d%s 断开,重连中...", chID, relayInfo)
+		sysLog.Warn("[客户端] 通道 %d%s 断开,重连中...", chID, relayInfo)
 		select {
 		case <-p.ctx.Done():
 			return
@@ -679,7 +679,7 @@ func (p *clientPool) writeWorker(id int, conn *websocket.Conn, queue chan writeJ
 				p.connsWriteMutex[id].Lock()
 				_ = conn.SetWriteDeadline(time.Now().Add(p.config.WriteTimeout))
 				if err := conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
-					sysLog.Info("[客户端] 通道 %d ping发送失败: %v", id+1, err)
+					sysLog.Warn("[客户端] 通道 %d ping发送失败: %v", id+1, err)
 					p.connsWriteMutex[id].Unlock()
 					_ = conn.Close()
 					return
@@ -853,7 +853,7 @@ func (p *clientPool) asyncWriteDirect(chID int, msgType int, data []byte) error 
 			return nil
 		case <-timer.C:
 			p.releaseQueueBytes(size)
-			sysLog.Info("[客户端] 通道 %d 写队列满,队列长度: %d", chID, len(queue))
+			sysLog.Warn("[客户端] 通道 %d 写队列满,队列长度: %d", chID, len(queue))
 			return fmt.Errorf("通道 %d 缓冲区拥堵", chID)
 		case <-p.ctx.Done():
 			p.releaseQueueBytes(size)
@@ -969,7 +969,7 @@ func (p *clientPool) RegisterAndBroadcastTCP(connID, target string, first []byte
 				return
 			}
 			// Hot Pair 上行通道发送失败：释放 Pair 并回退到广播，避免连接状态残留
-			sysLog.Info("[客户端] %s Hot Pair 上行通道 %d 发送失败，回退广播，ID:%s", reqType, pair.UplinkChID, common.ShortID(connID))
+			sysLog.Warn("[客户端] %s Hot Pair 上行通道 %d 发送失败，回退广播，ID:%s", reqType, pair.UplinkChID, common.ShortID(connID))
 			p.mu.Lock()
 			if st = p.conns[connID]; st != nil {
 				st.pair = nil
@@ -984,7 +984,7 @@ func (p *clientPool) RegisterAndBroadcastTCP(connID, target string, first []byte
 	msg := common.EncodeMessage(common.MsgTCPConnect, connID, meta, first)
 	sent := p.broadcastWrite(websocket.BinaryMessage, msg)
 	if sent == 0 {
-		sysLog.Info("[客户端] %s 广播 TCP 连接请求失败，无可用通道，ID:%s", reqType, common.ShortID(connID))
+		sysLog.Warn("[客户端] %s 广播 TCP 连接请求失败，无可用通道，ID:%s", reqType, common.ShortID(connID))
 		// 通知等待方连接失败（由等待方发送协议失败响应并清理），
 		// 避免 SOCKS5 客户端只收到 EOF 而非标准失败应答。
 		if st != nil {
@@ -1042,7 +1042,7 @@ func (p *clientPool) StartUDPRace(connID, target string) {
 
 	sent := p.broadcastWrite(websocket.BinaryMessage, common.EncodeMessage(common.MsgUDPConnect, connID, meta, nil))
 	if sent == 0 {
-		sysLog.Info("[客户端] SOCKS5 UDP 广播连接请求失败，无可用通道，ID:%s", common.ShortID(connID))
+		sysLog.Warn("[客户端] SOCKS5 UDP 广播连接请求失败，无可用通道，ID:%s", common.ShortID(connID))
 		p.Unregister(connID)
 	}
 }
@@ -1316,7 +1316,7 @@ func (p *clientPool) handleChannel(chID int, conn *websocket.Conn) {
 	conn.SetPingHandler(func(m string) error {
 		_ = conn.SetReadDeadline(time.Now().Add(p.config.ReadTimeout))
 		if err := p.writeControlDirect(chID, websocket.PongMessage, []byte(m)); err != nil {
-			sysLog.Info("[客户端] 通道 %d pong发送失败: %v", chID, err)
+			sysLog.Warn("[客户端] 通道 %d pong发送失败: %v", chID, err)
 		}
 		// pong 发送失败不影响 ping/pong 循环,总是返回 nil
 		return nil
@@ -1326,7 +1326,7 @@ func (p *clientPool) handleChannel(chID int, conn *websocket.Conn) {
 		mt, msg, err := conn.ReadMessage()
 		if err != nil {
 			if !common.IsNormalCloseError(err) {
-				sysLog.Info("[客户端] 通道 %d 读取消息失败: %v", chID, err)
+				sysLog.Warn("[客户端] 通道 %d 读取消息失败: %v", chID, err)
 			} else {
 				sysLog.Info("[客户端] 通道 %d 正常关闭: %v", chID, err)
 			}
