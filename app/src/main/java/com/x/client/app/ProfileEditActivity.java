@@ -57,6 +57,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private CheckBox checkbox_xt_disable_ech;
     private CheckBox checkbox_xt_insecure;
     private CheckBox checkbox_xt_enable_hot_pair;
+    private EditText edittext_xt_hot_pair_count;
 
     private Button btn_import;
     private Button btn_save;
@@ -102,6 +103,10 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_disable_ech = findViewById(R.id.xt_disable_ech);
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
+        edittext_xt_hot_pair_count = findViewById(R.id.xt_hot_pair_count);
+        // Hot Pair 关闭时数量输入框禁用
+        checkbox_xt_enable_hot_pair.setOnCheckedChangeListener((buttonView, isChecked) ->
+                edittext_xt_hot_pair_count.setEnabled(isChecked));
 
         btn_import = findViewById(R.id.btn_import);
         btn_save = findViewById(R.id.btn_save);
@@ -188,6 +193,8 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_disable_ech.setChecked(prefs.getXtDisableEch());
         checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
+        edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
+        edittext_xt_hot_pair_count.setEnabled(prefs.getXtEnableHotPair());
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);
@@ -215,6 +222,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             checkbox_xt_disable_ech.setEnabled(false);
             checkbox_xt_insecure.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
+            edittext_xt_hot_pair_count.setEnabled(false);
             spinner_protocol.setEnabled(false);
             btn_save.setEnabled(false);
 
@@ -310,6 +318,25 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
+        // 校验并解析 Hot Pair 数量（仅 X-Tunnel 且启用时有效）
+        int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
+        String xtHotPairCountText = edittext_xt_hot_pair_count.getText().toString().trim();
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol) && checkbox_xt_enable_hot_pair.isChecked()) {
+            if (xtHotPairCountText.isEmpty()) {
+                xtHotPairCountText = "1";
+            }
+            try {
+                xtHotPairCount = Integer.parseInt(xtHotPairCountText);
+            } catch (NumberFormatException e) {
+                Toast.makeText(this, "热通道对数必须是数字", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+            if (xtHotPairCount < 1 || xtHotPairCount > Preferences.MAX_XT_HOT_PAIR_COUNT) {
+                Toast.makeText(this, "热通道对数必须在 1-" + Preferences.MAX_XT_HOT_PAIR_COUNT + " 之间", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        }
+
         // 临时切换到目标配置以保存数据
         String originalId = prefs.getCurrentProfileId();
         prefs.setCurrentProfileId(profileId);
@@ -342,6 +369,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setXtDisableEch(checkbox_xt_disable_ech.isChecked());
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
+        prefs.setXtHotPairCount(xtHotPairCount);
 
         // 恢复原配置
         prefs.setCurrentProfileId(originalId);

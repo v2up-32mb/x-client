@@ -114,7 +114,8 @@ public class TProxyService extends VpnService {
             stopping = false;
         }
 
-        new Preferences(this).setEnable(false);
+        // Enable 状态由主进程维护（ProfileListActivity/ServiceReceiver），
+        // 避免 :vpn 进程用陈旧 SharedPreferences 缓存全量写回覆盖全局设置。
         startForegroundNotification("正在启动 VPN");
         sendStatus(STATUS_STARTING, null);
 
@@ -138,10 +139,13 @@ public class TProxyService extends VpnService {
         }
         if (!stopping) {
             cleanupRuntime();
-            new Preferences(this).setEnable(false);
             sendStatus(STATUS_STOPPED, null);
         }
         super.onDestroy();
+        // 正常停止路径结束：结束 :vpn 进程，保证下一次 VPN 会话以全新进程
+        // 从磁盘重新加载 SharedPreferences（Android 7+ 多进程缓存不自动刷新，
+        // 陈旧缓存全量写回会覆盖主进程保存的全局设置，如日志等级）。
+        android.os.Process.killProcess(android.os.Process.myPid());
     }
 
     @Override
@@ -174,7 +178,6 @@ public class TProxyService extends VpnService {
             appendRuntimeLog("VPN 与本地隧道已启动");
             registerScreenReceiver();
             registerNetworkCallback();
-            prefs.setEnable(true);
             updateNotification("VPN 已连接");
             sendStatus(STATUS_STARTED, null);
             monitorNativeTunnel(prefs);
@@ -333,6 +336,7 @@ public class TProxyService extends VpnService {
         params.put("dns_server", prefs.getEchDns());
         params.put("insecure", prefs.getXtInsecure());
         params.put("enable_hot_pair", prefs.getXtEnableHotPair());
+        params.put("hot_pair_count", prefs.getXtHotPairCount());
         params.put("log_level", prefs.getLogLevel());
         // 路由绕过（全局设置，与 GCM 协议共用同一组偏好）
         params.put("bypass_private", prefs.getBypassPrivate());
@@ -395,7 +399,6 @@ public class TProxyService extends VpnService {
         appendRuntimeLog("VPN 启动失败: " + message);
         stopping = true;
         cleanupRuntime();
-        prefs.setEnable(false);
         sendStatus(STATUS_ERROR, message);
         stopForeground(true);
         stopSelf();
@@ -403,7 +406,7 @@ public class TProxyService extends VpnService {
 
     private void monitorNativeTunnel(Preferences prefs) {
         new Thread(() -> {
-            while (!stopping && prefs.getEnable()) {
+            while (!stopping && runtimeRunning) {
                 try {
                     Thread.sleep(1_000);
                 } catch (InterruptedException error) {
@@ -428,7 +431,6 @@ public class TProxyService extends VpnService {
         }
         appendRuntimeLog("收到停止 VPN 请求");
         cleanupRuntime();
-        new Preferences(this).setEnable(false);
         sendStatus(STATUS_STOPPED, null);
         stopForeground(true);
         stopSelf();

@@ -21,6 +21,9 @@
 			<intent-filter>
 				<action android:name="android.intent.action.BOOT_COMPLETED"/>
 			</intent-filter>
+			<intent-filter>
+				<action android:name="com.x.client.app.STATUS"/>
+			</intent-filter>
 		</receiver>
                 <activity android:name=".ProfileListActivity" android:label="@string/app_name"
                                 android:excludeFromRecents="false"

@@ -196,3 +196,35 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - `go test ./... -count=3`：14 包全部通过；`go vet`、`gofmt -l`、`git diff --check` 干净
 - gobind 导出面不变（7 个 API，含 setTimeZone）
 - README 同步：X-Tunnel 路由绕过标 ✅，参数键表补 4 键
+
+## 2026-08-06 阶段 10：日志等级跨进程覆盖修复 + Hot-Pair 数量可配
+
+### BUG：日志等级改回 INFO 不生效（v1.1.3 真机反馈）
+现象：WARN 保存生效；改回 INFO 保存后启动 VPN 仍无 INFO 日志，设置页仍显示 WARN。
+
+根因：**多进程 SharedPreferences 陈旧缓存全量写回**。TProxyService 运行在 `:vpn` 独立进程，
+与主进程同时写 SocksPrefs.xml（service 5 处 `setEnable`）。Android 7+ 忽略 MODE_MULTI_PROCESS，
+`:vpn` 进程复用上次会话缓存（LogLevel=WARN）时，任意 `commit` 会把整个文件全量写回，
+覆盖主进程刚保存的 LogLevel=INFO（磁盘与主进程缓存均被污染 → 日志仍 WARN、设置页显示 WARN）。
+
+修复（:vpn 进程变为纯只读）：
+- TProxyService 删除全部 setEnable 写入；Enable 状态完全由主进程维护
+  （ProfileListActivity 的 STATUS receiver 已写 STARTED/ERROR/STOPPED；ServiceReceiver
+  manifest 新增 ACTION_STATUS 过滤作为主界面不在前台时的兜底）
+- TProxyService 正常停止路径 onDestroy 末尾 `killProcess(myPid())`：保证下一次 VPN
+  会话以全新进程从磁盘加载 prefs（logRequestOnly 日志请求路径除外）
+- Preferences.migrateGlobalNetworkSettings 仅主进程执行（/proc/self/cmdline 判断进程名），
+  杜绝 :vpn 进程在构造 Preferences 时因迁移 commit 全量写回
+
+### 改进：X-Tunnel Hot-Pair 数量可配
+- Preferences：`XtHotPairCount`（per-profile，默认 1，上限 8）
+- ProfileEditActivity：启用热通道对开关下新增「热通道对数（1-8）」输入框，开关联动禁用；
+  保存校验数字与范围（仅 xtunnel + 启用时生效）
+- TProxyService：paramsJSON 增加 `hot_pair_count`
+- Go xtunnel/backend.go：解析 `hot_pair_count` → cfg.HotPairCount（上限 8，超限/非法启动前报错）
+  ——x-tunnel 主体连接池本就支持多 Pair（PairWarmer.PairCount = cfg.HotPairCount）
+
+### 验证
+- go test ./... -count=3（14 包）、vet、gofmt、diff --check、XML well-formed、gobind 导出面不变（8 API）
+- 新增 TestBuildConfigHotPairCount（默认 1 / 显式 4 / 非数字 / 9 超限）
+- 发布 v1.1.4（Release 自动触发）

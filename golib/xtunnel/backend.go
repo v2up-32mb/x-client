@@ -14,6 +14,8 @@ import (
 
 // Param keys accepted by Backend.Start（与 Android 侧 X_TUNNEL Profile 字段对齐）。
 const (
+	maxHotPairCount = 8
+
 	ParamServerAddr    = "server_addr"
 	ParamToken         = "token"
 	ParamConnections   = "connections"
@@ -24,6 +26,7 @@ const (
 	ParamDNSServer     = "dns_server"
 	ParamInsecure      = "insecure"
 	ParamEnableHotPair = "enable_hot_pair"
+	ParamHotPairCount  = "hot_pair_count"
 	ParamLogLevel      = "log_level"
 
 	// 路由绕过（键与 GCM 后端一致，Android 全局设置共用）
@@ -178,6 +181,14 @@ func buildConfig(params map[string]string) (*Config, error) {
 		return nil, err
 	} else {
 		c.EnableHotPair = v
+	}
+	if v, err := intParam(params, ParamHotPairCount, 0); err != nil {
+		return nil, err
+	} else if v > 0 {
+		if v > maxHotPairCount {
+			return nil, fmt.Errorf("param %q: hot pair count %d exceeds max %d", ParamHotPairCount, v, maxHotPairCount)
+		}
+		c.HotPairCount = v
 	}
 
 	// 路由绕过：先校验布尔类型，Matcher 在 Start 中构建（错误路径统一报 invalid bypass rules）

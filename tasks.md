@@ -108,3 +108,20 @@
 - [x] Android `TProxyService.java`：`buildXtunnelParams` 增加 4 个 bypass 键（与 GCM 共用全局偏好）
 - [x] Go 测试：`TestShouldBypassRules`（14 组规则）、`TestBuildConfigBypassParams`、`TestBackendStartInvalidBypassRules`、`TestBackendSOCKS5BypassDirect`（隧道不可达时直连往返）、`TestHTTPProxyBypassDirect`（CONNECT + GET 直连）
 - [x] 验证：`go test ./... -count=3`（14 包）、vet、gofmt、diff --check、gobind 导出面不变 → 提交推送 + v1.1.3 标签（Release 自动构建，不手动触发 debug 构建）
+
+### 阶段 10：日志等级跨进程覆盖 BUG 修复 + Hot-Pair 数量可配（完成，待发布验证）
+
+需求：
+1. BUG：日志等级从 WARN 改回 INFO 保存后不生效，设置页仍显示 WARN。
+   根因：TProxyService（:vpn 进程）与主进程同时写 SocksPrefs.xml——:vpn 进程复用
+   陈旧缓存时 setEnable commit 全量写回，覆盖主进程保存的 LogLevel=INFO。
+2. 改进：X-Tunnel Hot-Pair 支持配置启用对数（当前固定 1 对）。
+
+- [x] `TProxyService.java`：删除全部 5 处 prefs.setEnable 写入（Enable 由主进程 ProfileListActivity/ServiceReceiver 维护）；monitorNativeTunnel 改用 runtimeRunning
+- [x] `TProxyService.java`：正常停止路径 onDestroy 末尾 killProcess（保证下次会话全新进程加载 prefs，logRequestOnly 除外）
+- [x] `ServiceReceiver.java` + manifest：ACTION_STATUS 过滤，兜底更新 Enable 状态
+- [x] `Preferences.java`：迁移写盘仅主进程执行（isMainProcess 按 /proc/self/cmdline 判断，:vpn 进程纯只读）
+- [x] `Preferences.java` + `ProfileEditActivity` + `activity_profile_edit.xml`：Hot Pair 数量输入框（默认 1，上限 8，开关联动禁用）
+- [x] `TProxyService.buildXtunnelParams`：传 hot_pair_count
+- [x] Go `xtunnel/backend.go`：解析 hot_pair_count → cfg.HotPairCount（1..8 校验）+ 测试（默认/显式/非法/超限）
+- [x] 验证：go test/vet/gofmt/diff/XML/gobind → 提交推送 → v1.1.4 标签

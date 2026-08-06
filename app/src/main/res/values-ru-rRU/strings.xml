@@ -18,6 +18,7 @@
 	<string name="xt_connections">Соединений:</string>
 	<string name="xt_insecure">Пропустить проверку сертификата</string>
 	<string name="xt_enable_hot_pair">Hot Pair (тёплая пара каналов)</string>
+	<string name="xt_hot_pair_count">Hot Pair (пар каналов, 1-8):</string>
 	<string name="log_level_label">Уровень журнала:</string>
 	<string name="log_level_hint">Управляет подробностью журнала протокола; применяется при следующем запуске VPN</string>
 	<string name="log_level_debug">Отладка (DEBUG)</string>
