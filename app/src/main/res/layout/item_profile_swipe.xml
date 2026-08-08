@@ -98,6 +98,17 @@
             android:contentDescription="分享"/>
 
         <ImageButton
+            android:id="@+id/btn_copy"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:src="@drawable/ic_action_copy"
+            android:background="#FF9800"
+            android:tint="#FFFFFF"
+            android:scaleType="centerInside"
+            android:padding="16dp"
+            android:contentDescription="复制"/>
+
+        <ImageButton
             android:id="@+id/btn_edit"
             android:layout_width="56dp"
             android:layout_height="56dp"

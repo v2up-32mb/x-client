@@ -8,6 +8,7 @@
 
 package com.x.client.app;
 
+import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -18,6 +19,9 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
@@ -165,6 +169,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 加载配置列表
         refreshProfileList();
 
+        // 校正可能残留的 VPN 运行状态（APP 被意外终止后 Enable 可能为陈旧 true）
+        reconcileVpnState();
+
         // 更新启动按钮状态
         updateStartButton();
 
@@ -175,6 +182,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         super.onResume();
         // 刷新列表（从编辑页返回时）
         refreshProfileList();
+        reconcileVpnState();
         updateStartButton();
     }
 
@@ -223,6 +231,54 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             btnStart.setText("启动");
             btnStart.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4CAF50)); // Green
         }
+    }
+
+    /**
+     * 校正 VPN 运行状态：APP 进程被系统意外终止后，TProxyService(:vpn) 持有的
+     * VPN 隧道随进程消亡，但持久化的 Enable 仍为 true，按钮会误显示「停止」。
+     * 仅当全部满足以下条件才视为自身 VPN 运行中：
+     *   1) Enable 标记为 true；
+     *   2) 系统当前存在活跃的 VPN 网络；
+     *   3) 自身的 TProxyService 服务存活（getRunningServices 只返回本应用的
+     *      服务，因此其他 VPN 程序建立的 VPN 网络不会被当成自身的）。
+     * 否则清除陈旧标记，让按钮回到「启动」。
+     */
+    private void reconcileVpnState() {
+        if (!prefs.getEnable()) {
+            return;
+        }
+        if (hasActiveVpnNetwork() && isOwnVpnServiceRunning()) {
+            return;
+        }
+        prefs.setEnable(false);
+    }
+
+    private boolean hasActiveVpnNetwork() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) {
+            return false;
+        }
+        for (Network network : cm.getAllNetworks()) {
+            NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+            if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @SuppressWarnings("deprecation")
+    private boolean isOwnVpnServiceRunning() {
+        ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        if (am == null) {
+            return false;
+        }
+        for (ActivityManager.RunningServiceInfo info : am.getRunningServices(Integer.MAX_VALUE)) {
+            if (info.service != null && TProxyService.class.getName().equals(info.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void showFabMenu() {
@@ -358,6 +414,12 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     }
 
     @Override
+    public void onCopyClick(String profileId) {
+        // 复制配置：弹出名称输入框，确定后以新 UUID 创建相同配置；取消则不创建
+        copyProfile(profileId);
+    }
+
+    @Override
     public void onEditClick(String profileId) {
         // 编辑配置
         editProfile(profileId);
@@ -423,6 +485,32 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         Intent intent = new Intent(this, ProfileEditActivity.class);
         intent.putExtra(ProfileEditActivity.EXTRA_PROFILE_ID, profileId);
         startActivity(intent);
+    }
+
+    private void copyProfile(String profileId) {
+        String originalName = prefs.getProfileName(profileId);
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(originalName);
+        input.setSelection(originalName.length());
+
+        new AlertDialog.Builder(this)
+                .setTitle("复制配置")
+                .setMessage("输入新配置的名称")
+                .setView(input)
+                .setPositiveButton("确定", (dialog, which) -> {
+                    String name = input.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        // 名称为空时沿用原名称；配置名称允许重复，底层以唯一 ID 区分
+                        name = originalName;
+                    }
+                    String newId = UUID.randomUUID().toString();
+                    prefs.copyProfile(profileId, newId, name);
+                    refreshProfileList();
+                    Toast.makeText(this, "配置已复制: " + name, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("取消", null)
+                .show();
     }
 
     private void deleteProfile(String profileId) {
@@ -878,11 +966,6 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) {
                         name = defaultName;
-                    }
-                    // 检查重复名称
-                    if (prefs.profileNameExists(name, null)) {
-                        Toast.makeText(this, "配置名称已存在", Toast.LENGTH_SHORT).show();
-                        return;
                     }
                     // 添加配置
                     prefs.addProfile(id, name);
