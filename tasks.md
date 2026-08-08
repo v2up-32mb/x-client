@@ -192,3 +192,21 @@
 验证：go test -count=3（14 包）、vet、gofmt、diff --check；x-tunnel main 仅剩 3 个改动前即存在的 flaky 失败
 （TestHandleSOCKS5ConnectUsesConfiguredConnectTimeout / TestHandleHTTPProxyConnUsesConfiguredConnectTimeout /
 TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，stash 验证与本次改动无关）；未打标签
+
+### 阶段 15：滑动菜单复制配置 + VPN 状态启动校验（计划）
+
+需求：
+1. 功能：滑动菜单「分享」后新增「复制」。点击弹出修改配置名对话框，
+   确定 → 用新 UUID 复制该配置的全部 profile 键（名称可重复，底层唯一标识区分）；取消 → 不创建。
+2. BUG：APP 被意外终止后 VPN 已断开，重开 APP 底部仍显示「停止」。
+   启动时应校验当前 VPN 是否为自身启动的：仅当 持久化 Enable=true 且 系统存在活跃 VPN 网络
+   且 自身 TProxyService 服务存活（getRunningServices 只返回本应用服务）时视为运行中；
+   否则清除陈旧 Enable 并显示「启动」——其他 VPN 程序的 VPN 网络不会被当成自身的。
+
+- [x] `Preferences.java`：copyProfile(sourceId,newId,name) 复制全部 `_<id>` 后缀键（getAll 遍历，类型保留）；
+      removeProfile 改用 getAll 过滤清理全部 profile 键（含 XT_*），不再用硬编码键列表
+- [x] `item_profile_swipe.xml`：btn_share 后新增 btn_copy（ic_menu_copy，橙色，contentDescription=复制）
+- [x] `ProfileAdapter.java`：onCopyClick 回调 + btnCopy 点击处理（复制不受 VPN 运行限制）
+- [x] `ProfileListActivity.java`：onCopyClick → 名称输入对话框（预填原名，确定=复制/取消=不创建）；
+      onCreate/onResume 调 reconcileVpnState()（Enable=true 且非自身 VPN 运行 → setEnable(false)）
+- [x] 验证：XML well-formed、gofmt/Go 测试不受影响、diff --check；Java 无法本地编译则依赖用户要求时 Actions

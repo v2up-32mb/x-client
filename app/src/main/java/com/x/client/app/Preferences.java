@@ -196,6 +196,41 @@ public class Preferences
             editor.commit();
         }
 
+        // copyProfile 以新 UUID 复制一个配置的全部数据。配置名称允许重复，
+        // 底层始终以唯一 profile id 区分（所有 profile 键带 "_<id>" 后缀）。
+        public void copyProfile(String sourceId, String newId, String name) {
+            String suffix = "_" + sourceId;
+            String newSuffix = "_" + newId;
+            SharedPreferences.Editor editor = prefs.edit();
+            for (java.util.Map.Entry<String, ?> entry : prefs.getAll().entrySet()) {
+                String key = entry.getKey();
+                if (key.length() <= suffix.length() || !key.endsWith(suffix)
+                        || key.startsWith(PROFILE_NAME_PREFIX)) {
+                    continue;
+                }
+                String newKey = key.substring(0, key.length() - suffix.length()) + newSuffix;
+                Object value = entry.getValue();
+                if (value instanceof String) {
+                    editor.putString(newKey, (String) value);
+                } else if (value instanceof Integer) {
+                    editor.putInt(newKey, (Integer) value);
+                } else if (value instanceof Long) {
+                    editor.putLong(newKey, (Long) value);
+                } else if (value instanceof Boolean) {
+                    editor.putBoolean(newKey, (Boolean) value);
+                } else if (value instanceof Float) {
+                    editor.putFloat(newKey, (Float) value);
+                } else if (value instanceof java.util.Set) {
+                    @SuppressWarnings("unchecked")
+                    java.util.Set<String> strings = (java.util.Set<String>) value;
+                    editor.putStringSet(newKey, new HashSet<>(strings));
+                }
+                // 其他类型（含 null）不复制
+            }
+            editor.commit();
+            addProfile(newId, name);
+        }
+
         public void removeProfile(String id) {
             // Logic moved to MainActivity to check size before calling or allow calling freely if size > 1
             // Here we just remove whatever ID is passed, assuming upper layer checked constraints.
@@ -211,10 +246,13 @@ public class Preferences
             editor.putStringSet(PROFILES, profiles);
             editor.remove(PROFILE_NAME_PREFIX + id);
             
-            // Clean up all keys for this profile
-            String[] keys = {WORKER_HOST, PREF_IP, FALLBACK_IP, USER_ID, ECH_DNS, ECH_DOMAIN, DISABLE_ECH, ENABLE_DNS_WARMUP, WS_CONN, DISABLE_IPV6_ROUTE};
-            for (String k : keys) {
-                editor.remove(k + "_" + id);
+            // 清理该配置的全部键：遍历存储，删除所有带 "_<id>" 后缀的键
+            // （包含 XT_*、AdvancedParams 等任意 profile 级键，避免复制/删除后残留）。
+            String suffix = "_" + id;
+            for (String key : prefs.getAll().keySet()) {
+                if (key.endsWith(suffix)) {
+                    editor.remove(key);
+                }
             }
             editor.commit();
         }
@@ -621,16 +659,6 @@ public class Preferences
                         return prefs.getString(XT_SERVER_ADDR + "_" + profileId, "");
                 }
                 return workerHost;
-        }
-
-        // 检查配置名称是否已存在（用于验证）
-        public boolean profileNameExists(String name, String excludeId) {
-                for (String id : getProfileIds()) {
-                        if (!id.equals(excludeId) && getProfileName(id).equals(name)) {
-                                return true;
-                        }
-                }
-                return false;
         }
 
         // 获取所有配置的列表（用于 RecyclerView）

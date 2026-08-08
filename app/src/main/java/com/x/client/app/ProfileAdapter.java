@@ -30,6 +30,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     public interface OnProfileActionListener {
         void onProfileClick(String profileId);
         void onShareClick(String profileId);
+        void onCopyClick(String profileId);
         void onEditClick(String profileId);
         void onDeleteClick(String profileId);
     }
@@ -140,6 +141,14 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             holder.swipeLayout.close(true);
         });
 
+        // 复制按钮：仅读取配置数据创建副本，不修改当前配置，VPN 运行时也可用
+        holder.btnCopy.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onCopyClick(profile.id);
+            }
+            holder.swipeLayout.close(true);
+        });
+
         // 修改按钮
         holder.btnEdit.setOnClickListener(v -> {
             boolean isVpnRunning = prefs.getEnable();
@@ -189,6 +198,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         TextView textServerAddr;
         TextView textProtocol;
         ImageButton btnShare;
+        ImageButton btnCopy;
         ImageButton btnEdit;
         ImageButton btnDelete;
 
@@ -201,6 +211,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             textServerAddr = itemView.findViewById(R.id.text_server_addr);
             textProtocol = itemView.findViewById(R.id.text_protocol);
             btnShare = itemView.findViewById(R.id.btn_share);
+            btnCopy = itemView.findViewById(R.id.btn_copy);
             btnEdit = itemView.findViewById(R.id.btn_edit);
             btnDelete = itemView.findViewById(R.id.btn_delete);
         }

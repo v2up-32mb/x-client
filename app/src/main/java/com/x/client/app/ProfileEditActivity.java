@@ -295,12 +295,6 @@ public class ProfileEditActivity extends AppCompatActivity {
             return false;
         }
 
-        // 检查配置名称是否重复（排除当前配置）
-        if (prefs.profileNameExists(profileName, profileId)) {
-            Toast.makeText(this, "配置名称已存在", Toast.LENGTH_SHORT).show();
-            return false;
-        }
-
         String protocol = getSelectedProtocol();
 
         // 按协议验证必填字段

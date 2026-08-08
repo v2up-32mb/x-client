@@ -257,3 +257,28 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - go test ./...（14 包全过）；新增 TestPairWarmerAssignPairSlot、TestSOCKS5SoftLimitWaitWindowAbsorbsBurst
 - x-tunnel 主体同步（main + win7-compat）：pair 槽位 ID + socks5/HTTP 并发软等待与文案，待提交推送
 - x-tunnel main 仅剩 3 个改动前即存在的 flaky 失败（超时类测试，stash 验证无关）；未打标签
+
+## 2026-08-08 阶段 15：滑动菜单复制配置 + VPN 状态启动校验（代码完成，待构建/真机验证）
+
+### 1. 配置文件「复制」功能
+- 滑动菜单按钮顺序：分享 → 复制 → 修改 → 删除；复制为橙色 ic_action_copy（自建 content_copy 矢量，不依赖系统图标）
+- 点击复制：AlertDialog 名称输入框（预填原名称）→ 确定后 `UUID.randomUUID()` 新 id，
+  `Preferences.copyProfile` 遍历 getAll() 复制所有 `_<源id>` 后缀键（String/Int/Long/Bool/Float/StringSet 类型保留，
+  跳过 ProfileName_*）→ addProfile 注册新 id；取消则不创建
+- 名称允许重复：移除 edit 保存与导入两处 `profileNameExists` 拦截（连同方法一并删除），
+  底层始终以 profile id（UUID）区分，无冲突
+- removeProfile 顺带修复：原硬编码键列表漏删 XT_*、AdvancedParams 等；改为遍历 getAll() 删除全部 `_<id>` 后缀键，
+  避免复制-删除循环后残留垃圾键
+- 复制为只读操作，VPN 运行时也可用（与分享一致）
+
+### 2. BUG：APP 被意外终止后按钮仍显示「停止」
+- 根因：Enable 为持久化标记，进程被杀时 TProxyService(:vpn) 与 VPN 隧道随进程消亡但无广播，标记残留
+- 修复（ProfileListActivity.reconcileVpnState，onCreate + onResume 调用）：
+  视为「自身 VPN 运行中」需同时满足 ①Enable=true ②系统存在活跃 TRANSPORT_VPN 网络
+  ③getRunningServices 中本应用 TProxyService 存活（Android 8+ 该 API 只返回本应用服务，
+  因此其他 VPN 程序建立的 VPN 网络不会被误判为自身的）；任一不满足 → setEnable(false)，按钮显示「启动」
+
+### 验证
+- 27 个 res XML well-formed、git diff --check、golib go test/vet 全过（本轮无 Go 改动）
+- 无本地 Java/Android SDK（Java 未装，gradlew 无法运行），Android 构建验证在用户要求时经 Actions；
+  未打标签（用户未要求），未触发 debug 构建
