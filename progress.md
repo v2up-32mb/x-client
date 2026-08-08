@@ -282,3 +282,10 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - 27 个 res XML well-formed、git diff --check、golib go test/vet 全过（本轮无 Go 改动）
 - 无本地 Java/Android SDK（Java 未装，gradlew 无法运行），Android 构建验证在用户要求时经 Actions；
   未打标签（用户未要求），未触发 debug 构建
+
+## 2026-08-08 发布 v1.1.7
+
+- 附注标签 v1.1.7（tag x-client v1.1.7: copy profile from swipe menu + VPN running-state validation on startup）推送 origin
+- Release APK 工作流自动触发（run 31232831398）completed/success，非 debug 手动构建
+- Release "X Client - v1.1.7"（非 draft/非 prerelease）：5 个签名 APK 齐全
+  （arm64-v8a 15.7MB / armeabi-v7a 15.5MB / universal 47.9MB / x86 15.7MB / x86_64 16.4MB）

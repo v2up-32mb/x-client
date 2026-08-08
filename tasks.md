@@ -210,3 +210,9 @@ TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，sta
 - [x] `ProfileListActivity.java`：onCopyClick → 名称输入对话框（预填原名，确定=复制/取消=不创建）；
       onCreate/onResume 调 reconcileVpnState()（Enable=true 且非自身 VPN 运行 → setEnable(false)）
 - [x] 验证：XML well-formed、gofmt/Go 测试不受影响、diff --check；Java 无法本地编译则依赖用户要求时 Actions
+
+### 阶段 15 发布：v1.1.7
+- [x] 附注标签 `tag x-client v1.1.7: copy profile from swipe menu + VPN running-state validation on startup`（HEAD c9bfc61）
+- [x] Release APK 工作流自动触发成功：run 31232831398，completed/success
+- [x] Release "X Client - v1.1.7" 已发布（非 draft/非 prerelease），5 个签名 APK 齐全：
+  arm64-v8a 15.7MB / armeabi-v7a 15.5MB / universal 47.9MB / x86 15.7MB / x86_64 16.4MB
