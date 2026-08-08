@@ -216,3 +216,14 @@ TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，sta
 - [x] Release APK 工作流自动触发成功：run 31232831398，completed/success
 - [x] Release "X Client - v1.1.7" 已发布（非 draft/非 prerelease），5 个签名 APK 齐全：
   arm64-v8a 15.7MB / armeabi-v7a 15.5MB / universal 47.9MB / x86 15.7MB / x86_64 16.4MB
+
+### 阶段 16：v1.1.7 真机反馈——滑动菜单动画只展开到第 3 个按钮（完成）
+
+- 根因：SwipeRevealLayout.actionWidth 硬编码 168dp（56dp*3），按钮层实际 4*56=224dp；
+  动画/裁剪范围按 168dp 计算，currentRevealWidth 达到 actionWidth 后 drawChild 裁剪失效，
+  第 4 个按钮在动画结束瞬间整块弹出（无动画）
+- [x] 修复：actionWidth 不再硬编码——onLayout 后按 actionButtons 实际宽度更新；
+      GONE 视图不会自动 measure/layout，updateActionWidth 对宽度为 0 时强制
+      UNSPECIFIED 测量取真实宽度（224dp）；setTranslationOffset 兜底同步；
+      动画时长保持 250ms，动画/裁剪/alpha/阈值全部自动跟随真实按钮宽度
+- [x] 验证：diff --check、括号平衡；无本地 Java 编译环境，构建验证待用户要求时 Actions

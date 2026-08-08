@@ -33,7 +33,9 @@ public class SwipeRevealLayout extends FrameLayout {
     private View actionButtons;    // 操作按钮层（overlay）
 
     // 滑动配置
-    private float actionWidth = 168f;  // 三个按钮总宽度（56dp * 3）
+    // 按钮层总宽度（px）。布局完成后按 actionButtons 实际宽度更新，
+    // 避免按钮数量变化（如 3 个 -> 4 个）后动画/裁剪范围仍停留在旧宽度。
+    private float actionWidth = 168f;
     private float snapThreshold = 0.3f;  // 30% 阈值（降低灵敏度）
 
     // 触摸处理
@@ -84,9 +86,39 @@ public class SwipeRevealLayout extends FrameLayout {
         // 初始化 VelocityTracker
         velocityTracker = VelocityTracker.obtain();
 
-        // 转换 dp 到 px
+        // 初始兜底值：56dp * 3（与布局中单个按钮宽度一致），
+        // onLayout 后会被真实按钮层宽度覆盖（当前为 56dp * 4 = 224dp）。
         float density = context.getResources().getDisplayMetrics().density;
-        actionWidth = 168 * density;  // 56dp * 3 buttons
+        actionWidth = 168 * density;
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        // 子视图布局完成后读取按钮层真实宽度，同步动画/裁剪范围
+        updateActionWidth();
+    }
+
+    private void updateActionWidth() {
+        if (actionButtons == null) {
+            return;
+        }
+        int width = actionButtons.getWidth();
+        if (width <= 0) {
+            // 按钮层初始为 GONE：GONE 视图不会自动 measure/layout，
+            // getWidth() 恒为 0，需要强制测量一次以获取真实宽度（56dp * 4 = 224dp）。
+            actionButtons.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            width = actionButtons.getMeasuredWidth();
+        }
+        if (width <= 0) {
+            return;
+        }
+        actionWidth = width;
+        if (currentRevealWidth > actionWidth) {
+            currentRevealWidth = actionWidth;
+        }
     }
 
     @Override
@@ -265,6 +297,8 @@ public class SwipeRevealLayout extends FrameLayout {
 
     private void setTranslationOffset(float offset) {
         if (actionButtons == null) return;
+        // 兜底：确保 actionWidth 始终与按钮层实际宽度一致
+        updateActionWidth();
 
         // offset: 0（完全显示）到 actionWidth（完全隐藏）
         // 转换为 currentRevealWidth: actionWidth（完全显示）到 0（完全隐藏）
