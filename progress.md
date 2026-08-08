@@ -289,3 +289,12 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - Release APK 工作流自动触发（run 31232831398）completed/success，非 debug 手动构建
 - Release "X Client - v1.1.7"（非 draft/非 prerelease）：5 个签名 APK 齐全
   （arm64-v8a 15.7MB / armeabi-v7a 15.5MB / universal 47.9MB / x86 15.7MB / x86_64 16.4MB）
+
+## 2026-08-08 阶段 16：滑动菜单动画宽度修复（v1.1.7 反馈）
+
+- 现象：菜单从 3 键变 4 键后，展开动画显示完第 3 个按钮就"直接展开完毕"，第 4 个按钮瞬间弹出
+- 根因：`SwipeRevealLayout.actionWidth` 硬编码 168dp = 56dp*3，未随按钮数同步；
+  `drawChild` 裁剪条件 `currentRevealWidth < actionWidth` 在 168dp 处失效，剩余 56dp 直接整块绘制
+- 修复：onLayout 后按 actionButtons 实际宽度（224dp）动态更新 actionWidth；
+  初始 GONE 状态下强制 measure 获取真实宽度；setTranslationOffset 兜底同步；
+  动画时长不变（250ms），展开/收拢/裁剪/透明度/吸附阈值全程覆盖全部 4 个按钮
