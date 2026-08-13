@@ -102,7 +102,7 @@ type clientPool struct {
 func newClientPool(cfg *Config, ctx context.Context, cancel context.CancelFunc) (*clientPool, error) {
 	limit := int64(cfg.BackpressureLimitBytes)
 	if limit <= 0 {
-		limit = DefaultBackpressureLimitBytes // 默认 8MB
+		limit = DefaultBackpressureLimitBytes // 默认 16MB
 	}
 	p := &clientPool{
 		config:            cfg,
@@ -391,7 +391,9 @@ var (
 	dialAndServeMaxDelay   = 60 * time.Second
 
 	// writeQueueSize 单通道写队列容量（会话级队列）
-	writeQueueSize = 4096
+	// 上传（如 speedtest 上行）大数据块时，队列容量不足会很快打满，
+	// 配合 WriteQueueWaitTimeout 超时后断开连接。调大容量降低打满概率。
+	writeQueueSize = 16384
 )
 
 // fastRetryState 记录快速重连状态
@@ -1580,9 +1582,18 @@ func (p *clientPool) handleBackpressure(state common.BackpressureState) {
 // waitForBackpressure 等待背压恢复正常（用于暂停状态）
 // 返回 true 表示可以继续，false 表示应该放弃
 func (p *clientPool) waitForBackpressure() bool {
+	// Pause 有限等待：3s 内未恢复则按减速继续（降级不永久阻塞），
+	// 避免上传大流量时被服务端暂停通知永久卡死而断连。
+	deadline := time.Now().Add(3 * time.Second)
 	for {
 		state := common.BackpressureState(atomic.LoadInt32(&p.backpressureState))
 		if state != common.BackpressurePause {
+			return true
+		}
+		if time.Now().After(deadline) {
+			// 超时降级：不再阻塞，按减速状态继续发送
+			atomic.CompareAndSwapInt32(&p.backpressureState, int32(common.BackpressurePause), int32(common.BackpressureSlowDown))
+			sysLog.Warn("[客户端] 背压暂停等待超时(3s)，降级为减速继续发送")
 			return true
 		}
 

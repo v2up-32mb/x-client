@@ -30,9 +30,9 @@ func TestDefaultConfigHasHotPairDefaults(t *testing.T) {
 func TestDefaultConfigBackpressureDefaults(t *testing.T) {
 	cfg := DefaultConfig()
 	if cfg.BackpressureLimitBytes != DefaultBackpressureLimitBytes {
-		t.Fatalf("BackpressureLimitBytes default = %d, want %d (8MB)", cfg.BackpressureLimitBytes, DefaultBackpressureLimitBytes)
+		t.Fatalf("BackpressureLimitBytes default = %d, want %d (16MB)", cfg.BackpressureLimitBytes, DefaultBackpressureLimitBytes)
 	}
-	if cfg.WriteQueueWaitTimeout != 100*time.Millisecond {
-		t.Fatalf("WriteQueueWaitTimeout default = %v, want 100ms", cfg.WriteQueueWaitTimeout)
+	if cfg.WriteQueueWaitTimeout != 500*time.Millisecond {
+		t.Fatalf("WriteQueueWaitTimeout default = %v, want 500ms", cfg.WriteQueueWaitTimeout)
 	}
 }
