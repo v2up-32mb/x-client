@@ -227,3 +227,35 @@ TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，sta
       UNSPECIFIED 测量取真实宽度（224dp）；setTranslationOffset 兜底同步；
       动画时长保持 250ms，动画/裁剪/alpha/阈值全部自动跟随真实按钮宽度
 - [x] 验证：diff --check、括号平衡；无本地 Java 编译环境，构建验证待用户要求时 Actions
+
+### 阶段 17：背压调参第一步 + speedtest 上传断连排查（代码调参完成已推送，待真机验证；分支 feat/backpressure-tuning）
+
+背景：v1.1.8 之后，用户反馈 xtunnel 协议用 speedtest app 测速时上传阶段失败（直接报网络错误或测到一半报错），
+怀疑 CLI 版自定义背压控制有 bug，考虑用 smux 完整替换；先做第一步低风险调参验证。
+
+目标：量化确认"背压是否是上传断连祸首"，为是否走 smux 大重构提供依据。
+
+已完成：
+- [x] main 打 v1.1.8 附注标签并推送（tag: swipe menu animation width fix），Release 自动触发（x-client 仓库）
+- [x] x-client 与 x-tunnel 两仓库均创建 feat/backpressure-tuning 分支（基于各自 main）
+- [x] 根因分析（上传链路）：speedtest 上行 = 本地应用→SOCKS5→客户端写队列(asyncWriteDirect)
+      →WS→服务端 handleTCPData→目标 socket；断连点在客户端写队列满（writeQueueSize=4096 条、
+     WriteQueueWaitTimeout=100ms 超时）→SendDataDirect 返回错误→socks5.go 直接 return 关闭连接；
+     服务端背压(1MB)管的是下行，不是上传主因但阈值过小需对齐
+- [x] x-client golib/xtunnel 客户端改动（提交 be96773 并推送）：
+     ①pool.go writeQueueSize 4096→16384；②waitForBackpressure 加 3s 超时降级（Pause→SlowDown 不永久阻塞）；
+     ③config.go DefaultBackpressureLimitBytes 8MB→16MB；④WriteQueueWaitTimeout 默认 100ms→500ms
+
+待办（下一步）：
+- [x] x-client golib/xtunnel/config_test.go：TestDefaultConfigBackpressureDefaults 断言更新
+     （BackpressureLimitBytes 提示 8MB→16MB、WriteQueueWaitTimeout 100ms→500ms）
+- [x] x-client：golib 全量 go test ./... -count=3 全绿、go vet ./... 通过
+- [x] x-tunnel CLI 客户端 client/pkg 同步同款改动：config.go 8MB→16MB + 100ms→500ms、pool.go writeQueueSize 4096→16384、
+     waitForBackpressure 3s 超时（用标准 log.Printf，无 sysLog）
+- [x] x-tunnel 服务端 server/pkg：config.go BackpressureLimitBytes 默认 1MB→16MB（DefaultConfig 与 newServerPool fallback 两处）；
+     server 测试已显式设阈值不受影响
+- [x] 两仓库分别提交并推送 feat/backpressure-tuning：x-client be96773（GitHub）、x-tunnel 35c52fd（gitea）；
+     x-tunnel go test 仅 3 个既有 flaky 失败（HEAD worktree 复现确认，非本次引入）
+- [ ] 用户真机验证 speedtest 上传；若恢复则确认背压为祸首，决定后续（调参落地 or smux 重构）；
+     若仍失败则查服务端 handleTCPData/上游 socket 写阻塞路径
+- [ ] 验证 OK 后视用户要求合并/打标签；不主动触发 debug 构建

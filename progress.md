@@ -298,3 +298,31 @@ xtunnel 的 SOCKS5/HTTP 是独立实现，既不解析 bypass_* 参数也无法�
 - 修复：onLayout 后按 actionButtons 实际宽度（224dp）动态更新 actionWidth；
   初始 GONE 状态下强制 measure 获取真实宽度；setTranslationOffset 兜底同步；
   动画时长不变（250ms），展开/收拢/裁剪/透明度/吸附阈值全程覆盖全部 4 个按钮
+
+## 2026-08-14 阶段 17：背压调参第一步 + speedtest 上传断连排查（代码调参完成已推送，待真机验证）
+
+### 分支与发布状态
+- main 打 v1.1.8 标签并推送（README/发布说明：滑动菜单动画宽度修复），Release 自动触发（x-client 仓库）
+- x-client 与 x-tunnel 两仓库创建 feat/backpressure-tuning 分支（基于各自 main）；x-tunnel 分支工作区
+  有未跟踪的构建产物 client/x-tunnel-client 与 docs/communication-protocol.md，勿提交前者
+
+### 根因分析（关键）
+上传断连链路：speedtest 上行 → 本地 SOCKS5 → 客户端 asyncWriteDirect（全局队列 8MB + 单通道写队列 4096 条）
+→ WS → 服务端 handleTCPData → 目标 socket。断连最可能在客户端写队列满：WriteQueueWaitTimeout=100ms 超时后
+asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错误 → socks5.go handleSOCKS5Connect 直接 return
+（defer c.Close()）→ speedtest 报网络错误，且可能偶发（取决于瞬时流量）。
+服务端背压（默认 1MB）只广播下行状态，且 broadcastBackpressure 会拖慢上传，需对齐放大。
+对比 GCM 协议：GCM 用连接池+多路复用流，无此全局队列瓶颈，故只有 xtunnel 上传失败。
+
+### 已改（x-client golib/xtunnel，提交 be96773 并推送）
+- pool.go：writeQueueSize 4096→16384；waitForBackpressure 加 3s 超时，超时降级 Pause→SlowDown 继续发送
+- config.go：DefaultBackpressureLimitBytes 8MB→16MB；WriteQueueWaitTimeout 默认 100ms→500ms；注释同步
+- pool.go 注释 8MB→16MB
+- config_test.go 断言同步更新（500ms/16MB）；golib go test ./... -count=3 全绿、go vet ./... 通过
+
+### 待办（真机验证）
+- [x] 更新 config_test.go 断言 → golib 全量 go test -count=3/vet 通过（x-client be96773）
+- [x] x-tunnel client/pkg + server/pkg 同步改动（CLI 客户端 8MB→16MB/100ms→500ms/写队列 16384/Pause 3s；
+  服务端 BackpressureLimitBytes 1MB→16MB）（x-tunnel 35c52fd；go test 仅 3 个既有 flaky 失败，HEAD 复现确认非本次引入）
+- [x] 两仓库分别测试、提交、推送 feat/backpressure-tuning（x-client→GitHub、x-tunnel→gitea）
+- [ ] 用户真机验证 speedtest 上传；结果决定"调参落地"还是"smux 完整重构"
