@@ -262,6 +262,8 @@ TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，sta
 - [x] 背压阈值最终调整：客户端 16MB->8MB（x-client 4443c69 / x-tunnel 5b10fc1），服务端 1MB->32MB
      （DefaultConfig、newServerPool fallback、CLI -backpressure-limit 默认值 1MB->32MB 三处对齐，x-tunnel 5b10fc1）；
      golib go test -count=3 全绿 + vet 通过
+- [x] main 快进合并到 b40ad91 并打 v1.1.9 附注标签发布（用户要求；发布时 192.168.4.1:7890 代理故障，
+     按用户指示直连 push 成功）；Release APK workflow 由 v* 标签自动触发（run 31896030985），未手动触发 debug 构建
 - [ ] 用户真机验证 speedtest 上传；若恢复则确认背压为祸首，决定后续（调参落地 or smux 重构）；
      若仍失败则查服务端 handleTCPData/上游 socket 写阻塞路径
 - [ ] 验证 OK 后视用户要求合并/打标签；不主动触发 debug 构建

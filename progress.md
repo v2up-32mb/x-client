@@ -337,6 +337,14 @@ asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错�
   race 检测器环境不支持（TSan unsupported VMA range）
 - 服务端启动命令建议（32MB 生效默认）：x-tunnel-server -l :10000 -token v2up-ech
 
+### v1.1.9 发布（2026-08-16）
+- 用户要求 main 快进到 feat/backpressure-tuning 顶（b40ad91）并打标签发布
+- main：8afcb2b -> b40ad91（fast-forward），附注标签 v1.1.9（message: 背压调参第一步 + 多客户端 ch_id 独立编号空间修复），
+  均推送 GitHub 并远程验证（main=b40ad91，tag 指向同一 commit）
+- 推送时 192.168.4.1:7890 代理故障（GnuTLS handshake failed，curl 同失败），按用户指示直连 push 成功（未改仓库代理配置）
+- Release APK workflow 自动触发：run 31896030985（v1.1.9，push 事件），未手动触发 debug 构建
+- 内容：客户端背压 8MB/写队列 16384/等待 500ms/Pause 3s 降级；服务端 32MB + CLI flag 默认值修复；多客户端 ch_id 隔离（服务端侧）
+
 ### 待办（真机验证）
 - [x] 更新 config_test.go 断言 → golib 全量 go test -count=3/vet 通过（x-client be96773）
 - [x] x-tunnel client/pkg + server/pkg 同步改动（CLI 客户端 8MB→16MB/100ms→500ms/写队列 16384/Pause 3s；
