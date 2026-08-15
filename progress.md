@@ -320,6 +320,23 @@ asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错�
 - pool.go 注释 8MB→16MB
 - config_test.go 断言同步更新（500ms/16MB）；golib go test ./... -count=3 全绿、go vet ./... 通过
 
+### 补充调整（2026-08-16）
+- 修复严重 BUG：服务端 ch_id 占用检查原本全局生效，多客户端时后到客户端若与已连客户端 ch_id 相同会被拒绝
+  （日志：拒绝客户端 ... ch_id N 已被占用）。根因：服务端按全局 chID 维护连接（chConns），未按客户端隔离。
+- 修复方案（x-tunnel 5002b7d）：通道索引改为 clientID -> chID -> wsConn（clientChConns）：
+  - handleWebSocket 占用检查/自动分配均限定在客户端自身编号空间；wsConns 改纯 append
+  - 消息路由基于来源连接定位客户端（handleMessage 传来源 clientID；selectDownlink/prebind/UDP connect 查本客户端空间）
+  - cleanupChannel 按 clientID+chID 清理，且只清理属于该客户端的连接状态，不误关其他客户端同 ch_id 连接
+  - 新增回归测试：多客户端同 ch_id 同时在线且互不干扰（TestMultipleClientsCanShareSameChID）、
+    清理隔离（TestCleanupChannelDoesNotCloseOtherClientSameChID）；修复了测试与 ws 升级握手的注册竞态（轮询就绪）
+  - 协议与客户端零改动（消息帧无 client_id 字段，chID 语义保持：客户端各自 1..N）
+- 背压数值最终调整：客户端 16MB->8MB（x-client 4443c69 / x-tunnel 5b10fc1），
+  服务端 1MB->32MB（server/pkg DefaultConfig + newServerPool fallback + CLI -backpressure-limit 默认值 1MB->32MB 三处，x-tunnel 5b10fc1）；
+  客户端写队列 16384/等待 500ms/Pause 3s 降级保持不变
+- 验证：x-tunnel server/pkg go test 3 轮全绿、go test ./... 仅 3 个既有 flaky；x-client golib go test -count=3 全绿 + vet 通过；
+  race 检测器环境不支持（TSan unsupported VMA range）
+- 服务端启动命令建议（32MB 生效默认）：x-tunnel-server -l :10000 -token v2up-ech
+
 ### 待办（真机验证）
 - [x] 更新 config_test.go 断言 → golib 全量 go test -count=3/vet 通过（x-client be96773）
 - [x] x-tunnel client/pkg + server/pkg 同步改动（CLI 客户端 8MB→16MB/100ms→500ms/写队列 16384/Pause 3s；

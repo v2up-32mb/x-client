@@ -256,6 +256,12 @@ TestDialWebSocketReturnsContextErrorQuicklyWhenCancelledDuringECHRetryWait，sta
      server 测试已显式设阈值不受影响
 - [x] 两仓库分别提交并推送 feat/backpressure-tuning：x-client be96773（GitHub）、x-tunnel 35c52fd（gitea）；
      x-tunnel go test 仅 3 个既有 flaky 失败（HEAD worktree 复现确认，非本次引入）
+- [x] 服务端多客户端 ch_id 独立编号空间修复（x-tunnel 5002b7d）：通道索引改按 clientID 分空间（clientChConns），
+     不同客户端相同 ch_id 互不拒绝；消息路由按来源连接定位客户端；cleanup 不误关其他客户端同 ch_id 连接；
+     新增端到端回归测试（多客户端同 ch_id 同时在线）+ 清理隔离白盒测试；server/pkg go test 3 轮全绿
+- [x] 背压阈值最终调整：客户端 16MB->8MB（x-client 4443c69 / x-tunnel 5b10fc1），服务端 1MB->32MB
+     （DefaultConfig、newServerPool fallback、CLI -backpressure-limit 默认值 1MB->32MB 三处对齐，x-tunnel 5b10fc1）；
+     golib go test -count=3 全绿 + vet 通过
 - [ ] 用户真机验证 speedtest 上传；若恢复则确认背压为祸首，决定后续（调参落地 or smux 重构）；
      若仍失败则查服务端 handleTCPData/上游 socket 写阻塞路径
 - [ ] 验证 OK 后视用户要求合并/打标签；不主动触发 debug 构建
