@@ -53,6 +53,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -262,6 +263,7 @@ fun ProfileListScreen(
     val context = LocalContext.current
     val state by viewModel.state.collectAsState()
     val themeMode by appViewModel.themeMode.collectAsState()
+    val shareScope = rememberCoroutineScope()
 
     // 注册 VPN 状态广播
     DisposableEffect(Unit) {
@@ -390,7 +392,7 @@ fun ProfileListScreen(
                             onEdit = { onEditProfile(profile.id, false) },
                             onCopy = { showCopyDialog(context, profile.name) { newName -> viewModel.copyProfile(profile.id, newName) } },
                             onDelete = { showDeleteDialog(context, profile, state, viewModel) },
-                            onShare = { viewModel.exportUri(profile.id) },
+                            onShare = { shareScope.launch { exportUri = viewModel.exportUri(profile.id) } },
                         )
                     }
                 }
