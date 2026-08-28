@@ -135,8 +135,14 @@ class TProxyService : VpnService() {
     }
 
     private fun startVpn() {
-        val settings = runBlocking { globalStore.snapshot() }
         try {
+            // 需在 try 内：任何一步失败都走 failStartup（写日志 + 广播 STATUS_ERROR），
+            // 避免 vpn-start 线程静默死亡导致“未启动且日志为空”。
+            val settings = runBlocking { globalStore.snapshot() }
+            val currentId = settings.currentProfileId
+            if (currentId.isNullOrBlank() || currentId !in settings.profileIds) {
+                throw IllegalStateException("未选择有效的配置节点")
+            }
             val builder = buildVpnInterface(settings)
             tunFd = builder.establish()
                 ?: throw IllegalStateException("系统未能建立 VPN 接口")

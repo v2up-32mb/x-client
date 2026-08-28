@@ -41,6 +41,7 @@ fun AppNavHost() {
         composable(Routes.PROFILES) {
             ProfileListScreen(
                 scanResult = it.savedStateHandle.get<String>("scan_result"),
+                onScanConsumed = { it.savedStateHandle.remove<String>("scan_result") },
                 onEditProfile = { id, isNew -> navController.navigate(Routes.profileEdit(id, isNew)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 onOpenRuntimeLog = { navController.navigate(Routes.RUNTIME_LOG) },
