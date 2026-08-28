@@ -75,6 +75,7 @@ import com.x.client.app.ui.common.generateQrCode
 import com.x.client.app.ui.user.AppViewModel
 import com.x.client.app.vpn.TProxyService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
