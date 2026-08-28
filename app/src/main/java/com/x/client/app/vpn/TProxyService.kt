@@ -4,6 +4,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -357,7 +358,7 @@ class TProxyService : VpnService() {
         stopping = true
         cleanupRuntime()
         sendStatus(STATUS_ERROR, message)
-        stopForeground(true)
+        stopForeground(Service.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
@@ -387,7 +388,7 @@ class TProxyService : VpnService() {
         appendRuntimeLog("收到停止 VPN 请求")
         cleanupRuntime()
         sendStatus(STATUS_STOPPED, null)
-        stopForeground(true)
+        stopForeground(Service.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 

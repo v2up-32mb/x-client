@@ -3,7 +3,6 @@ package com.x.client.app.ui.scan
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
@@ -41,7 +40,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 /**
  * 二维码扫描屏（CameraX + ML Kit）。扫到二维码回调 [onScanned]。
  */
-@OptIn(ExperimentalGetImage::class)
 @Composable
 fun ScanScreen(
     onScanned: (String) -> Unit,
