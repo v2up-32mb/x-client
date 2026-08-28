@@ -12,8 +12,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -298,7 +299,7 @@ fun ProfileEditScreen(
             OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("配置名称") }, enabled = !readOnly, singleLine = true, modifier = Modifier.fillMaxWidth())
 
             ExposedDropdownMenuBox(expanded = protocolMenuExpanded.value, onExpandedChange = { if (!readOnly) protocolMenuExpanded.value = it }, modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(value = protocolLabel, onValueChange = {}, readOnly = true, label = { Text("代理协议") }, enabled = !readOnly, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = protocolMenuExpanded.value) }, modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, !readOnly).fillMaxWidth())
+                OutlinedTextField(value = protocolLabel, onValueChange = {}, readOnly = true, label = { Text("代理协议") }, enabled = !readOnly, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = protocolMenuExpanded.value) }, modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, !readOnly).fillMaxWidth())
                 ExposedDropdownMenu(
                     expanded = protocolMenuExpanded.value,
                     onDismissRequest = { protocolMenuExpanded.value = false }

@@ -10,8 +10,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -231,7 +232,7 @@ fun SettingsScreen(
                     enabled = !vpnRunning,
                     label = { Text("日志等级") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = logMenuExpanded) },
-                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, !vpnRunning).fillMaxWidth()
+                    modifier = Modifier.menuAnchor(MenuAnchorType.PrimaryNotEditable, !vpnRunning).fillMaxWidth()
                 )
                 ExposedDropdownMenu(expanded = logMenuExpanded, onDismissRequest = { logMenuExpanded = false }) {
                     logLevels.forEachIndexed { i, level ->
