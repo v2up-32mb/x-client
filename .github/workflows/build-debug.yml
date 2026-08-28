@@ -59,7 +59,9 @@ jobs:
       - name: Install gomobile and Build xclient.aar
         if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
         run: |
-          go install golang.org/x/mobile/cmd/gomobile@latest
+          # 固定 gomobile 版本：@latest 已要求 Go >= 1.26，而项目用 Go 1.25。
+          # v0.0.0-20260803200217-62cee1672c8e 是支持 Go 1.25.0 的最新版本。
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260803200217-62cee1672c8e
           gomobile init
           cd golib
           mkdir -p ../app/libs
