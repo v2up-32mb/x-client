@@ -3,7 +3,7 @@ package com.x.client.app.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.MultiProcessDataStoreFactory
-import androidx.datastore.core.OkioSerializer
+import androidx.datastore.core.okio.OkioSerializer
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferencesSerializer
 import dagger.Module
