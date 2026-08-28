@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Material3 主题：Compose 运行时用 MaterialTheme 接管配色，这里仅提供
-         启动屏/状态栏基础样式与无 ActionBar 容器。 -->
-    <style name="Theme.XClient" parent="Theme.Material3.DayNight.NoActionBar">
+    <!-- 主题：Compose 运行时用 MaterialTheme 接管配色，这里仅提供无 ActionBar 容器。
+         用 AppCompat.DayNight 提供日夜切换（appcompat 已依赖）；Compose 主题渲染实际配色。 -->
+    <style name="Theme.XClient" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>

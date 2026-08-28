@@ -34,7 +34,7 @@ jobs:
           cache: gradle
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
       - name: Clone hev-socks5-tunnel
         run: |
@@ -84,25 +84,25 @@ jobs:
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Upload APKs per ABI
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: app-armeabi-v7a-debug
           path: app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: app-arm64-v8a-debug
           path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: app-x86-debug
           path: app/build/outputs/apk/debug/app-x86-debug.apk
           if-no-files-found: error
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: app-x86_64-debug
           path: app/build/outputs/apk/debug/app-x86_64-debug.apk
@@ -110,7 +110,7 @@ jobs:
 
       - name: Upload test reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: build-reports
           path: |
