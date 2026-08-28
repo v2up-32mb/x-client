@@ -10,13 +10,13 @@ plugins {
 
 android {
     namespace = "com.x.client.app"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "26.3.11579264"
 
     defaultConfig {
         applicationId = "com.x.client.app"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 35
 
         // 版本号由 CI 从 tag/提交计数注入（-PVERSION_CODE / -PVERSION_NAME）。
         versionCode = (project.findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 1
