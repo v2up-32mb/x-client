@@ -60,6 +60,9 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 
 ### 本地构建
 
+> **重要约束：本项目本地无 Android SDK，一切编译均通过 GitHub Actions 完成。**
+本机只能运行 Go 侧（`golib/`）测试。
+
 ```bash
 # 1. 克隆 hev-socks5-tunnel（TUN 转发层）
 git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
@@ -109,8 +112,12 @@ xtunnel://<serverAddr>?token=<Token>&relay_nodes=<节点,逗号分隔>&connectio
 
 ```
 x-client/
-├── app/                  # Android 应用（Java，VpnService + 主界面）
-│   ├── src/main/java/com/x/client/app/   # UI / 服务 / 偏好设置
+├── app/                  # Android 应用（Kotlin + Jetpack Compose，VpnService + UI）
+│   ├── src/main/java/com/x/client/app/   # UI / 服务 / 偏好设置（Kotlin）
+│   │   ├── data/          # 模型 / DataStore（MultiProcess）/ Repository
+│   │   ├── di/            # Hilt 依赖注入模块
+│   │   ├── ui/            # Compose 屏幕 + 导航 + 主题
+│   │   └── vpn/           # TProxyService（VpnService）+ ServiceReceiver
 │   └── libs/xclient.aar  # gomobile 编译产物（CI 生成，不入库）
 ├── golib/                # Go 核心库（module xclient，Go 1.25.5）
 │   ├── gcm/              # GCM 协议后端（backend/pool/relay/protocol）
@@ -119,6 +126,14 @@ x-client/
 ├── .github/workflows/    # CI：Debug 构建 / Release 发布 / 密钥检查
 └── ... / CLAUDE.md、INTEGRATION_PLAN.md、tasks.md、progress.md
 ```
+
+### 技术栈（Android 层）
+
+Kotlin 2.0.21 · Jetpack Compose（Material3）· MVVM+Repository · Hilt（依赖注入）
+· DataStore Preferences（MultiProcessDataStore 跨进程一致）· navigation-compose
+· CameraX + ML Kit（二维码扫描）· ZXing core（二维码生成）· Coil。
+
+Go 核心库 `golib/` 与 hev-socks5-tunnel 集成保持不变。
 
 数据流：
 
