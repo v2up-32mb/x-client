@@ -129,9 +129,14 @@ fun AppListScreen(onBack: () -> Unit, viewModel: AppListViewModel = hiltViewMode
         }
     }
 
-    val filtered = remember(allApps, query) {
-        if (query.isBlank()) allApps
+    val filtered = remember(allApps, query, selected) {
+        val base = if (query.isBlank()) allApps
         else allApps.filter { it.label.contains(query, ignoreCase = true) }
+        // 已勾选的 APP 置顶（选中优先，其次按名称排序）
+        base.sortedWith(
+            compareBy<AppItem> { it.packageName !in selected }
+                .thenBy { it.label.lowercase() }
+        )
     }
 
     Scaffold(

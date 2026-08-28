@@ -1,6 +1,7 @@
 package com.x.client.app.ui.profiles
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -123,6 +124,12 @@ fun ProfileEditScreen(
     val hasBeenSaved = remember { mutableStateOf(false) }
 
     LaunchedEffect(profileId) { viewModel.load(profileId) }
+
+    // 系统返回手势/硬件返回也需删除“未保存的新增”配置（顶部返回箭头已处理）
+    BackHandler {
+        viewModel.deleteIfNew(profileId, hasBeenSaved.value)
+        onBack()
+    }
 
     // 表单状态（key 到 current.id，切换 profile 时重置）
     var name by remember(profileId) { mutableStateOf("") }

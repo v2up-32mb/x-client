@@ -7,19 +7,26 @@ import android.content.IntentFilter
 import android.net.VpnService
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
@@ -27,25 +34,18 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,7 +59,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -83,6 +85,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 data class ProfileListUiState(
     val profiles: List<ProfileInfo> = emptyList(),
@@ -258,6 +261,7 @@ fun ProfileListScreen(
     onOpenRuntimeLog: () -> Unit,
     onOpenScan: () -> Unit,
     scanResult: String? = null,
+    onScanConsumed: () -> Unit = {},
     viewModel: ProfileListViewModel = hiltViewModel(),
     appViewModel: AppViewModel = hiltViewModel(),
 ) {
@@ -329,6 +333,10 @@ fun ProfileListScreen(
     var showImportMethod by remember { mutableStateOf(false) }
     // 导出对话框
     var exportUri by remember { mutableStateOf<String?>(null) }
+    // 行内滑动揭示与动作菜单
+    var revealId by remember { mutableStateOf<String?>(null) }
+    var revealSide by remember { mutableStateOf(RevealSide.NONE) }
+    var actionProfileId by remember { mutableStateOf<String?>(null) }
 
     // 扫码返回结果：解析并弹名称确认框（放在 state 声明之后，避免前向引用）
     LaunchedEffect(scanResult) {
@@ -338,6 +346,8 @@ fun ProfileListScreen(
             if (result != null) showImportNameDialog = result
             else android.widget.Toast.makeText(context, "无效的协议格式", android.widget.Toast.LENGTH_SHORT).show()
         }
+        // 消费后清除，避免再次进入 PROFILES 时重复弹出“配置名称”窗口
+        onScanConsumed()
     }
 
     Scaffold(
@@ -372,13 +382,11 @@ fun ProfileListScreen(
                         }
                         Icon(painter = androidx.compose.ui.res.painterResource(icon), contentDescription = "切换主题")
                     }
+                    IconButton(onClick = { showImportChoice = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "菜单")
+                    }
                 }
             )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { showImportChoice = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "菜单")
-            }
         }
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
@@ -389,11 +397,23 @@ fun ProfileListScreen(
                             profile = profile,
                             isSelected = profile.id == state.currentProfileId,
                             vpnRunning = state.enable,
-                            onClick = { viewModel.selectProfile(profile.id) },
-                            onEdit = { onEditProfile(profile.id, false) },
-                            onCopy = { showCopyDialog(context, profile.name) { newName -> viewModel.copyProfile(profile.id, newName) } },
-                            onDelete = { showDeleteDialog(context, profile, state, viewModel) },
-                            onShare = { shareScope.launch { exportUri = viewModel.exportUri(profile.id) } },
+                            revealed = revealId == profile.id && revealSide != RevealSide.NONE,
+                            revealSide = if (revealId == profile.id) revealSide else RevealSide.NONE,
+                            onRevealChange = { side ->
+                                if (side == RevealSide.NONE) { revealId = null }
+                                else { revealId = profile.id }
+                                revealSide = side
+                            },
+                            onClick = {
+                                revealId = null
+                                revealSide = RevealSide.NONE
+                                viewModel.selectProfile(profile.id)
+                            },
+                            onEdit = { revealId = null; revealSide = RevealSide.NONE; onEditProfile(profile.id, false) },
+                            onCopy = { revealId = null; revealSide = RevealSide.NONE; showCopyDialog(context, profile.name) { newName -> viewModel.copyProfile(profile.id, newName) } },
+                            onDelete = { revealId = null; revealSide = RevealSide.NONE; showDeleteDialog(context, profile, state, viewModel) },
+                            onShare = { revealId = null; revealSide = RevealSide.NONE; shareScope.launch { exportUri = viewModel.exportUri(profile.id) } },
+                            onOpenMenu = { actionProfileId = profile.id },
                         )
                     }
                 }
@@ -413,7 +433,7 @@ fun ProfileListScreen(
         }
     }
 
-    // FAB 菜单：导入/新增/设置/运行日志
+    // 顶栏“操作”菜单：导入/新增/设置/运行日志
     if (showImportChoice) {
         AlertDialog(
             onDismissRequest = { showImportChoice = false },
@@ -522,6 +542,27 @@ fun ProfileListScreen(
             dismissButton = { TextButton(onClick = { exportUri = null }) { Text("关闭") } }
         )
     }
+
+    // 配置动作菜单（由 ⋮ 按钮 / 长按 / 滑动揭示触发）：分享 / 复制 / 修改 / 删除
+    state.profiles.firstOrNull { it.id == actionProfileId }?.let { p ->
+        AlertDialog(
+            onDismissRequest = { actionProfileId = null },
+            title = { Text(p.name) },
+            text = {
+                Column {
+                    TextButton(onClick = { actionProfileId = null; onEditProfile(p.id, false) }) { Text("修改") }
+                    TextButton(onClick = { actionProfileId = null; showCopyDialog(context, p.name) { newName -> viewModel.copyProfile(p.id, newName) } }) { Text("复制") }
+                    TextButton(onClick = { actionProfileId = null; shareScope.launch { exportUri = viewModel.exportUri(p.id) } }) { Text("分享") }
+                    TextButton(
+                        onClick = { actionProfileId = null; showDeleteDialog(context, p, state, viewModel) },
+                        enabled = !(state.enable && p.id == state.currentProfileId),
+                    ) { Text("删除") }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { actionProfileId = null }) { Text("关闭") } }
+        )
+    }
 }
 
 private fun startVpn(context: Context, viewModel: ProfileListViewModel) {
@@ -569,72 +610,152 @@ private fun showDeleteDialog(
         .show()
 }
 
+/** 滑动揭示方向。LEFT=内容向左滑→右侧露出编辑/删除；RIGHT=内容向右滑→左侧露出分享/复制。 */
+private enum class RevealSide { NONE, LEFT, RIGHT }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ProfileSwipeItem(
     profile: ProfileInfo,
     isSelected: Boolean,
     vpnRunning: Boolean,
+    revealed: Boolean,
+    revealSide: RevealSide,
+    onRevealChange: (RevealSide) -> Unit,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onCopy: () -> Unit,
     onDelete: () -> Unit,
     onShare: () -> Unit,
+    onOpenMenu: () -> Unit,
 ) {
     val isCurrent = isSelected
     val disableEditDelete = vpnRunning && isCurrent
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            // 不通过滑动直接触发动作（保留在原位，露出按钮手动点）
-            // 返回 false 让它弹回，保持"滑动揭示"而非"滑动删除"语义
-            value != SwipeToDismissBoxValue.StartToEnd && value != SwipeToDismissBoxValue.EndToStart
-        }
+    val actionWidth = 88.dp
+    val animatedOffset by animateDpAsState(
+        targetValue = when {
+            !revealed -> 0.dp
+            revealSide == RevealSide.LEFT -> -actionWidth
+            else -> actionWidth
+        },
+        label = "revealOffset",
     )
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            val direction = dismissState.dismissDirection
-            val actions = if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                // 向右滑露出分享/复制
-                listOf(Icons.Default.Share to onShare, Icons.Default.ContentCopy to onCopy)
-            } else {
-                // 向左滑露出编辑/删除
-                listOf(Icons.Default.Edit to onEdit, Icons.Default.Delete to onDelete)
+    val protocolLabel = if (profile.protocol == Protocol.XTUNNEL) "X-Tunnel" else "GCM"
+
+    fun commit(next: RevealSide = RevealSide.NONE) = onRevealChange(next)
+
+    Box(Modifier.fillMaxWidth()) {
+        // 背景动作层：左侧 分享/复制；右侧 编辑/删除（滑动揭示后露出）
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 8.dp)
+                    .fillMaxHeight(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RevealActionButton(Icons.Default.Share, "分享", enabled = true) { commit(); onShare() }
+                RevealActionButton(Icons.Default.ContentCopy, "复制", enabled = true) { commit(); onCopy() }
             }
             Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                horizontalArrangement = if (direction == SwipeToDismissBoxValue.StartToEnd) Arrangement.Start else Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+                Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 8.dp)
+                    .fillMaxHeight(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                actions.forEach { (icon, action) ->
-                    IconButton(onClick = action, enabled = !(disableEditDelete && (icon == Icons.Default.Edit || icon == Icons.Default.Delete))) {
-                        Icon(icon, contentDescription = null, tint = Color.White)
-                    }
-                }
+                RevealActionButton(Icons.Default.Edit, "编辑", enabled = !disableEditDelete) { commit(); onEdit() }
+                RevealActionButton(Icons.Default.Delete, "删除", enabled = !disableEditDelete) { commit(); onDelete() }
             }
-            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
         }
-    ) {
+        // 前景内容层（可滑动/长按/⋮ 菜单）
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .offset { IntOffset(animatedOffset.roundToPx(), 0) }
                 .background(MaterialTheme.colorScheme.surface)
-                .selectable(selected = isSelected, onClick = onClick)
+                .combinedClickable(onClick = onClick, onLongClick = onOpenMenu)
+                .pointerInput(Unit) {
+                    var total = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { total = 0f },
+                        onDragCancel = { commit() },
+                        onDragEnd = {
+                            val threshold = 90f * density
+                            when {
+                                total <= -threshold -> commit(RevealSide.LEFT)
+                                total >= threshold -> commit(RevealSide.RIGHT)
+                                else -> commit()
+                            }
+                        },
+                    ) { _, dragAmount -> total += dragAmount }
+                }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = isSelected, onClick = onClick)
             Column(Modifier.weight(1f).padding(start = 12.dp)) {
                 Text(profile.name, style = MaterialTheme.typography.bodyLarge)
-                Text(profile.serverAddr, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    // 底部左侧：服务器地址
+                    Text(
+                        profile.serverAddr,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier.weight(1f),
+                    )
+                    // 底部右侧：协议类型（小号）
+                    Text(
+                        protocolLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            AssistChip(
-                onClick = {},
-                label = { Text(if (profile.protocol == Protocol.XTUNNEL) "X-Tunnel" else "GCM") },
-                colors = AssistChipDefaults.assistChipColors(),
-            )
+            IconButton(onClick = onOpenMenu) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = "操作",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
 
-// （background modifier 由 androidx.compose.foundation.background 提供，已在顶部导入）
+@Composable
+private fun RevealActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Column(
+        Modifier
+            .width(72.dp)
+            .fillMaxHeight()
+            .clickable(enabled = enabled, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = label,
+            tint = if (enabled) {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.38f)
+            },
+        )
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
