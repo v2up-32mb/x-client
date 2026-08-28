@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="AppTheme" parent="Theme.MaterialComponents.DayNight.NoActionBar">
-        <item name="android:statusBarColor">#FFEFEFEF</item>
-        <item name="android:navigationBarColor">#FFEFEFEF</item>
+<resources>
+    <!-- Material3 主题：Compose 运行时用 MaterialTheme 接管配色，这里仅提供
+         启动屏/状态栏基础样式与无 ActionBar 容器。 -->
+    <style name="Theme.XClient" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="o">true</item>
     </style>
-    <style name="GcmPopupTheme" parent="ThemeOverlay.MaterialComponents.Light" />
+
+    <style name="Theme.XClient.Splash" parent="Theme.XClient" />
 </resources>

@@ -6,8 +6,12 @@ Android 多协议 VPN 客户端，支持每个 Profile 配置一个代理协议�
 
 ## 技术栈
 
-- **Android 层**：Java 17 / AGP 8.x / Material / ZXing，包名 `com.x.client.app`，`applicationId` 同名
-- **Go 核心库**：`golib/`（`module xclient`，Go 1.23），通过 `gomobile bind` 编译为 `app/libs/xclient.aar`
+- **Android 层**：Kotlin 2.0.21 / Jetpack Compose（Material3）/ Hilt / DataStore（MultiProcess）/ MVVM+Repository，包名 `com.x.client.app`，`applicationId` 同名
+  - 单 Activity + Compose 导航（navigation-compose），多屏：配置列表/编辑、全局设置、运行日志、分应用代理、二维码扫描
+  - DataStore 用 `MultiProcessDataStoreFactory`，保证主进程 UI 与 `:vpn` 独立进程服务读写同一份设置一致
+  - Hilt 注入 Repository / DataStore / XclientBridge（封装 gomobile AAR）
+  - 二维码：ML Kit + CameraX 扫描，ZXing core 生成
+- **Go 核心库**：`golib/`（`module xclient`，Go 1.25.5），通过 `gomobile bind` 编译为 `app/libs/xclient.aar`
   - `android.go`（package xclient）是 gomobile 入口 thin wrapper
   - 完整 package：`config / dns / ech / logger / pool / protocol / relay / routing / socks5`
   - 完整保留 ECH / DoH / 连接池 / 流复用 / quality_monitor / relay / warmup 全部能力
@@ -101,7 +105,9 @@ x-tunnel 连接池自带持续重连；SOCKS5/HTTP 无可用通道时返回标�
 ## 开发注意事项
 
 - Go module 名为 `xclient`，gomobile 生成的 AAR 类名前缀为 `xclient.Xclient`
-- Android Java 包名 `com.x.client.app`，NDK PKGNAME `com/x/client/app`
+- Android Kotlin 包名 `com.x.client.app`，NDK PKGNAME `com/x/client/app`
 - hev-socks5-tunnel 子模块在 CI 阶段 clone 到 `app/src/main/jni`
 - 支持 4 种 ABI: armeabi-v7a, arm64-v8a, x86, x86_64
+- **本地无 Android SDK，一切编译均通过 GitHub Actions 完成；本机只能运行 `golib/` Go 测试与 app 的纯 JVM 单元测试（ProfileUriCodecTest / XtAdvancedParamsTest）**
+- 重构分支：`refactor/kotlin-compose`，待测试验证后再合并到 `main`
 - 集成计划详见 `INTEGRATION_PLAN.md`
