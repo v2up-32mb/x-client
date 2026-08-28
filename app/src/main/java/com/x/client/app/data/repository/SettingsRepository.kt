@@ -32,7 +32,7 @@ class SettingsRepository @Inject constructor(
         echDomain: String,
         enableDnsWarmup: Boolean,
         logLevel: String,
-        apps: Set<String> = snapshot().apps, // apps 由 AppListActivity 单独保存
+        apps: Set<String>? = null, // apps 由 AppListScreen 单独保存；null 表示不改
     ) {
         // 校验绕过规则（Go 侧校验，失败抛异常由 UI 捕获展示）
         xclientBridge.validateBypassRules(bypassRules)

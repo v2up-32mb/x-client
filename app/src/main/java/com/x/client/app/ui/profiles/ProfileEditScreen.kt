@@ -202,6 +202,20 @@ fun ProfileEditScreen(
     val protocolMenuExpanded = remember { mutableStateOf(false) }
     val protocolLabel = if (protocol == Protocol.XTUNNEL) "X-Tunnel" else "GCM"
 
+    fun collectAdvanced(): XtAdvancedParams = XtAdvancedParams(
+        backpressureLimit = advBackpressure.trim().toIntOrNull()?.takeIf { it >= 1 }?.let { it.toLong() * 1048576 },
+        writeQueueWaitTimeout = advWriteQueueWait.trim().toIntOrNull()?.takeIf { it >= 1 }?.toLong(),
+        dialTimeout = advDialTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        handshakeTimeout = advHandshakeTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        readTimeout = advReadTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        writeTimeout = advWriteTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        pingInterval = advPingInterval.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        reconnectDelay = advReconnectDelay.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        connectTimeout = advConnectTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
+        maxSocks5Connections = advMaxSocks5.trim().toIntOrNull()?.takeIf { it >= 0 },
+        udpBlockedPorts = advUdpPorts.trim().takeIf { it.isNotBlank() },
+    )
+
     fun buildConfig(): ProfileConfig = current.copy(
         name = name.trim(),
         protocol = protocol,
@@ -223,20 +237,6 @@ fun ProfileEditScreen(
         xtEnableHotPair = xtEnableHotPair,
         xtHotPairCount = xtHotPairCount.toIntOrNull() ?: Limits.DEFAULT_XT_HOT_PAIR_COUNT,
         xtAdvancedParams = collectAdvanced(),
-    )
-
-    fun collectAdvanced(): XtAdvancedParams = XtAdvancedParams(
-        backpressureLimit = advBackpressure.trim().toIntOrNull()?.takeIf { it >= 1 }?.let { it.toLong() * 1048576 },
-        writeQueueWaitTimeout = advWriteQueueWait.trim().toIntOrNull()?.takeIf { it >= 1 }?.toLong(),
-        dialTimeout = advDialTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        handshakeTimeout = advHandshakeTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        readTimeout = advReadTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        writeTimeout = advWriteTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        pingInterval = advPingInterval.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        reconnectDelay = advReconnectDelay.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        connectTimeout = advConnectTimeout.trim().toDoubleOrNull()?.takeIf { it > 0 }?.let { (it * 1000).toLong() },
-        maxSocks5Connections = advMaxSocks5.trim().toIntOrNull()?.takeIf { it >= 0 },
-        udpBlockedPorts = advUdpPorts.trim().takeIf { it.isNotBlank() },
     )
 
     fun applyImport(uri: String): Boolean {
@@ -298,7 +298,10 @@ fun ProfileEditScreen(
 
             ExposedDropdownMenuBox(expanded = protocolMenuExpanded.value, onExpandedChange = { if (!readOnly) protocolMenuExpanded.value = it }, modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(value = protocolLabel, onValueChange = {}, readOnly = true, label = { Text("代理协议") }, enabled = !readOnly, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = protocolMenuExpanded.value) }, modifier = Modifier.menuAnchor().fillMaxWidth())
-                androidx.compose.material3.ExposedDropdownMenu(expanded = protocolMenuExpanded.value, onDismissRequest = { protocolMenuExpanded.value = false }) {
+                ExposedDropdownMenu(
+                    expanded = protocolMenuExpanded.value,
+                    onDismissRequest = { protocolMenuExpanded.value = false }
+                ) {
                     DropdownMenuItem(text = { Text("GCM") }, onClick = { protocol = Protocol.GCM; protocolMenuExpanded.value = false })
                     DropdownMenuItem(text = { Text("X-Tunnel") }, onClick = { protocol = Protocol.XTUNNEL; protocolMenuExpanded.value = false })
                 }

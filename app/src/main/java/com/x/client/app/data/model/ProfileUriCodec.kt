@@ -1,8 +1,8 @@
 package com.x.client.app.data.model
 
+import java.io.UnsupportedEncodingException
 import java.net.URLDecoder
 import java.net.URLEncoder
-import java.net.UnsupportedEncodingException
 
 /**
  * Profile URI 编解码（纯 JVM，可单测）。

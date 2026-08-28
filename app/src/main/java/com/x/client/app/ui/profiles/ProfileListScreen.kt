@@ -282,15 +282,7 @@ fun ProfileListScreen(
 
     LaunchedEffect(Unit) { viewModel.reconcileVpnState(context) }
 
-    // 扫码返回结果：解析并弹名称确认框
-    LaunchedEffect(scanResult) {
-        val code = scanResult ?: return@LaunchedEffect
-        if (code.isBlank()) return@LaunchedEffect
-        viewModel.importProfile(code) { result ->
-            if (result != null) showImportNameDialog = result
-            else android.widget.Toast.makeText(context, "无效的协议格式", android.widget.Toast.LENGTH_SHORT).show()
-        }
-    }
+
 
     // VPN 启动授权
     val vpnPrepareLauncher = rememberLauncherForActivityResult(
@@ -334,6 +326,16 @@ fun ProfileListScreen(
     var showImportMethod by remember { mutableStateOf(false) }
     // 导出对话框
     var exportUri by remember { mutableStateOf<String?>(null) }
+
+    // 扫码返回结果：解析并弹名称确认框（放在 state 声明之后，避免前向引用）
+    LaunchedEffect(scanResult) {
+        val code = scanResult ?: return@LaunchedEffect
+        if (code.isBlank()) return@LaunchedEffect
+        viewModel.importProfile(code) { result ->
+            if (result != null) showImportNameDialog = result
+            else android.widget.Toast.makeText(context, "无效的协议格式", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Scaffold(
         topBar = {

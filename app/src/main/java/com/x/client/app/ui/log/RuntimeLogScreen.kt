@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +51,7 @@ private const val REQUEST_TIMEOUT_MS = 2000L
 /**
  * 运行日志屏：向 TProxyService 请求日志并展示，2 秒超时显示"日志服务未响应"。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RuntimeLogScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -58,6 +60,16 @@ fun RuntimeLogScreen(onBack: () -> Unit) {
     var logs by remember { mutableStateOf("") }
     var status by remember { mutableStateOf("正在读取日志…") }
     var responseReceived by remember { mutableStateOf(false) }
+
+    fun renderLogs(raw: String?) {
+        val value = raw?.trim().orEmpty()
+        logs = value
+        status = if (value.isEmpty()) {
+            "暂无运行日志"
+        } else {
+            "${countLines(value)} 行"
+        }
+    }
 
     val logReceiver = remember {
         object : BroadcastReceiver() {
@@ -89,16 +101,6 @@ fun RuntimeLogScreen(onBack: () -> Unit) {
                 status = "日志服务未响应"
             }
         }, REQUEST_TIMEOUT_MS)
-    }
-
-    fun renderLogs(raw: String?) {
-        val value = raw?.trim().orEmpty()
-        logs = value
-        status = if (value.isEmpty()) {
-            "暂无运行日志"
-        } else {
-            "${countLines(value)} 行"
-        }
     }
 
     LaunchedEffect(Unit) {
