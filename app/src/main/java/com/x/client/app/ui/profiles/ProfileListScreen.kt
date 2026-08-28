@@ -230,6 +230,7 @@ class ProfileListViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setEnable(false) }
     }
 
+    @Suppress("DEPRECATION") // getAllNetworks()/allNetworks 无同步等价替代，保持原遍历行为
     private fun hasActiveVpnNetwork(context: Context): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager ?: return false
         for (network in cm.allNetworks) {
