@@ -31,9 +31,12 @@ object DataStoreModule {
     @Singleton
     fun providePreferencesDataStore(
         @ApplicationContext context: Context,
-    ): DataStore<Preferences> = MultiProcessDataStoreFactory.create(
-        serializer = PreferencesSerializer,
-        corruptionHandler = null,
-        produceFile = { File(context.filesDir, STORE_FILE_NAME) },
-    )
+    ): DataStore<Preferences> {
+        val serializer: androidx.datastore.core.Serializer<Preferences> = PreferencesSerializer
+        return MultiProcessDataStoreFactory.create(
+            serializer = serializer,
+            corruptionHandler = null,
+            produceFile = { File(context.filesDir, STORE_FILE_NAME) },
+        )
+    }
 }

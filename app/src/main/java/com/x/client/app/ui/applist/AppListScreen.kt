@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,8 +85,8 @@ class AppListViewModel @Inject constructor(
                     .map { info ->
                         AppItem(
                             packageName = info.packageName,
-                            label = info.applicationInfo.loadLabel(pm).toString(),
-                            icon = info.applicationInfo.loadIcon(pm),
+                            label = info.applicationInfo?.loadLabel(pm)?.toString() ?: info.packageName,
+                            icon = info.applicationInfo?.loadIcon(pm),
                         )
                     }
                     .sortedBy { it.label.lowercase() }
@@ -111,6 +112,7 @@ class AppListViewModel @Inject constructor(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppListScreen(onBack: () -> Unit, viewModel: AppListViewModel = hiltViewModel()) {
     val context = LocalContext.current

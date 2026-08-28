@@ -87,7 +87,7 @@ class ProfileDataStore @Inject constructor(
     suspend fun copyProfile(sourceId: String, newId: String) {
         val prefs = dataStore.data.first()
         dataStore.edit { p ->
-            p[Keys.profileName(newId)] = prefs[Keys.profileName(sourceId)]
+            p[Keys.profileName(newId)] = prefs[Keys.profileName(sourceId)] ?: ""
             p[Keys.workerHost(newId)] = prefs[Keys.workerHost(sourceId)] ?: ""
             p[Keys.prefIp(newId)] = prefs[Keys.prefIp(sourceId)] ?: ""
             p[Keys.userId(newId)] = prefs[Keys.userId(sourceId)] ?: ""
@@ -168,7 +168,11 @@ class ProfileDataStore @Inject constructor(
     }
 
     private fun XtAdvancedParams.toJson(): String {
-        if (isAllNull()) return ""
+        if (backpressureLimit == null && writeQueueWaitTimeout == null && dialTimeout == null &&
+            handshakeTimeout == null && readTimeout == null && writeTimeout == null &&
+            pingInterval == null && reconnectDelay == null && connectTimeout == null &&
+            maxSocks5Connections == null && udpBlockedPorts == null
+        ) return ""
         val o = JSONObject()
         backpressureLimit?.let { o.put("backpressure_limit", it) }
         writeQueueWaitTimeout?.let { o.put("write_queue_wait_timeout", it) }
