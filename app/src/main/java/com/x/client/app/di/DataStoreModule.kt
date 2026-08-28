@@ -3,6 +3,7 @@ package com.x.client.app.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.MultiProcessDataStoreFactory
+import androidx.datastore.core.OkioSerializer
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferencesSerializer
 import dagger.Module
@@ -32,7 +33,8 @@ object DataStoreModule {
     fun providePreferencesDataStore(
         @ApplicationContext context: Context,
     ): DataStore<Preferences> {
-        val serializer: androidx.datastore.core.Serializer<Preferences> = PreferencesSerializer
+        // datastore 1.1.1 起 PreferencesSerializer 实现的是 OkioSerializer（非旧版 Serializer）。
+        val serializer: OkioSerializer<Preferences> = PreferencesSerializer
         return MultiProcessDataStoreFactory.create(
             serializer = serializer,
             corruptionHandler = null,
