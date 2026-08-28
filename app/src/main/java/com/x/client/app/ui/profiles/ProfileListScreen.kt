@@ -11,6 +11,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.matchParentSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -613,7 +615,7 @@ private fun showDeleteDialog(
 /** 滑动揭示方向。LEFT=内容向左滑→右侧露出编辑/删除；RIGHT=内容向右滑→左侧露出分享/复制。 */
 private enum class RevealSide { NONE, LEFT, RIGHT }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileSwipeItem(
     profile: ProfileInfo,
