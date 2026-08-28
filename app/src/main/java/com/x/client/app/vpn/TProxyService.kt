@@ -658,6 +658,7 @@ class TProxyService : VpnService() {
         @JvmStatic private external fun TProxyIsRunning(): Boolean
         @JvmStatic private external fun TProxyGetStats(): LongArray
     }
+}
 
 /** GlobalSettings 辅助扩展：remoteDns 固定 true（与原 Preferences.getRemoteDns 一致）。 */
 private fun com.x.client.app.data.model.GlobalSettings.remoteDns(): Boolean = true
