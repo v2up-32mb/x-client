@@ -351,3 +351,16 @@ asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错�
   服务端 BackpressureLimitBytes 1MB→16MB）（x-tunnel 35c52fd；go test 仅 3 个既有 flaky 失败，HEAD 复现确认非本次引入）
 - [x] 两仓库分别测试、提交、推送 feat/backpressure-tuning（x-client→GitHub、x-tunnel→gitea）
 - [ ] 用户真机验证 speedtest 上传；结果决定"调参落地"还是"smux 完整重构"
+
+### v1.1.10 发布（2026-09-02）
+- main 快进到 fix/ech-downgrade 顶（d16cd83），附注标签 v1.1.10
+- 内容：
+  1. **GCM ECH 降级 bug 修复**：Go 1.24+ ECH 拒绝错误串固定为 "tls: server rejected ECH"
+     （*tls.ECHRejectionError），旧的小写字符串匹配全部不命中，导致 3 连败→5 分钟明文降级窗口
+     永不启用（开 ECH 的 GCM Profile 遇无 ECH 服务器永久拨号失败）。改为
+     shared/ech.IsECHRelatedError（errors.As 类型判定优先 + 原字符串兜底），xtunnel 同步加固；
+     三层回归测试（含离线真实握手 E2E）。实证报告见 docs/golib-ech-downgrade-verification.md
+  2. **CI 工具链修复**：x/mobile 2026-08-21 起 go 指令要求 >=1.26（gomobile init 内部还会
+     gobind@latest），setup-go 1.25→1.26，debug/release 工作流同改（修复此前构建停摆）
+- 发布前验证：debug 构建 run 33579250114 成功（4 ABI APK）；golib go1.25.5 build/vet/test 全绿
+- Release workflow 由 v1.1.10 tag 自动触发
