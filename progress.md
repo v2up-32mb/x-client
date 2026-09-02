@@ -351,3 +351,17 @@ asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错�
   服务端 BackpressureLimitBytes 1MB→16MB）（x-tunnel 35c52fd；go test 仅 3 个既有 flaky 失败，HEAD 复现确认非本次引入）
 - [x] 两仓库分别测试、提交、推送 feat/backpressure-tuning（x-client→GitHub、x-tunnel→gitea）
 - [ ] 用户真机验证 speedtest 上传；结果决定"调参落地"还是"smux 完整重构"
+
+## 原生 Java 化探索 —— 最终决定（2026-09-02）
+
+- **用户决定：终止重写，保持现有 hev-socks5-tunnel + golib 架构不变。** 本次 Java 原生化探索（8 路并发调研 +
+  对抗性评审，产出 JAVA_NATIVE_FEASIBILITY.md + research/java-native/ 共 9 份文档）仅作为技术研究存档，不再继续。
+- 报告核心结论供未来参考：有条件可行区间 = "保留 C TUN 转发器 + Java 协议栈 + ECH 分阶段（P1 不含 ECH）"；
+  坚持"全 Java 用户态 TCP + 一期 ECH 全等"则为不建议。
+- 探索期间挖出的 **Go 侧真实 bug（X3）已于 2026-09-02 切回 main 分支用 Go 1.25.5 实证确认**：
+  GCM 的 ECH 降级逻辑靠小写 `"ech"` 等错误串匹配，而 Go 1.24+ 的 ECH 拒绝错误串固定为
+  `"tls: server rejected ECH"`（`*tls.ECHRejectionError`），三个条件全部不命中 → 开启 ECH 的 GCM
+  Profile 遇到不接受 ECH 的服务器时永久拨号失败、降级窗口永不启用（xtunnel 匹配大写 `"ECH"` 正常）。
+  完整验证报告：main 分支 `docs/golib-ech-downgrade-verification.md`（含复现输出与修复建议
+  `errors.As(*tls.ECHRejectionError)`）。是否修复由用户另行决定。
+- 本分支（feat/java-native-rewrite）保留调研文档，不合并、不删除；工作区未跟踪的 .pi/ 与 MEMORY.md 为本地会话文件，不入库。
