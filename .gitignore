@@ -24,3 +24,6 @@ go.work.sum
 
 # Local keystore for release signing
 keystore.properties
+
+# Pi Agent
+.pi
