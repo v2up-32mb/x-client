@@ -17,6 +17,7 @@ import (
 	"xclient/gcm/protocol"
 	"xclient/gcm/relay"
 	"xclient/shared/config"
+	"xclient/shared/ech"
 	"xclient/shared/logger"
 )
 
@@ -482,10 +483,11 @@ func (p *ConnectionPool) handleDialError(err error, relay *relay.RelayNode) {
 	errStr := err.Error()
 
 	// 1. 判断是否为 ECH 相关错误
+	// 优先按错误类型判定：Go 1.24+ ECH 被拒返回 *tls.ECHRejectionError
+	// （错误串 "tls: server rejected ECH"），历史的小写字符串匹配对其不生效，
+	// 曾导致降级窗口永不启用（见 docs/golib-ech-downgrade-verification.md）。
 	if p.cfg.EnableECH && p.echManager != nil {
-		if strings.Contains(errStr, "ech") ||
-			strings.Contains(errStr, "encrypted_client_hello") ||
-			strings.Contains(errStr, "tls: handshake failure") {
+		if ech.IsECHRelatedError(err) {
 
 			// 增加 ECH 失败计数
 			failCount := atomic.AddInt32(&p.echFailureCount, 1)
