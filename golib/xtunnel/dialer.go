@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"xclient/shared/ech"
 )
 
 var dialWebSocketRetryDelay = time.Second
@@ -91,8 +92,9 @@ func (p *clientPool) dialWebSocket(chID int, relayIP string) (*websocket.Conn, e
 			if resp != nil && resp.StatusCode == http.StatusUnauthorized {
 				return nil, fmt.Errorf("认证失败:Token 不匹配或未提供")
 			}
-			// ECH 相关错误时重试
-			if p.config.EnableECH && (strings.Contains(err.Error(), "ECH") || strings.Contains(err.Error(), "ech")) && i < maxRetries {
+			// ECH 相关错误时重试（优先按 *tls.ECHRejectionError 类型判定，
+			// 字符串匹配兜底；见 shared/ech.IsECHRelatedError 注释）
+			if p.config.EnableECH && ech.IsECHRelatedError(err) && i < maxRetries {
 				_ = p.echManager.Refresh(p.config.ECHDomain)
 				select {
 				case <-p.ctx.Done():

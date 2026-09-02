@@ -134,6 +134,26 @@ if p.cfg.EnableECH && p.echManager != nil && errors.As(err, &rejErr) {
 保留原字符串条件作为兜底亦可（`errors.As` 优先）。xtunnel 侧建议同样改为 `errors.As`，
 避免未来 Go 调整错误串时再次漂移。是否修复由用户决定（本报告仅为验证，未改动任何产品代码）。
 
+## 7. 修复记录（2026-09-02，fix/ech-downgrade 分支）
+
+已按 §6 建议落地：
+
+- **`golib/shared/ech/error.go`（新增）**：`IsECHRelatedError(err)` —— 优先
+  `errors.As(*tls.ECHRejectionError)`（可穿透 net.OpError/`%w` 包装），原有 GCM/xtunnel
+  字符串条件合并保留为兜底。
+- **`golib/gcm/pool/connection.go`** `handleDialError`：改为 `ech.IsECHRelatedError(err)`。
+- **`golib/xtunnel/dialer.go`** `dialWebSocket`：同样改用 `ech.IsECHRelatedError(err)`。
+- **回归测试**：
+  - `shared/ech/error_test.go`：`TestIsECHRelatedError`（原始/OpError/%w 包装、遗留字符串、无关错误）；
+    `TestECHRejectionErrorIsDetected`（离线真实握手：本地构造合法 ECHConfigList + 无 ECH 的
+    TLS1.3 服务器，断言真实错误为 `*tls.ECHRejectionError` 且可被识别，防未来 Go 行为漂移）。
+  - `gcm/pool/ech_downgrade_test.go`：`TestHandleDialErrorECHRejectionTriggersFallback`
+    （3 连拒 → 降级启用 + 窗口内 `getTLSConfig` 请求 useECH=false）、
+    `TestHandleDialErrorECHRejectionRefreshesConfig`（未达阈值异步 Refresh）、
+    `TestHandleDialErrorUnrelatedErrorDoesNotCount`（无关错误不计数）。
+- **验证**：go1.25.5 `go build ./...` + `go vet ./...` + `go test -count=3 ./...` 全绿
+  （TSan 本地环境不支持，与历次一致）。
+
 ## 附录：复现程序输出（go1.25.5 linux/arm64）
 
 ```
