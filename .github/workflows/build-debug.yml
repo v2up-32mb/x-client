@@ -47,18 +47,18 @@ jobs:
       if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       uses: actions/setup-go@v6
       with:
-        go-version: '1.25'
+        go-version: '1.26'
 
     - name: Install gomobile and Build xclient.aar
       if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
       run: |
-        # 固定到兼容 Go 1.25 的 x/mobile 版本：2026-08-21 的 b9947785 将 go 指令升到 1.26，
-        # 与本步 setup-go 安装的 1.25.x + GOTOOLCHAIN=local 不匹配（@latest 会构建失败）
-        go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20260813181013-1960c775504c
+        # 注意：x/mobile 2026-08-21 (b9947785) 起 go 指令要求 >= 1.26，
+        # gomobile init 内部还会 go install gobind@latest，故 setup-go 必须保持 >= 1.26
+        go install golang.org/x/mobile/cmd/gomobile@latest
         gomobile init
         cd golib
         mkdir -p ../app/libs
-        go get golang.org/x/mobile/bind@v0.0.0-20260813181013-1960c775504c
+        go get golang.org/x/mobile/bind
         gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
         cd ..
 
