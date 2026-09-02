@@ -106,7 +106,7 @@ var DefaultDoHServers = []string{
   `accept_confirmation = HKDF-Expand-Label(HKDF-Extract(0, innerHello.random), "ech accept confirmation", transcript(innerCH ‖ 修改后 ServerHello), 8)`，
   与 ServerHello.random 末 8 字节匹配 → 接受（此后用 inner CH 转录哈希、`c.serverName = config.ServerName` 做证书校验）；不匹配 → `echRejected = true`。
 - 拒绝的结果：**仍把 outer CH 当真实 hello 走完整个握手（含证书校验、client Finished），最后** `sendAlert(alertECHRequired)` **并返回 `&ECHRejectionError{retryConfigs}`**（L153-157）。`ECHRejectionError.Error() == "tls: server rejected ECH"`（`ech.go` L488-494）；HRR 场景用 `"hrr ech accept confirmation"` 标签（hs13.go L274）。
-- **由此修正一个常见误判：Go 的 ECH 失败不会"悄悄退回明文连接"**；x-client 的"明文可用"靠的是 §1.3 的应用层错误匹配 + 重试 + 3 连败降级 5min。Java 复刻必须同样提供"错误类型/错误串 → Refresh → 降级窗口"机制。另外注意项目错误串匹配有大小写差异（GCM 匹配 `"ech"` 小写与 `"encrypted_client_hello"`，xtunnel 匹配 `"ECH"` 大写；Go 现版本错误串是 `"tls: server rejected ECH"`，只有 xtunnel 的 `"ECH"` 能直接命中，GCM 大概率落在 `"tls: handshake failure"` 之外需要核实——这属于移植时需对齐的细节，已列入 open questions）。
+- **由此修正一个常见误判：Go 的 ECH 失败不会"悄悄退回明文连接"**；x-client 的"明文可用"靠的是 §1.3 的应用层错误匹配 + 重试 + 3 连败降级 5min。Java 复刻必须同样提供"错误类型/错误串 → Refresh → 降级窗口"机制。另外注意项目错误串匹配有大小写差异（GCM 匹配 `"ech"` 小写与 `"encrypted_client_hello"`，xtunnel 匹配 `"ECH"` 大写；Go 现版本错误串是 `"tls: server rejected ECH"`，只有 xtunnel 的 `"ECH"` 能直接命中，GCM 大概率落在 `"tls: handshake failure"` 之外需要核实——**已于 2026-09-02 在 main 分支用 Go 1.25.5 实证：GCM 三个条件对真实 `ECHRejectionError` 全部不命中，降级逻辑从未触发过，xtunnel 命中正常；详见 main 分支 docs/golib-ech-downgrade-verification.md**）。
 
 ### 1.6 ECH 协议本体（RFC 9849，2026-03，取代 draft-ietf-tls-esni）
 

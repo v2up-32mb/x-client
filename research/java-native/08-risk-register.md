@@ -122,7 +122,7 @@
 |---|---|---|---|---|---|---|---|
 | X1 | 范围/架构 | H | H | 目标架构在"全 Java 含用户态 TCP"与"C TUN 过渡"间摇摆，决定 ±3000–5000 行与 ±1–2 人月 | 第一决策：产品先定全 Java 还是含 C shim | P0/Phase3 | 拍板纪要 |
 | X2 | 协议 | H | H | 自研 WS 漏 masking / 掩码 key 复用 → 服务器拒帧 | 强制掩码验收项；复用量产 WS 库（OkHttp）优先 | Phase4 | 抓包对拍 |
-| X3 | 协议 | H | H | ECH 错误串匹配照抄 Go（GCM 端本身可能不触发）→ 降级语义失效 | 改用错误类型+重试计数，不抄字符串 | Phase4/6 | 强 ECH 服务器对拍 |
+| X3 | 协议 | H | H | ECH 错误串匹配照抄 Go（GCM 端本身确实不触发，**2026-09-02 已用 Go 1.25.5 实测证实**，见 main 分支 docs/golib-ech-downgrade-verification.md）→ 降级语义失效 | 改用错误类型+重试计数，不抄字符串 | Phase4/6 | 强 ECH 服务器对拍 |
 | X4 | 密码 | H | H | ECH AAD/transcript/nonce seq 一处错全盘解密失败 | 建 ClientHello 字节级对拍基线；自研必测 | Phase6 | ttls/抓包对拍 |
 | X5 | Android | H | H | minSdk24 平台栈无 TLS1.3；GCM 强制 1.3 → 低版本设备**连不上** | 需引入 BC bctls/自研或接受 TLS1.2 降级决策 | Phase3 | minSdk24 真机 |
 | X6 | 并发 | M | H | channel close / 双 close / select 语义丢失 → 死锁或泄漏 | AtomicBoolean CAS 防重入；显式 closed 标志；try/finally | Phase4/5 | 并发压力 + 注入测试 |
