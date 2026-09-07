@@ -63,6 +63,8 @@ public class Preferences
         public static final String LOG_LEVEL_INFO = "INFO";
         public static final String LOG_LEVEL_WARN = "WARN";
         public static final String LOG_LEVEL_ERROR = "ERROR";
+        // 界面显示：是否在配置列表中显示服务器地址（默认显示；关闭后防截图泄露）
+        public static final String SHOW_SERVER_ADDR = "ShowServerAddr";
         // 代理协议（gcm / xtunnel），默认 gcm
         public static final String PROTOCOL = "Protocol";
         public static final String PROTOCOL_GCM = "gcm";
@@ -564,6 +566,15 @@ public class Preferences
                         return;
                 }
                 prefs.edit().putString(LOG_LEVEL, level).apply();
+        }
+
+        // 配置列表是否显示服务器地址（全局显示开关，默认 true 即显示）
+        public boolean getShowServerAddr() {
+                return prefs.getBoolean(SHOW_SERVER_ADDR, true);
+        }
+
+        public void setShowServerAddr(boolean show) {
+                prefs.edit().putBoolean(SHOW_SERVER_ADDR, show).apply();
         }
 
         // 代理协议（per-profile）
