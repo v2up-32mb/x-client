@@ -2,8 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"fmt"
-	"math"
 	"strings"
 	"time"
 )
@@ -32,21 +30,6 @@ func (l LogLevel) String() string {
 	default:
 		return "INFO"
 	}
-}
-
-// MarshalYAML 实现 yaml.Marshaler 接口
-func (l LogLevel) MarshalYAML() (interface{}, error) {
-	return l.String(), nil
-}
-
-// UnmarshalYAML 实现 yaml.Unmarshaler 接口
-func (l *LogLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var s string
-	if err := unmarshal(&s); err != nil {
-		return err
-	}
-	*l = ParseLogLevel(s)
-	return nil
 }
 
 // MarshalJSON 实现 json.Marshaler 接口
@@ -80,139 +63,16 @@ func ParseLogLevel(s string) LogLevel {
 	}
 }
 
-// yamlDuration 是 time.Duration 的包装器，支持 YAML 中的字符串格式
+// yamlDuration 是 time.Duration 的包装器（历史命名：CLI 时代用于 YAML/JSON
+// 配置文件解析；现仅承载 time.Duration 值，由函数参数直接赋值）。
 type yamlDuration struct {
 	time.Duration
 }
 
-// MarshalYAML 实现 yaml.Marshaler 接口
-func (yd yamlDuration) MarshalYAML() (interface{}, error) {
-	return yd.Duration.String(), nil
-}
-
-// UnmarshalYAML 实现 yaml.Unmarshaler 接口
-func (yd *yamlDuration) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var v interface{}
-	if err := unmarshal(&v); err != nil {
-		return err
-	}
-
-	switch value := v.(type) {
-	case float64:
-		// JSON 数字格式（毫秒）
-		yd.Duration = time.Duration(value) * time.Millisecond
-	case int:
-		// JSON 整数格式（毫秒）
-		yd.Duration = time.Duration(value) * time.Millisecond
-	case string:
-		// YAML 字符串格式（如 "5m", "1s"）
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return fmt.Errorf("无法解析持续时间: %q: %w", value, err)
-		}
-		yd.Duration = d
-	default:
-		return fmt.Errorf("无效的持续时间类型: %T", v)
-	}
-
-	return nil
-}
-
-// yamlByteSize 是字节大小的包装器，支持 YAML 中的字符串格式（如 "256KB", "1MB"）
+// yamlByteSize 是字节大小的包装器（历史命名：CLI 时代用于 YAML/JSON
+// 配置文件解析；现仅承载字节数值，由函数参数直接赋值）。
 type yamlByteSize struct {
 	Bytes int64
-}
-
-// MarshalYAML 实现 yaml.Marshaler 接口
-func (yb yamlByteSize) MarshalYAML() (interface{}, error) {
-	return formatBytes(yb.Bytes), nil
-}
-
-// UnmarshalYAML 实现 yaml.Unmarshaler 接口
-func (yb *yamlByteSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var v interface{}
-	if err := unmarshal(&v); err != nil {
-		return err
-	}
-
-	switch value := v.(type) {
-	case float64:
-		// JSON 数字格式（字节）
-		yb.Bytes = int64(value)
-	case int:
-		// JSON 整数格式（字节）
-		yb.Bytes = int64(value)
-	case string:
-		// YAML 字符串格式（如 "256KB", "1MB"）
-		bytes, err := parseByteSize(value)
-		if err != nil {
-			return fmt.Errorf("无法解析字节大小: %q: %w", value, err)
-		}
-		yb.Bytes = bytes
-	default:
-		return fmt.Errorf("无效的字节大小类型: %T", v)
-	}
-
-	return nil
-}
-
-// parseByteSize 解析字节大小字符串（如 "256KB", "1MB"）
-func parseByteSize(s string) (int64, error) {
-	s = strings.TrimSpace(strings.ToUpper(s))
-
-	// 提取数字和单位
-	var num float64
-	var unit string
-	_, err := fmt.Sscanf(s, "%f%s", &num, &unit)
-	if err != nil {
-		// 尝试只解析数字（默认为字节）
-		_, err2 := fmt.Sscanf(s, "%f", &num)
-		if err2 != nil {
-			return 0, fmt.Errorf("无效的字节大小格式: %s", s)
-		}
-		return int64(num), nil
-	}
-
-	// 转换单位
-	var multiplier int64
-	switch unit {
-	case "B", "":
-		multiplier = 1
-	case "KB", "K":
-		multiplier = 1024
-	case "MB", "M":
-		multiplier = 1024 * 1024
-	case "GB", "G":
-		multiplier = 1024 * 1024 * 1024
-	default:
-		return 0, fmt.Errorf("未知的字节单位: %s", unit)
-	}
-
-	// 检查整数溢出
-	result := num * float64(multiplier)
-	if result > float64(math.MaxInt64) {
-		return 0, fmt.Errorf("字节大小超出范围: %s (最大支持 %d 字节)", s, int64(math.MaxInt64))
-	}
-
-	return int64(result), nil
-}
-
-// formatBytes 格式化字节大小为可读字符串
-func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%dB", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	// 防止数组越界（最大支持到 E = Exabyte）
-	if exp >= len("KMGTPE") {
-		exp = len("KMGTPE") - 1
-	}
-	return fmt.Sprintf("%.0f%cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
 // Config 应用配置
