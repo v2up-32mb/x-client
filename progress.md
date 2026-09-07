@@ -364,3 +364,16 @@ asyncWriteDirect 返回"写队列超限/缓冲区拥堵" → SendDataDirect 错�
      gobind@latest），setup-go 1.25→1.26，debug/release 工作流同改（修复此前构建停摆）
 - 发布前验证：debug 构建 run 33579250114 成功（4 ABI APK）；golib go1.25.5 build/vet/test 全绿
 - Release workflow 由 v1.1.10 tag 自动触发
+
+### v1.1.11 发布（2026-09-07）
+- main 快进：a4c71d8（golib 依赖剔除）→ bffadfe（服务器地址显示开关），附注标签 v1.1.11
+- 内容：
+  1. **golib 剔除 urfave/cli 与 gopkg.in/yaml.v3 依赖**：CLI 时代遗留的 flags.go/loader.go（-727 行）
+     在 gomobile 化后零调用（配置走 DefaultConfig + 函数参数 map），连带清理 yaml 序列化方法与
+     传递依赖（testify/spew/difflib/check.v1）。android/arm64 Go 链接产物 7.47MB→4.39MB（-41%），
+     CI 实测 debug APK 每 ABI 减约 800KB（arm64-v8a 9.33MB→8.55MB）；go build/vet/test 全绿
+  2. **配置列表服务器地址显示开关**：全局设置新增「界面显示」分组（默认开，老用户无感），
+     关闭后主页配置列表地址掩码 ••••••，防分享截图泄露；即时保存、VPN 运行时可切换，
+     onResume 自动刷新；中俄文案同步
+- 发布前验证：feat 分支 debug 构建 run 34081843354 成功（4 ABI APK）
+- Release workflow 由 v1.1.11 tag 自动触发
