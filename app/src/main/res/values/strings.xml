@@ -112,4 +112,8 @@
         <string name="bypass_geosite_cn">绕过 GEOSITE:CN</string>
         <string name="manual_bypass_rules">手动规则（每行一条）</string>
         <string name="manual_bypass_rules_hint">192.168.1.0/24\nexample.com\nfull:api.example.com</string>
+
+        <!-- 界面显示 -->
+        <string name="show_server_addr">在配置列表中显示服务器地址</string>
+        <string name="show_server_addr_hint">关闭后隐藏服务器地址，分享截图时不会泄露</string>
 </resources>

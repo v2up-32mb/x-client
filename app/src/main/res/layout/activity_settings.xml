@@ -124,6 +124,30 @@
             android:textColor="@color/secondary_text"
             android:paddingBottom="8dp" />
 
+        <!-- 界面显示 -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingTop="20dp"
+            android:paddingBottom="8dp"
+            android:text="界面显示"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <CheckBox
+            android:id="@+id/checkbox_show_server_addr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/show_server_addr" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/show_server_addr_hint"
+            android:textSize="12sp"
+            android:textColor="@color/secondary_text"
+            android:paddingBottom="8dp" />
+
         <!-- GCM 全局网络参数 -->
         <TextView
             android:layout_width="wrap_content"

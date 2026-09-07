@@ -78,8 +78,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         // 设置配置名称
         holder.textProfileName.setText(profile.name);
 
-        // 设置服务器地址
-        holder.textServerAddr.setText(profile.serverAddr);
+        // 设置服务器地址（全局开关关闭时掩码显示，防截图泄露）
+        if (prefs.getShowServerAddr()) {
+            holder.textServerAddr.setText(profile.serverAddr);
+        } else {
+            holder.textServerAddr.setText("••••••");
+        }
 
         // 设置协议类型标签（右下角）
         String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "X-Tunnel" : "GCM";

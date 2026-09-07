@@ -33,6 +33,7 @@ public class SettingsActivity extends AppCompatActivity {
     private EditText edittext_ech_dns;
     private EditText edittext_ech_domain;
     private CheckBox checkbox_enable_dns_warmup;
+    private CheckBox checkbox_show_server_addr;
     private Spinner spinner_log_level;
     private Button btn_save;
 
@@ -64,6 +65,7 @@ public class SettingsActivity extends AppCompatActivity {
         edittext_ech_dns = findViewById(R.id.edittext_ech_dns);
         edittext_ech_domain = findViewById(R.id.edittext_ech_domain);
         checkbox_enable_dns_warmup = findViewById(R.id.checkbox_enable_dns_warmup);
+        checkbox_show_server_addr = findViewById(R.id.checkbox_show_server_addr);
         spinner_log_level = findViewById(R.id.spinner_log_level);
         btn_save = findViewById(R.id.btn_save);
 
@@ -107,6 +109,12 @@ public class SettingsActivity extends AppCompatActivity {
         edittext_ech_dns.setText(prefs.getEchDns());
         edittext_ech_domain.setText(prefs.getEchDomain());
         checkbox_enable_dns_warmup.setChecked(prefs.getEnableDnsWarmup());
+        // 服务器地址显示开关：仅控制列表展示，无需重启 VPN，即时生效；
+        // VPN 运行时也可切换（截图时 VPN 往往处于连接状态），故不随其他全局项禁用。
+        checkbox_show_server_addr.setChecked(prefs.getShowServerAddr());
+        checkbox_show_server_addr.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.setShowServerAddr(isChecked);
+        });
 
         // 加载日志等级
         String logLevel = prefs.getLogLevel();

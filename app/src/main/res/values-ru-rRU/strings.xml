@@ -37,4 +37,6 @@
 	<string name="log_level_info">Информация (INFO)</string>
 	<string name="log_level_warn">Предупреждение (WARN)</string>
 	<string name="log_level_error">Ошибка (ERROR)</string>
+	<string name="show_server_addr">Показывать адрес сервера в списке</string>
+	<string name="show_server_addr_hint">Если выключено, адрес скрыт — удобно для скриншотов</string>
 </resources>
