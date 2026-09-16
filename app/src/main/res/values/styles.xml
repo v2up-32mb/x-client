@@ -57,7 +57,7 @@
 
     <style name="Widget.XClient.TextButton" parent="Widget.Material3.Button.TextButton" />
 
-    <style name="Widget.XClient.Card" parent="Widget.Material3.CardView.ElevatedCard">
+    <style name="Widget.XClient.Card" parent="Widget.Material3.CardView.Elevated">
         <item name="cardCornerRadius">16dp</item>
     </style>
 
