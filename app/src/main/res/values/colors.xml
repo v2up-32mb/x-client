@@ -8,6 +8,9 @@
          数值依据：docs/ui-ux/research-visual.md §5-§6（对比度实测达标）
          ============================================================ -->
 
+    <!-- 启动图标自适应背景（mipmap-anydpi-v26 引用） -->
+    <color name="ic_launcher_background">#FFFFFFFF</color>
+
     <!-- ===== Primitive（主题不变） ===== -->
     <!-- 品牌种子蓝（原 toolbar 蓝），组件不得直接引用 -->
     <color name="p_brand_seed">#FF0BA3F3</color>
