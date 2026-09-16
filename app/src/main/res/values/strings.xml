@@ -200,7 +200,6 @@
         <string name="status_connected">已连接</string>
         <string name="status_error">连接出错</string>
         <string name="status_tap_to_connect">点击连接</string>
-        <string name="status_tap_to_disconnect">点击断开</string>
         <string name="status_connecting_subtitle">正在建立隧道，请稍候</string>
         <!-- 通用动作 -->
         <string name="common_retry">重试</string>
@@ -218,9 +217,13 @@
         <!-- 主页上下文 -->
         <string name="home_subtitle_no_profile">未选择配置</string>
         <string name="home_current_profile">当前配置：%1$s</string>
-        <string name="error_banner_prefix">连接失败：</string>
         <string name="acc_connect">连接 VPN</string>
         <string name="acc_disconnect">断开 VPN</string>
+        <string name="acc_vpn_connecting">正在连接，请稍候</string>
+        <string name="acc_vpn_disconnecting">正在断开，请稍候</string>
+        <string name="acc_vpn_error">连接失败，双击重试</string>
+        <string name="acc_view_connection_info">查看连接信息</string>
+        <string name="status_disconnecting">正在断开…</string>
         <string name="acc_add_profile">添加或导入配置</string>
         <string name="acc_qr_scan">扫描二维码导入配置</string>
         <string name="acc_share">分享</string>

@@ -38,9 +38,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.color.MaterialColors;
-import com.x.client.app.ui.ConnectionStatusCard;
+import com.x.client.app.ui.ConnectionFab;
 import com.x.client.app.ui.EmptyStateView;
-import com.x.client.app.ui.ErrorBanner;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -59,13 +58,13 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     private MaterialToolbar toolbar;
     private RecyclerView recyclerView;
     private ProfileAdapter adapter;
-    private ConnectionStatusCard statusCard;
-    private ErrorBanner errorBanner;
+    private ConnectionFab vpnFab;
     private EmptyStateView emptyState;
     private FloatingActionButton fabMain;
     private Preferences prefs;
     private boolean pendingVpnStart = false;
     private boolean vpnStarting = false;
+    private boolean vpnDisconnecting = false;
     private boolean statusReceiverRegistered = false;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Runnable vpnStartupTimeout = () -> {
@@ -74,8 +73,18 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         }
         vpnStarting = false;
         prefs.setEnable(false);
+        // 超时 = 连接失败：FAB 原位换装为错误态（展开中则停留 3.5s，review §7.2）
+        vpnFab.setState(ConnectionFab.State.ERROR,
+                getString(R.string.status_error),
+                getString(R.string.status_connecting_timeout));
+    };
+    /** 断开中乐观态兑底：无 STOPPING 广播，3s 未收到 STOPPED 则回 DISCONNECTED（review §7.3） */
+    private final Runnable vpnDisconnectFallback = () -> {
+        if (!vpnDisconnecting) {
+            return;
+        }
+        vpnDisconnecting = false;
         updateConnectionState();
-        showErrorBanner(getString(R.string.error_banner_prefix) + getString(R.string.status_connecting_timeout));
     };
     private final BroadcastReceiver vpnStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -87,41 +96,45 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             switch (status) {
                 case TProxyService.STATUS_STARTING:
                     vpnStarting = true;
-                    statusCard.setState(ConnectionStatusCard.State.CONNECTING,
+                    vpnFab.setState(ConnectionFab.State.CONNECTING,
                             getString(R.string.status_connecting),
                             getString(R.string.status_connecting_subtitle));
-                    statusCard.setContentDescription(getString(R.string.status_connecting));
-                    errorBanner.setVisibility(View.GONE);
                     return;
                 case TProxyService.STATUS_STARTED:
                     mainHandler.removeCallbacks(vpnStartupTimeout);
                     vpnStarting = false;
                     prefs.setEnable(true);
-                    hideErrorBanner();
-                    Toast.makeText(ProfileListActivity.this, "VPN 已启动", Toast.LENGTH_SHORT).show();
+                    // morph 展开卡已是完整反馈，移除冗余 Toast（避免 TalkBack 双读，review §7.1）
+                    vpnFab.setState(ConnectionFab.State.CONNECTED,
+                            getString(R.string.status_connected),
+                            currentProfileSubtitle());
                     break;
                 case TProxyService.STATUS_ERROR:
                     mainHandler.removeCallbacks(vpnStartupTimeout);
+                    mainHandler.removeCallbacks(vpnDisconnectFallback);
                     vpnStarting = false;
+                    vpnDisconnecting = false;
                     prefs.setEnable(false);
                     String error = intent.getStringExtra(TProxyService.EXTRA_ERROR);
-                    String message = error == null || error.trim().isEmpty()
-                            ? getString(R.string.vpn_start_failed)
-                            : getString(R.string.error_banner_prefix) + error;
-                    // 失败终态用错误横幅承载（可重试/查看日志），Toast 仅作即时提醒
-                    showErrorBanner(message);
-                    Toast.makeText(ProfileListActivity.this, message, Toast.LENGTH_LONG).show();
+                    // 失败终态由 FAB 错误卡承载（内嵌重试/查看日志），不再走 Toast（review §7.1）
+                    vpnFab.setState(ConnectionFab.State.ERROR,
+                            getString(R.string.status_error),
+                            error == null || error.trim().isEmpty()
+                                    ? getString(R.string.vpn_start_failed) : error);
                     break;
                 case TProxyService.STATUS_STOPPED:
                     mainHandler.removeCallbacks(vpnStartupTimeout);
+                    mainHandler.removeCallbacks(vpnDisconnectFallback);
                     vpnStarting = false;
+                    vpnDisconnecting = false;
                     prefs.setEnable(false);
-                    hideErrorBanner();
+                    vpnFab.setState(ConnectionFab.State.DISCONNECTED,
+                            getString(R.string.status_disconnected),
+                            getString(R.string.status_tap_to_connect));
                     break;
                 default:
                     return;
             }
-            updateConnectionState();
         }
     };
 
@@ -138,8 +151,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
 
         // 初始化视图
         recyclerView = findViewById(R.id.profile_list);
-        statusCard = findViewById(R.id.status_card);
-        errorBanner = findViewById(R.id.error_banner);
+        vpnFab = findViewById(R.id.vpn_fab);
         emptyState = findViewById(R.id.empty_state);
         fabMain = findViewById(R.id.fab_main);
 
@@ -165,12 +177,13 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             }
         });
 
-        // 添加滚动监听器，滚动时关闭打开的项
+        // 添加滚动监听器，滚动时关闭打开的项（含 VPN FAB 展开卡，与“一滚全收起”心智一致，review §2.2）
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
                     adapter.closeAllItems();
+                    vpnFab.collapse();
                 }
             }
         });
@@ -178,15 +191,11 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 设置 FAB 点击事件
         fabMain.setOnClickListener(v -> showFabMenu());
 
-        // 状态卡片 = 主操作（连接/断开）
-        statusCard.setOnClickListener(v -> toggleVpn());
-
-        // 错误横幅：重试 / 查看日志
-        errorBanner.setOnRetryListener(v -> {
-            hideErrorBanner();
-            toggleVpn();
-        });
-        errorBanner.setOnDetailsListener(v ->
+        // VPN FAB：tap=连接/断开主操作（展开态中 tap 由组件内部折叠，review §1）
+        vpnFab.setOnToggleListener(v -> toggleVpn());
+        // 错误展开卡内嵌动作：重试 / 查看日志（收编原 ErrorBanner 能力，review §7.1）
+        vpnFab.setOnRetryListener(this::toggleVpn);
+        vpnFab.setOnDetailsListener(() ->
                 startActivity(new Intent(this, RuntimeLogActivity.class)));
 
         // 空态主按钮与 FAB 同义
@@ -198,7 +207,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 校正可能残留的 VPN 运行状态（APP 被意外终止后 Enable 可能为陈旧 true）
         reconcileVpnState();
 
-        // 更新连接状态卡片
+        // 被动同步 FAB 状态（compact，无 morph）
         updateConnectionState();
 
     }
@@ -232,6 +241,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             unregisterReceiver(vpnStatusReceiver);
             statusReceiverRegistered = false;
         }
+        // 移除挂起的超时/兑底回调，避免操作已分离的 view（review §7.4）
+        mainHandler.removeCallbacks(vpnStartupTimeout);
+        mainHandler.removeCallbacks(vpnDisconnectFallback);
         super.onStop();
     }
 
@@ -243,44 +255,57 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         boolean isEmpty = profiles.isEmpty();
         emptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
         recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        // 当前项滚出视口后的被动补偿：保证回到主页/换配置后当前行可见（review §4）
+        if (!isEmpty && recyclerView.getLayoutManager() instanceof LinearLayoutManager) {
+            LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+            int idx = -1;
+            for (int i = 0; i < profiles.size(); i++) {
+                if (profiles.get(i).id.equals(selectedId)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if (idx != -1 && (idx < lm.findFirstVisibleItemPosition()
+                    || idx > lm.findLastVisibleItemPosition())) {
+                lm.scrollToPosition(idx);
+            }
+        }
         updateConnectionState();
     }
 
+    /** 展开卡副文案：当前配置上下文。 */
+    private CharSequence currentProfileSubtitle() {
+        String currentId = prefs.getCurrentProfileId();
+        String name = currentId == null ? "" : prefs.getProfileName(currentId);
+        return getString(R.string.home_current_profile, name);
+    }
+
     /**
-     * 连接状态 → 卡片视觉的唯一映射（redesign-plan §6.5 状态色语义总表）。
-     * 状态 = 颜色 + 图标 + 动词化文案三通道传达。
+     * 被动同步 FAB 状态（compact，无 morph）：onResume/refresh 等场景调用。
+     * 状态未变时 ConnectionFab.setState 内部 no-op，不打断进行中的停留计时。
      */
     private void updateConnectionState() {
-        String currentId = prefs.getCurrentProfileId();
-        String profileName = currentId == null ? "" : prefs.getProfileName(currentId);
-
         if (vpnStarting) {
-            statusCard.setState(ConnectionStatusCard.State.CONNECTING,
+            vpnFab.setState(ConnectionFab.State.CONNECTING,
                     getString(R.string.status_connecting),
                     getString(R.string.status_connecting_subtitle));
-            statusCard.setContentDescription(getString(R.string.status_connecting));
+            return;
+        }
+        if (vpnDisconnecting) {
+            vpnFab.setState(ConnectionFab.State.DISCONNECTING,
+                    getString(R.string.status_disconnecting),
+                    currentProfileSubtitle());
             return;
         }
         if (prefs.getEnable()) {
-            statusCard.setState(ConnectionStatusCard.State.CONNECTED,
+            vpnFab.setState(ConnectionFab.State.CONNECTED,
                     getString(R.string.status_connected),
-                    getString(R.string.home_current_profile, profileName));
-            statusCard.setContentDescription(getString(R.string.acc_disconnect));
+                    currentProfileSubtitle());
         } else {
-            statusCard.setState(ConnectionStatusCard.State.DISCONNECTED,
+            vpnFab.setState(ConnectionFab.State.DISCONNECTED,
                     getString(R.string.status_disconnected),
                     getString(R.string.status_tap_to_connect));
-            statusCard.setContentDescription(getString(R.string.acc_connect));
         }
-    }
-
-    private void showErrorBanner(CharSequence message) {
-        errorBanner.setMessage(message);
-        errorBanner.setVisibility(View.VISIBLE);
-    }
-
-    private void hideErrorBanner() {
-        errorBanner.setVisibility(View.GONE);
     }
 
     /**
@@ -371,7 +396,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     }
 
     private void toggleVpn() {
-        if (vpnStarting) {
+        // 双向防抖：连接中/断开中均吞掉 tap（review §7.3）
+        if (vpnStarting || vpnDisconnecting) {
             return;
         }
         boolean isVpnRunning = prefs.getEnable();
@@ -422,24 +448,30 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             mainHandler.removeCallbacks(vpnStartupTimeout);
             vpnStarting = false;
             prefs.setEnable(false);
-            updateConnectionState();
-            showErrorBanner(getString(R.string.error_banner_prefix) + error.getMessage());
-            Toast.makeText(this, getString(R.string.cannot_start_vpn_service, error.getMessage()), Toast.LENGTH_LONG).show();
+            // 启动异常 = 错误态（FAB 错误卡内可重试/查看日志）
+            vpnFab.setState(ConnectionFab.State.ERROR,
+                    getString(R.string.status_error),
+                    getString(R.string.cannot_start_vpn_service, error.getMessage()));
         }
     }
 
     private void stopVpn() {
         mainHandler.removeCallbacks(vpnStartupTimeout);
         vpnStarting = false;
+        vpnDisconnecting = true;
         prefs.setEnable(false);
+        // DISCONNECTING 乐观态：无 STOPPING 广播，3s 未收到 STOPPED 则兑底回 DISCONNECTED（review §7.3）
+        vpnFab.setState(ConnectionFab.State.DISCONNECTING,
+                getString(R.string.status_disconnecting),
+                currentProfileSubtitle());
+        mainHandler.removeCallbacks(vpnDisconnectFallback);
+        mainHandler.postDelayed(vpnDisconnectFallback, 3_000);
         try {
             Intent intent = new Intent(this, TProxyService.class);
             startService(intent.setAction(TProxyService.ACTION_DISCONNECT));
         } catch (Exception e) {
             // 忽略服务停止异常
         }
-
-        updateConnectionState();
     }
 
     @Override

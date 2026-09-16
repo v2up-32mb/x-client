@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    主页（连接页）：主操作唯一化重构（redesign-plan §8.1）
-    - 顶部状态卡片（四态，CMFA LargeActionCard 模式）= 连接/断开主操作
-    - 错误横幅（可重试/查看日志，替代"只弹 Toast"）
-    - 配置列表 + 空态指引
-    - FAB = 添加/导入唯一入口
+    主页（连接页）精修（refine-ux-review §4）：顶部去 CTA 化，页面唯一主操作 = 左下角 VPN FAB。
+    - Toolbar：仅应用名 + 版本号（被动信息）
+    - 配置列表：当前项 primaryContainer 高亮即"当前连接上下文"
+    - 左下 VPN FAB（五态 morph）+ 右下 Add FAB：尺寸/margin/elevation 对称
+    - 空态：EmptyStateView 指向 Add FAB
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -17,25 +17,6 @@
         style="@style/Widget.XClient.Toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize" />
-
-    <com.x.client.app.ui.ConnectionStatusCard
-        android:id="@+id/status_card"
-        style="@style/Widget.XClient.Card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/spacing_lg"
-        android:layout_marginEnd="@dimen/spacing_lg"
-        android:layout_marginTop="@dimen/spacing_sm" />
-
-    <com.x.client.app.ui.ErrorBanner
-        android:id="@+id/error_banner"
-        style="@style/Widget.XClient.Card"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/spacing_lg"
-        android:layout_marginEnd="@dimen/spacing_lg"
-        android:layout_marginTop="@dimen/spacing_sm"
-        android:visibility="gone" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -56,6 +37,16 @@
             android:layout_gravity="center"
             android:visibility="gone" />
 
+        <!-- 左下：VPN 连接主操作（compact 56dp，morph 展开为状态卡） -->
+        <com.x.client.app.ui.ConnectionFab
+            android:id="@+id/vpn_fab"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="@dimen/spacing_lg"
+            android:layout_marginBottom="@dimen/spacing_xl" />
+
+        <!-- 右下：添加/导入（次级操作，与 VPN FAB 对称） -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_main"
             android:layout_width="wrap_content"
