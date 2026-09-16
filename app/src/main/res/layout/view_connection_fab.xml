@@ -28,27 +28,37 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:layout_marginEnd="@dimen/spacing_md"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:accessibilityLiveRegion="polite"
             android:visibility="gone"
             tools:visibility="visible">
 
             <TextView
                 android:id="@+id/fab_title"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 tools:text="正在连接…" />
 
-            <TextView
-                android:id="@+id/fab_subtitle"
-                android:layout_width="match_parent"
+            <!-- 定宽滚动视口：节点名/错误信息单行滚动，滚完即收折（用户反馈精修） -->
+            <HorizontalScrollView
+                android:id="@+id/fab_subtitle_scroll"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:maxLines="2"
-                android:ellipsize="end"
-                tools:text="默认节点 · example.com" />
+                android:layout_weight="1"
+                android:scrollbars="none"
+                android:clipToPadding="false">
+
+                <TextView
+                    android:id="@+id/fab_subtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/spacing_xs"
+                    android:textAppearance="?attr/textAppearanceBodyMedium"
+                    android:singleLine="true"
+                    tools:text="默认节点 · example.com" />
+            </HorizontalScrollView>
 
             <LinearLayout
                 android:id="@+id/fab_error_actions"
@@ -63,7 +73,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minWidth="@dimen/touch_target_min"
-                    android:minHeight="@dimen/touch_target_min"
+                    android:minHeight="48dp"
+                    android:paddingHorizontal="@dimen/spacing_sm"
                     android:text="@string/common_retry" />
 
                 <com.google.android.material.button.MaterialButton
@@ -71,9 +82,10 @@
                     style="@style/Widget.XClient.TextButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:layout_marginStart="@dimen/spacing_xs"
                     android:minWidth="@dimen/touch_target_min"
-                    android:minHeight="@dimen/touch_target_min"
+                    android:minHeight="48dp"
+                    android:paddingHorizontal="@dimen/spacing_sm"
                     android:text="@string/common_view_logs" />
             </LinearLayout>
         </LinearLayout>

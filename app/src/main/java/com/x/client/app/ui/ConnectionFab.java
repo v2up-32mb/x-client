@@ -9,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -75,12 +76,15 @@ public class ConnectionFab extends MaterialCardView {
     private static final long DWELL_SUCCESS_MS = 2000;
     private static final long DWELL_ERROR_MS = 3500;
     private static final long DWELL_DISCONNECTED_MS = 1500;
+    private static final int SCROLL_SPEED_DP_PER_SEC = 40;  // 滚动速度（用户反馈精修）
 
     private final ImageView iconView;
     private final CircularProgressIndicator progressView;
     private final LinearLayout textBlock;
     private final TextView titleView;
     private final TextView subtitleView;
+    private final HorizontalScrollView subtitleScroll;
+    private ValueAnimator marqueeAnimator;
     private final LinearLayout errorActions;
 
     private State state = State.DISCONNECTED;
@@ -109,6 +113,7 @@ public class ConnectionFab extends MaterialCardView {
         textBlock = findViewById(R.id.fab_text_block);
         titleView = findViewById(R.id.fab_title);
         subtitleView = findViewById(R.id.fab_subtitle);
+        subtitleScroll = findViewById(R.id.fab_subtitle_scroll);
         errorActions = findViewById(R.id.fab_error_actions);
 
         animationsDisabled = readAnimatorScale() == 0f;
@@ -202,7 +207,8 @@ public class ConnectionFab extends MaterialCardView {
                 expand();
             }
         } else if (wasExpanded && stateChanged) {
-            scheduleCollapse(dwellFor(newState));
+            // 终态原位换装：滚动展示新文案，滚完即收折（用户反馈精修）
+            startFeedbackScrollOrDwell();
         }
     }
 
@@ -233,29 +239,22 @@ public class ConnectionFab extends MaterialCardView {
         generation++;
         final int gen = generation;
 
-        int targetWidth = Math.min(dp(300),
+        int targetWidth = Math.min(dp(360),
                 getResources().getDisplayMetrics().widthPixels - dp(32));
-        // 图标在行尾（贴住原 FAB 位置），文字块在行首；向左展开时文字可用宽扣除图标+间距
-        int textAvail = targetWidth - dp(16 + 24 + 12 + 16);
-        textBlock.measure(
-                android.view.View.MeasureSpec.makeMeasureSpec(Math.max(dp(80), textAvail),
-                        android.view.View.MeasureSpec.AT_MOST),
-                android.view.View.MeasureSpec.makeMeasureSpec(0,
-                        android.view.View.MeasureSpec.UNSPECIFIED));
-        int targetHeight = Math.max(dp(76), textBlock.getMeasuredHeight() + dp(24));
-        int startW = dp(56), startH = dp(56);
+        // 高度恒定 56dp：不向上生长，避免与上方菜单 FAB 冲突（用户反馈修正）
+        int startW = dp(56);
 
         textBlock.setVisibility(VISIBLE);
         textBlock.animate().cancel();
 
         if (animationsDisabled) {
             getLayoutParams().width = targetWidth;
-            getLayoutParams().height = targetHeight;
             setCardBackgroundColor(bgColorFor(state, true));
             currentBg = bgColorFor(state, true);
             textBlock.setAlpha(1f);
             textBlock.setTranslationX(0);
             requestLayout();
+            startFeedbackScrollOrDwell();
             return;
         }
 
@@ -271,7 +270,6 @@ public class ConnectionFab extends MaterialCardView {
             }
             float t = a.getAnimatedFraction();
             getLayoutParams().width = (int) (startW + (targetWidth - startW) * t);
-            getLayoutParams().height = (int) (startH + (targetHeight - startH) * t);
             requestLayout();
         });
         anim.start();
@@ -285,6 +283,11 @@ public class ConnectionFab extends MaterialCardView {
                 .translationX(0f)
                 .setStartDelay((long) (CONTENT_ENTER_DELAY_MS * animatorScale()))
                 .setDuration((long) (CONTENT_ENTER_DURATION_MS * animatorScale()))
+                .withEndAction(() -> {
+                    if (gen == generation) {
+                        startFeedbackScrollOrDwell();
+                    }
+                })
                 .start();
     }
 
@@ -297,6 +300,7 @@ public class ConnectionFab extends MaterialCardView {
         generation++;
         final int gen = generation;
 
+        cancelMarquee();
         textBlock.animate().cancel();
         if (animationsDisabled) {
             resetCompact();
@@ -304,7 +308,6 @@ public class ConnectionFab extends MaterialCardView {
         }
 
         int startW = Math.max(getWidth(), dp(56));
-        int startH = Math.max(getHeight(), dp(56));
         animateBgTo(bgColorFor(state, false));
         textBlock.animate()
                 .alpha(0f)
@@ -320,7 +323,6 @@ public class ConnectionFab extends MaterialCardView {
             }
             float t = a.getAnimatedFraction();
             getLayoutParams().width = (int) (startW + (dp(56) - startW) * t);
-            getLayoutParams().height = (int) (startH + (dp(56) - startH) * t);
             requestLayout();
         });
         anim.addListener(new android.animation.AnimatorListenerAdapter() {
@@ -338,6 +340,7 @@ public class ConnectionFab extends MaterialCardView {
         textBlock.setVisibility(GONE);
         textBlock.setAlpha(1f);
         textBlock.setTranslationX(0);
+        subtitleScroll.scrollTo(0, 0);
         getLayoutParams().width = dp(56);
         getLayoutParams().height = dp(56);
         setRadius(dp(16));
@@ -359,6 +362,66 @@ public class ConnectionFab extends MaterialCardView {
                 collapse();
             }
         }, delay);
+    }
+
+    /**
+     * 终态反馈：副文案溢出则定速滚动（约 40dp/s），滚完即收折；
+     * 无溢出（短文案）或 reduced-motion/TalkBack 下回退固定停留。
+     * 进行中态（CONNECTING/DISCONNECTING）不滚动不倒计时（用户反馈精修）。
+     */
+    private void startFeedbackScrollOrDwell() {
+        final int gen = generation;
+        if (state == State.CONNECTING || state == State.DISCONNECTING) {
+            return;
+        }
+        post(() -> {
+            if (gen != generation || !isAttachedToWindow() || !expanded) {
+                return;
+            }
+            if (subtitleScroll.getWidth() == 0) {
+                // 等一帧拿到滚动视口实测宽度
+                post(this::startFeedbackScrollOrDwell);
+                return;
+            }
+            int overflow = subtitleView.getMeasuredWidth() - subtitleScroll.getWidth();
+            boolean scrollable = overflow > 0 && !animationsDisabled && !isTouchExploration();
+            if (!scrollable) {
+                scheduleCollapse(dwellFor(state));
+                return;
+            }
+            long duration = (long) (overflow * 1000f / dp(SCROLL_SPEED_DP_PER_SEC));
+            duration = Math.min(Math.max(duration, 1500), 6000);
+            cancelMarquee();
+            final ValueAnimator marquee = ValueAnimator.ofInt(0, overflow);
+            marqueeAnimator = marquee;
+            marquee.setDuration(duration);
+            marquee.setInterpolator(new android.view.animation.LinearInterpolator());
+            marquee.addUpdateListener(a -> {
+                if (gen != generation || !isAttachedToWindow()) {
+                    a.cancel();
+                    return;
+                }
+                subtitleScroll.scrollTo((int) a.getAnimatedValue(), 0);
+            });
+            marquee.addListener(new android.animation.AnimatorListenerAdapter() {
+                @Override
+                public void onAnimationEnd(android.animation.Animator animation) {
+                    if (gen == generation) {
+                        subtitleScroll.scrollTo(0, 0);
+                        collapse();  // 滚完即收折
+                    }
+                }
+            });
+            marquee.start();
+        });
+    }
+
+    private void cancelMarquee() {
+        if (marqueeAnimator != null) {
+            marqueeAnimator.cancel();
+            marqueeAnimator = null;
+        }
+        subtitleScroll.scrollTo(0, 0);
     }
 
     private long dwellFor(State s) {
@@ -549,5 +612,6 @@ public class ConnectionFab extends MaterialCardView {
         super.onDetachedFromWindow();
         // 作废所有挂起的形态/折叠回调，防止操作已分离的 view（review §7.4）
         generation++;
+        cancelMarquee();
     }
 }
