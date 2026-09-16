@@ -129,38 +129,36 @@ jobs:
     - name: Build release APK
       run: ./gradlew assembleRelease -PVERSION_CODE=$VERSION_CODE -PVERSION_NAME=$VERSION_NAME --no-daemon
     
-    - name: Sign APK
-      uses: r0adkll/sign-android-release@v1
-      id: sign_app
-      with:
-        releaseDirectory: app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
-        # 该 action 默认 buildToolsVersion=29.0.3（zipalign 路径），与实际安装的 34.0.0 对齐
-        buildToolsVersion: 34.0.0
-
-    - name: Clean unsigned APKs
+    # r0adkll/sign-android-release 全系列硬编码 build-tools 29.0.3（无 buildToolsVersion 输入），
+    # 与 SDK 包列表（34.0.0）不匹配，改用 build-tools 34.0.0 自带 zipalign + apksigner 等价签名
+    - name: Sign APKs (zipalign + apksigner)
+      env:
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        ALIAS: ${{ secrets.ALIAS }}
+        KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       run: |
-        find app/build/outputs/apk/release -name "*-unsigned.apk" -delete
-        find app/build/outputs/apk/release -name "*-unsigned-aligned.apk" -delete
-
-    - name: Rename signed APKs
-      run: |
+        BT=/usr/local/lib/android/sdk/build-tools/34.0.0
         cd app/build/outputs/apk/release
-        files=(*-unsigned-signed.apk)
-        if [ ${#files[@]} -gt 0 ]; then
-          for file in "${files[@]}"; do
-            # 规则 1：-unsigned-signed → -signed
-            new_name="${file/-unsigned-signed/-signed}"
-            # 规则 2：app- → x-client-
-            new_name="${new_name/#app-/x-client-}"
-            mv "$file" "$new_name" && echo "Renamed: $file -> $new_name"
-          done
-        else
-          echo "No signed APK files found to rename."
+        echo "$SIGNING_KEY" | base64 --decode > keystore.jks
+        EXTRA_KEY_ARGS=""
+        if [ -n "$KEY_PASSWORD" ]; then
+          EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
         fi
+        for apk in *-unsigned.apk; do
+          [ -e "$apk" ] || continue
+          base="${apk%-unsigned.apk}"
+          "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
+          # shellcheck disable=SC2086
+          "$BT/apksigner" sign \
+            --ks keystore.jks --ks-key-alias "$ALIAS" \
+            --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
+            --out "x-client-${base#app-}.apk" "${base}-aligned.apk"
+          rm -f "$apk" "${base}-aligned.apk"
+          echo "Signed: x-client-${base#app-}.apk"
+        done
+        rm -f keystore.jks
+        ls -la
 
     - name: Generate Release Notes
       id: release_notes
