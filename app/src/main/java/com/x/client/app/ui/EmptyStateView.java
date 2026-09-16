@@ -36,7 +36,7 @@ public class EmptyStateView extends androidx.appcompat.widget.LinearLayoutCompat
     public EmptyStateView(@NonNull Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         setOrientation(VERTICAL);
-        setGravity(CENTER);
+        setGravity(android.view.Gravity.CENTER);
         LayoutInflater.from(context).inflate(R.layout.view_empty_state, this, true);
         iconView = findViewById(R.id.empty_icon);
         titleView = findViewById(R.id.empty_title);
