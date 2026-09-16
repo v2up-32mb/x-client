@@ -70,12 +70,6 @@ jobs:
       run: |
           git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
 
-    - name: Restore hev native build cache
-      # ③按 jni 内容哈希缓存 NDK 编译中间产物（上游仓库更新时自动失效重编）
-      uses: actions/cache@v4
-      with:
-        path: app/.cxx
-        key: cxx-ndk263-${{ hashFiles('app/src/main/jni/**') }}
 
     # 条件编译xclient.aar
     - name: Check for xclient.aar
