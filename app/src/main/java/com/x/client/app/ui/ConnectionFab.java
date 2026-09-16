@@ -202,10 +202,13 @@ public class ConnectionFab extends MaterialCardView {
         subtitleView.setText(subtitle);
         errorActions.setVisibility(newState == State.ERROR ? VISIBLE : GONE);
 
-        if (newState == State.CONNECTING || newState == State.DISCONNECTING) {
+        if (newState == State.CONNECTING) {
             if (!wasExpanded) {
                 expand();
             }
+        } else if (newState == State.DISCONNECTING) {
+            // 断开中不展开：compact 进度圈 + 3s 兑底已足够；
+            // 消除“展开动画被 STOPPED 广播打断在半程”的宽度冻结竞态（用户反馈修正）
         } else if (wasExpanded && stateChanged) {
             // 终态原位换装：滚动展示新文案，滚完即收折（用户反馈精修）
             startFeedbackScrollOrDwell();
