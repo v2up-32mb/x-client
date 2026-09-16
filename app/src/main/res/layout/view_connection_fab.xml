@@ -93,7 +93,11 @@
         <FrameLayout
             android:id="@+id/fab_icon_slot"
             android:layout_width="24dp"
-            android:layout_height="24dp">
+            android:layout_height="24dp"
+            android:clipChildren="false">
+            <!-- clipChildren=false：进度圈描边沿 indicatorSize 圆周中心线绘制，
+                 实际外径 = 24+trackThickness，需允许 1.5dp 对称溢出，否则圆环被裁切；
+                 溢出对称，圆心仍在 FAB 正中 -->
 
             <ImageView
                 android:id="@+id/fab_icon"
