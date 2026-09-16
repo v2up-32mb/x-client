@@ -233,4 +233,9 @@
         <string name="vpn_start_failed">VPN 启动失败</string>
         <string name="status_connecting_timeout">VPN 启动超时，请重试</string>
         <string name="cannot_start_vpn_service">无法启动 VPN 服务: %1$s</string>
+        <!-- 导出对话框与扫码页 -->
+        <string name="export_protocol_label">协议字符串：</string>
+        <string name="export_qr_label">二维码：</string>
+        <string name="acc_export_qr">配置二维码</string>
+        <string name="scanner_hint">将二维码对准扫描框</string>
 </resources>

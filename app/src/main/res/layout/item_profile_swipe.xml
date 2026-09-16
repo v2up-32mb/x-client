@@ -57,7 +57,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="@color/secondary_text"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:text="server.com"/>
 
         </LinearLayout>
@@ -71,7 +71,7 @@
             android:layout_marginStart="@dimen/spacing_xs"
             android:layout_marginBottom="2dp"
             android:textAppearance="?attr/textAppearanceLabelMedium"
-            android:textColor="@color/secondary_text"
+            android:textColor="?attr/colorOnSurfaceVariant"
             android:text="GCM"/>
 
     </LinearLayout>
@@ -81,7 +81,7 @@
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:layout_gravity="bottom"
-        android:background="@color/divider"/>
+        android:background="?attr/colorOutlineVariant"/>
 
     <!-- Overlay Layer: Action Buttons (显示在前景层上方) -->
     <LinearLayout

@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/colorBackground"
+    android:background="?attr/colorSurface"
     android:orientation="vertical">
 
     <LinearLayout
@@ -10,7 +11,7 @@
         android:layout_height="56dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingEnd="12dp">
+        android:paddingEnd="@dimen/spacing_md">
 
         <ImageButton
             android:id="@+id/btn_log_back"
@@ -18,52 +19,54 @@
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/back"
-            android:padding="12dp"
-            android:src="@drawable/ic_arrow_back" />
+            android:padding="@dimen/spacing_md"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="?attr/colorOnSurface" />
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="@string/runtime_logs_title"
-            android:textColor="?android:attr/textColorPrimary"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:textAppearance="?attr/textAppearanceTitleLarge"
+            android:textColor="?attr/colorOnSurface" />
 
         <TextView
             android:id="@+id/text_log_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/runtime_logs_loading"
-            android:textColor="@color/secondary_text"
-            android:textSize="12sp" />
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
     </LinearLayout>
 
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="@color/divider" />
+        android:background="?attr/colorOutlineVariant" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp">
+        android:paddingHorizontal="@dimen/spacing_md"
+        android:paddingVertical="@dimen/spacing_sm">
 
         <Button
             android:id="@+id/btn_log_refresh"
+            style="@style/Widget.XClient.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="48dp"
-            android:layout_marginEnd="6dp"
+            android:layout_marginEnd="@dimen/spacing_xs"
             android:layout_weight="1"
             android:text="@string/runtime_logs_refresh" />
 
         <Button
             android:id="@+id/btn_log_copy"
+            style="@style/Widget.XClient.OutlinedButton"
             android:layout_width="0dp"
             android:layout_height="48dp"
-            android:layout_marginStart="6dp"
+            android:layout_marginStart="@dimen/spacing_xs"
             android:layout_weight="1"
             android:text="@string/runtime_logs_copy" />
     </LinearLayout>
@@ -72,9 +75,9 @@
         android:id="@+id/scroll_runtime_logs"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_margin="12dp"
+        android:layout_margin="@dimen/spacing_md"
         android:layout_weight="1"
-        android:background="@color/code_background"
+        android:background="?attr/colorSurfaceContainerLowest"
         android:fillViewport="true"
         android:scrollbars="vertical">
 
@@ -83,9 +86,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:fontFamily="monospace"
-            android:padding="12dp"
+            android:padding="@dimen/spacing_md"
             android:text="@string/runtime_logs_loading"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="?attr/colorOnSurface"
             android:textIsSelectable="true"
             android:textSize="12sp" />
     </ScrollView>

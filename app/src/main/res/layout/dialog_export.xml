@@ -1,32 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="@dimen/spacing_lg">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="协议字符串："
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp"/>
+        android:text="@string/export_protocol_label"
+        android:textAppearance="?attr/textAppearanceTitleSmall"
+        android:layout_marginBottom="@dimen/spacing_sm"/>
 
     <TextView
         android:id="@+id/text_protocol"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/code_background"
-        android:padding="12dp"
-        android:textSize="12sp"
-        android:layout_marginBottom="16dp"/>
+        android:background="?attr/colorSurfaceContainerLowest"
+        android:fontFamily="monospace"
+        android:padding="@dimen/spacing_md"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="?attr/colorOnSurface"
+        android:textIsSelectable="true"
+        android:layout_marginBottom="@dimen/spacing_lg"/>
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="二维码："
-        android:textStyle="bold"
-        android:layout_marginBottom="8dp"/>
+        android:text="@string/export_qr_label"
+        android:textAppearance="?attr/textAppearanceTitleSmall"
+        android:layout_marginBottom="@dimen/spacing_sm"/>
 
     <ImageView
         android:id="@+id/image_qr"
@@ -34,6 +38,7 @@
         android:layout_height="300dp"
         android:layout_gravity="center"
         android:scaleType="fitCenter"
-        android:adjustViewBounds="true"/>
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/acc_export_qr"/>
 
 </LinearLayout>
