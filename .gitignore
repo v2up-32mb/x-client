@@ -1,6 +1,7 @@
 # Build artifacts
 app/build/
-app/libs/gcm.aar
+app/libs/*.aar
+app/.cxx/
 *.apk
 *.keystore
 *.jks
@@ -24,6 +25,12 @@ go.work.sum
 
 # Local keystore for release signing
 keystore.properties
+
+# 本地开发过程文件（调研报告 / 历史日志 / 实施计划），仅保留本地参考，不推送
+/progress.md
+/tasks.md
+/INTEGRATION_PLAN.md
+/docs/
 
 # Pi Agent
 .pi
