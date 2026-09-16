@@ -42,6 +42,6 @@
     <color name="x_tertiary_container">#FF1F4B46</color>
     <color name="x_on_tertiary_container">#FFB2ECE2</color>
 
-    <color name="x_share_container">#FF3B7CA8</color>
-    <color name="x_on_share_container">#FFCFE7F8</color>
+    <color name="x_edit_container">#FF3B7CA8</color>
+    <color name="x_on_edit_container">#FFCFE7F8</color>
 </resources>
