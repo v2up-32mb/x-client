@@ -11,8 +11,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.DrawableRes;
 import androidx.appcompat.widget.AppCompatImageView;
-import androidx.core.content.ContextCompat;
-
 import com.google.android.material.button.MaterialButton;
 import com.x.client.app.R;
 
@@ -73,7 +71,8 @@ public class EmptyStateView extends androidx.appcompat.widget.LinearLayoutCompat
         iconView.setImageResource(drawableResId);
         iconView.setImageTintList(
                 android.content.res.ColorStateList.valueOf(
-                        ContextCompat.getColor(getContext(),
-                                com.google.android.material.R.color.material_on_surface_emphasis_medium)));
+                        com.google.android.material.color.MaterialColors.getColor(
+                                iconView,
+                                com.google.android.material.R.attr.colorOnSurfaceVariant)));
     }
 }
