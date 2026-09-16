@@ -138,6 +138,8 @@ jobs:
         alias: ${{ secrets.ALIAS }}
         keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
         keyPassword: ${{ secrets.KEY_PASSWORD }}
+        # 该 action 默认 buildToolsVersion=29.0.3（zipalign 路径），与实际安装的 34.0.0 对齐
+        buildToolsVersion: 34.0.0
 
     - name: Clean unsigned APKs
       run: |
