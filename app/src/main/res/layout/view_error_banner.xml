@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    错误横幅：错误恢复路径（research-ux B5/B6：识别-诊断-恢复）。
+    errorContainer 底色 + 错误摘要 + 重试 + 查看日志。
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res/auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="com.google.android.material.card.MaterialCardView"
+    tools:theme="@style/Theme.XClient">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingTop="@dimen/spacing_md"
+        android:paddingBottom="@dimen/spacing_xs">
+
+        <TextView
+            android:id="@+id/error_banner_message"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            tools:text="连接失败：无法解析服务器地址" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/error_banner_retry"
+                style="@style/Widget.XClient.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minWidth="@dimen/touch_target_min"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/common_retry" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/error_banner_details"
+                style="@style/Widget.XClient.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/spacing_sm"
+                android:minWidth="@dimen/touch_target_min"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/common_view_logs" />
+        </LinearLayout>
+    </LinearLayout>
+</merge>

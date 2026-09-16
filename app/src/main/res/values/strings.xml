@@ -116,4 +116,34 @@
         <!-- 界面显示 -->
         <string name="show_server_addr">在配置列表中显示服务器地址</string>
         <string name="show_server_addr_hint">关闭后隐藏服务器地址，分享截图时不会泄露</string>
+
+        <!-- ===== UI/UX 重构新增（Design System 共享组件与主页状态卡片） ===== -->
+        <!-- 连接状态卡片（四态动词化文案，research-ux P2） -->
+        <string name="status_disconnected">已断开</string>
+        <string name="status_connecting">正在连接…</string>
+        <string name="status_connected">已连接</string>
+        <string name="status_error">连接出错</string>
+        <string name="status_tap_to_connect">点击连接</string>
+        <string name="status_tap_to_disconnect">点击断开</string>
+        <string name="status_connecting_subtitle">正在建立隧道，请稍候</string>
+        <!-- 通用动作 -->
+        <string name="common_retry">重试</string>
+        <string name="common_view_logs">查看日志</string>
+        <string name="common_copy">复制</string>
+        <string name="common_cancel">取消</string>
+        <string name="common_confirm">确认</string>
+        <!-- 空态（指向下一步动作，research-ux P8/C3b） -->
+        <string name="empty_profiles_title">还没有配置</string>
+        <string name="empty_profiles_message">点击右下角按钮，扫码导入或手动创建第一个配置</string>
+        <string name="empty_search_title">未找到匹配应用</string>
+        <string name="empty_search_message">试试其他关键词，或清除搜索条件</string>
+        <string name="empty_logs_title">暂无日志</string>
+        <string name="empty_logs_message">连接后运行记录将显示在这里</string>
+        <!-- 主页上下文 -->
+        <string name="home_subtitle_no_profile">未选择配置</string>
+        <string name="error_banner_prefix">连接失败：</string>
+        <string name="acc_connect">连接 VPN</string>
+        <string name="acc_disconnect">断开 VPN</string>
+        <string name="acc_add_profile">添加或导入配置</string>
+        <string name="acc_qr_scan">扫描二维码导入配置</string>
 </resources>
