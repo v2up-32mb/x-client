@@ -1,63 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    主页（连接页）：主操作唯一化重构（redesign-plan §8.1）
+    - 顶部状态卡片（四态，CMFA LargeActionCard 模式）= 连接/断开主操作
+    - 错误横幅（可重试/查看日志，替代"只弹 Toast"）
+    - 配置列表 + 空态指引
+    - FAB = 添加/导入唯一入口
+-->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- Toolbar -->
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
+        style="@style/Widget.XClient.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/toolbar_background"
-        android:elevation="4dp"
-        app:popupTheme="@style/ThemeOverlay.XClient" />
+        android:layout_height="?attr/actionBarSize" />
 
-    <!-- Content Container -->
-    <RelativeLayout
+    <com.x.client.app.ui.ConnectionStatusCard
+        android:id="@+id/status_card"
+        style="@style/Widget.XClient.Card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_lg"
+        android:layout_marginEnd="@dimen/spacing_lg"
+        android:layout_marginTop="@dimen/spacing_sm" />
+
+    <com.x.client.app.ui.ErrorBanner
+        android:id="@+id/error_banner"
+        style="@style/Widget.XClient.Card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_lg"
+        android:layout_marginEnd="@dimen/spacing_lg"
+        android:layout_marginTop="@dimen/spacing_sm"
+        android:visibility="gone" />
+
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- 配置列表 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/profile_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_above="@+id/btn_start"
-            android:padding="0dp"
-            android:clipToPadding="false"/>
+            android:paddingBottom="88dp"
+            android:clipToPadding="false" />
 
-        <!-- 底部启动按钮 -->
-        <Button
-            android:id="@+id/btn_start"
-            android:layout_width="match_parent"
+        <com.x.client.app.ui.EmptyStateView
+            android:id="@+id/empty_state"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="19dp"
-            android:text="@string/control_enable"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#4CAF50"
-            android:textSize="16sp"
-            android:padding="16dp"
-            android:elevation="2dp"/>
+            android:layout_gravity="center"
+            android:visibility="gone" />
 
-        <!-- FAB 悬浮菜单 -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_main"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentEnd="true"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="80dp"
-            android:src="@android:drawable/ic_input_add"
-            app:backgroundTint="@color/fab_background"
-            app:fabSize="mini"/>
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="@dimen/spacing_lg"
+            android:layout_marginBottom="@dimen/spacing_xl"
+            android:contentDescription="@string/acc_add_profile"
+            android:src="@drawable/ic_add"
+            app:tint="?attr/colorOnPrimaryContainer"
+            app:backgroundTint="?attr/colorPrimaryContainer" />
 
-    </RelativeLayout>
+    </FrameLayout>
 
 </LinearLayout>

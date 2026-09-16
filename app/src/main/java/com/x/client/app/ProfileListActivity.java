@@ -12,7 +12,6 @@ import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -28,7 +27,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
@@ -39,6 +37,10 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.color.MaterialColors;
+import com.x.client.app.ui.ConnectionStatusCard;
+import com.x.client.app.ui.EmptyStateView;
+import com.x.client.app.ui.ErrorBanner;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
@@ -57,7 +59,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     private MaterialToolbar toolbar;
     private RecyclerView recyclerView;
     private ProfileAdapter adapter;
-    private Button btnStart;
+    private ConnectionStatusCard statusCard;
+    private ErrorBanner errorBanner;
+    private EmptyStateView emptyState;
     private FloatingActionButton fabMain;
     private Preferences prefs;
     private boolean pendingVpnStart = false;
@@ -70,8 +74,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         }
         vpnStarting = false;
         prefs.setEnable(false);
-        updateStartButton();
-        Toast.makeText(this, "VPN 启动超时，请重试", Toast.LENGTH_LONG).show();
+        updateConnectionState();
+        showErrorBanner(getString(R.string.error_banner_prefix) + getString(R.string.status_connecting_timeout));
     };
     private final BroadcastReceiver vpnStatusReceiver = new BroadcastReceiver() {
         @Override
@@ -83,11 +87,17 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             switch (status) {
                 case TProxyService.STATUS_STARTING:
                     vpnStarting = true;
-                    break;
+                    statusCard.setState(ConnectionStatusCard.State.CONNECTING,
+                            getString(R.string.status_connecting),
+                            getString(R.string.status_connecting_subtitle));
+                    statusCard.setContentDescription(getString(R.string.status_connecting));
+                    errorBanner.setVisibility(View.GONE);
+                    return;
                 case TProxyService.STATUS_STARTED:
                     mainHandler.removeCallbacks(vpnStartupTimeout);
                     vpnStarting = false;
                     prefs.setEnable(true);
+                    hideErrorBanner();
                     Toast.makeText(ProfileListActivity.this, "VPN 已启动", Toast.LENGTH_SHORT).show();
                     break;
                 case TProxyService.STATUS_ERROR:
@@ -96,19 +106,22 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                     prefs.setEnable(false);
                     String error = intent.getStringExtra(TProxyService.EXTRA_ERROR);
                     String message = error == null || error.trim().isEmpty()
-                            ? "VPN 启动失败"
-                            : "VPN 启动失败: " + error;
+                            ? getString(R.string.vpn_start_failed)
+                            : getString(R.string.error_banner_prefix) + error;
+                    // 失败终态用错误横幅承载（可重试/查看日志），Toast 仅作即时提醒
+                    showErrorBanner(message);
                     Toast.makeText(ProfileListActivity.this, message, Toast.LENGTH_LONG).show();
                     break;
                 case TProxyService.STATUS_STOPPED:
                     mainHandler.removeCallbacks(vpnStartupTimeout);
                     vpnStarting = false;
                     prefs.setEnable(false);
+                    hideErrorBanner();
                     break;
                 default:
                     return;
             }
-            updateStartButton();
+            updateConnectionState();
         }
     };
 
@@ -125,7 +138,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
 
         // 初始化视图
         recyclerView = findViewById(R.id.profile_list);
-        btnStart = findViewById(R.id.btn_start);
+        statusCard = findViewById(R.id.status_card);
+        errorBanner = findViewById(R.id.error_banner);
+        emptyState = findViewById(R.id.empty_state);
         fabMain = findViewById(R.id.fab_main);
 
         // 设置 RecyclerView
@@ -163,8 +178,19 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 设置 FAB 点击事件
         fabMain.setOnClickListener(v -> showFabMenu());
 
-        // 设置启动按钮点击事件
-        btnStart.setOnClickListener(v -> toggleVpn());
+        // 状态卡片 = 主操作（连接/断开）
+        statusCard.setOnClickListener(v -> toggleVpn());
+
+        // 错误横幅：重试 / 查看日志
+        errorBanner.setOnRetryListener(v -> {
+            hideErrorBanner();
+            toggleVpn();
+        });
+        errorBanner.setOnDetailsListener(v ->
+                startActivity(new Intent(this, RuntimeLogActivity.class)));
+
+        // 空态主按钮与 FAB 同义
+        emptyState.setAction(getString(R.string.btn_add), v -> showFabMenu());
 
         // 加载配置列表
         refreshProfileList();
@@ -172,8 +198,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 校正可能残留的 VPN 运行状态（APP 被意外终止后 Enable 可能为陈旧 true）
         reconcileVpnState();
 
-        // 更新启动按钮状态
-        updateStartButton();
+        // 更新连接状态卡片
+        updateConnectionState();
 
     }
 
@@ -183,7 +209,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         // 刷新列表（从编辑页返回时）
         refreshProfileList();
         reconcileVpnState();
-        updateStartButton();
+        updateConnectionState();
     }
 
     @Override
@@ -213,24 +239,48 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         List<Preferences.ProfileInfo> profiles = prefs.getProfileList();
         String selectedId = prefs.getCurrentProfileId();
         adapter.setProfiles(profiles, selectedId);
+        // 空态指引（research-ux P8：空态必须指向下一步动作）
+        boolean isEmpty = profiles.isEmpty();
+        emptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
+        recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        updateConnectionState();
     }
 
-    private void updateStartButton() {
+    /**
+     * 连接状态 → 卡片视觉的唯一映射（redesign-plan §6.5 状态色语义总表）。
+     * 状态 = 颜色 + 图标 + 动词化文案三通道传达。
+     */
+    private void updateConnectionState() {
+        String currentId = prefs.getCurrentProfileId();
+        String profileName = currentId == null ? "" : prefs.getProfileName(currentId);
+
         if (vpnStarting) {
-            btnStart.setEnabled(false);
-            btnStart.setText("启动中...");
-            btnStart.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFF9800));
+            statusCard.setState(ConnectionStatusCard.State.CONNECTING,
+                    getString(R.string.status_connecting),
+                    getString(R.string.status_connecting_subtitle));
+            statusCard.setContentDescription(getString(R.string.status_connecting));
             return;
         }
-        btnStart.setEnabled(true);
-        boolean isVpnRunning = prefs.getEnable();
-        if (isVpnRunning) {
-            btnStart.setText("停止");
-            btnStart.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFF44336)); // Red
+        if (prefs.getEnable()) {
+            statusCard.setState(ConnectionStatusCard.State.CONNECTED,
+                    getString(R.string.status_connected),
+                    getString(R.string.home_current_profile, profileName));
+            statusCard.setContentDescription(getString(R.string.acc_disconnect));
         } else {
-            btnStart.setText("启动");
-            btnStart.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF4CAF50)); // Green
+            statusCard.setState(ConnectionStatusCard.State.DISCONNECTED,
+                    getString(R.string.status_disconnected),
+                    getString(R.string.status_tap_to_connect));
+            statusCard.setContentDescription(getString(R.string.acc_connect));
         }
+    }
+
+    private void showErrorBanner(CharSequence message) {
+        errorBanner.setMessage(message);
+        errorBanner.setVisibility(View.VISIBLE);
+    }
+
+    private void hideErrorBanner() {
+        errorBanner.setVisibility(View.GONE);
     }
 
     /**
@@ -360,7 +410,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     private void doStartVpn() {
         vpnStarting = true;
         prefs.setEnable(false);
-        updateStartButton();
+        updateConnectionState();
         mainHandler.removeCallbacks(vpnStartupTimeout);
         mainHandler.postDelayed(vpnStartupTimeout, 60_000);
 
@@ -372,8 +422,9 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             mainHandler.removeCallbacks(vpnStartupTimeout);
             vpnStarting = false;
             prefs.setEnable(false);
-            updateStartButton();
-            Toast.makeText(this, "无法启动 VPN 服务: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            updateConnectionState();
+            showErrorBanner(getString(R.string.error_banner_prefix) + error.getMessage());
+            Toast.makeText(this, getString(R.string.cannot_start_vpn_service, error.getMessage()), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -388,7 +439,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             // 忽略服务停止异常
         }
 
-        updateStartButton();
+        updateConnectionState();
     }
 
     @Override
@@ -1010,51 +1061,15 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
     // ======================== Toolbar ========================
 
     private void setupToolbar() {
-        // 设置 Toolbar 标题（APP 名称 + 版本号，版本号使用次级文本样式）
+        // 标题 = 应用名，副标题 = 版本号（M3 Toolbar 原生两行结构，颜色走主题 attr，
+        // 替代旧的硬编码白色自绘 TextView——顶栏已回归中性 surface 色）
         try {
             PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-            String appName = getString(R.string.app_name);
-            String version = packageInfo.versionName;
-
-            // 使用 SpannableString 设置不同的文本样式
-            android.text.SpannableString spannableString = new android.text.SpannableString(appName + "\n" + version);
-
-            // 版本号使用较小的字号和较低的透明度
-            int versionStart = appName.length() + 1; // 跳过 appName 和 \n
-            int versionEnd = spannableString.length();
-            float versionSize = 12f; // 较小的字号
-            float versionAlpha = 0.6f; // 较低的透明度
-
-            // 设置相对字体大小
-            spannableString.setSpan(
-                new android.text.style.RelativeSizeSpan(versionSize / 16f), // 16 是默认大小
-                versionStart,
-                versionEnd,
-                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            );
-
-            // 设置透明度
-            int color = getResources().getColor(android.R.color.white);
-            int alphaColor = (Math.round(versionAlpha * 255) << 24) | (color & 0x00FFFFFF);
-            spannableString.setSpan(
-                new android.text.style.ForegroundColorSpan(alphaColor),
-                versionStart,
-                versionEnd,
-                android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            );
-
-            TextView titleView = new TextView(this);
-            titleView.setText(spannableString);
-            titleView.setTextSize(16);
-            titleView.setTextColor(getResources().getColor(android.R.color.white));
-            toolbar.addView(titleView);
+            toolbar.setTitle(getString(R.string.app_name));
+            toolbar.setSubtitle(getString(R.string.toolbar_version, packageInfo.versionName));
         } catch (PackageManager.NameNotFoundException e) {
             // 降级处理：只显示 APP 名称
-            TextView titleView = new TextView(this);
-            titleView.setText(getString(R.string.app_name));
-            titleView.setTextSize(16);
-            titleView.setTextColor(getResources().getColor(android.R.color.white));
-            toolbar.addView(titleView);
+            toolbar.setTitle(getString(R.string.app_name));
         }
 
         toolbar.inflateMenu(R.menu.menu_main);
@@ -1084,6 +1099,14 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             themeItem.setIcon(R.drawable.ic_dark_mode);
         } else {
             themeItem.setIcon(R.drawable.ic_system_mode);
+        }
+        // 图标 drawable 原为蓝底工具栏设计（硬编码白色填充），顶栏改为中性 surface 后
+        // 统一按 onSurface 着色，保证 light/dark 两种主题下的对比度
+        android.graphics.drawable.Drawable icon = themeItem.getIcon();
+        if (icon != null) {
+            icon.mutate();
+            icon.setColorFilter(MaterialColors.getColor(toolbar, com.google.android.material.R.attr.colorOnSurface),
+                    android.graphics.PorterDuff.Mode.SRC_IN);
         }
     }
 }
