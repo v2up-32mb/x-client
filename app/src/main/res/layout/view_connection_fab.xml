@@ -20,7 +20,8 @@
         android:paddingStart="@dimen/spacing_lg"
         android:paddingEnd="@dimen/spacing_lg"
         android:paddingTop="@dimen/spacing_md"
-        android:paddingBottom="@dimen/spacing_md">
+        android:paddingBottom="@dimen/spacing_md"
+        android:clipToPadding="false">
 
         <LinearLayout
             android:id="@+id/fab_text_block"
