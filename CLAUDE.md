@@ -41,14 +41,14 @@ WebSocket 连接：`wss://<workerHost>/<userID>?fallbackip=<出口IP列表>`
 
 ### CI/CD 工作流
 
-- **Debug 构建**: `.github/workflows/build-debug.yml`
-  - 推送到 `main`、`develop`、`feat/*`、`fix/*`、`repair/*` 分支触发
-  - 也可通过手动 workflow_dispatch 触发
-  - 构建产物: 4 个 ABI 的独立 APK
+- **AAR 预热**: `.github/workflows/build-aar.yml`
+  - 推送到 `main`（`golib/**` 变更）或手动触发；固定从 `main` 构建 `xclient.aar`
+  - 目的：将 gomobile 交叉编译产物落到默认分支作用域缓存（所有 workflow 可读），tag 发布直接命中
 
 - **Release 构建**: `.github/workflows/release.yml`
-  - 推送 `v*` tag 触发 (如 `v1.0.0`)
-  - 自动签名并创建 GitHub Release
+  - **tag 触发**（`v*`）：构建 release APK → 签名 → 自动创建 GitHub Release（语义化版本带 `-preview`/`-beta`/`-rc` 后缀自动标记 prerelease）
+  - **手动 workflow_dispatch**：仅普通 CI 构建验证（release 构建类型，unsigned，不发版）；版本名 `ci-<shortsha>`
+  - 缓存：`gradle.properties` 开启 `org.gradle.caching=true`；`gomobile` AAR 按 `golib/**` 内容哈希缓存
 
 ## 配置导出/导入 URI
 
