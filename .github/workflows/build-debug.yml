@@ -27,7 +27,11 @@ jobs:
 
     - name: Setup Android SDK
       # 此Action会自动设置ANDROID_HOME和安装常用组件
+      # 注意：显式指定包列表——SDK 仓库已移除 'tools' 包，默认列表会导致 sdkmanager 报
+      # "Failed to find package 'tools'"（android-actions/setup-android@v3）
       uses: android-actions/setup-android@v3
+      with:
+        packages: platform-tools build-tools;34.0.0 platforms;android-34
 
     - name: Clone hev-socks5-tunnel
       run: |

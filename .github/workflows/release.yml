@@ -47,8 +47,8 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        packages: |
-          platform-tools build-tools;29.0.3 platforms;android-29
+        # 单行写法：多行块标量会被 action 拼接成单个包名；版本与 app/build.gradle 对齐（compileSdk 34）
+        packages: platform-tools build-tools;34.0.0 platforms;android-34
 
     - name: Clone hev-socks5-tunnel
       run: |
