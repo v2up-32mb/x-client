@@ -13,6 +13,8 @@ import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.card.MaterialCardView;
+
+import static com.google.android.material.R.attr.*;
 import com.google.android.material.color.MaterialColors;
 import com.x.client.app.R;
 
@@ -81,15 +83,15 @@ public class ConnectionStatusCard extends MaterialCardView {
 
         switch (state) {
             case CONNECTING:
-                cardColor = attr(R.attr.colorPrimaryContainer);
-                titleColor = attr(R.attr.colorOnPrimaryContainer);
-                subtitleColor = attr(R.attr.colorOnPrimaryContainer);
-                iconTint = attr(R.attr.colorPrimary);
+                cardColor = attr(colorPrimaryContainer);
+                titleColor = attr(colorOnPrimaryContainer);
+                subtitleColor = attr(colorOnPrimaryContainer);
+                iconTint = attr(colorPrimary);
                 iconView.setImageResource(R.drawable.ic_power);
                 iconView.setVisibility(VISIBLE);
                 progressView.setVisibility(VISIBLE);
                 progressView.setIndeterminateTintList(
-                        ColorStateList.valueOf(attr(R.attr.colorPrimary)));
+                        ColorStateList.valueOf(attr(colorPrimary)));
                 break;
             case CONNECTED:
                 cardColor = color(R.color.md_success_container);
@@ -101,20 +103,20 @@ public class ConnectionStatusCard extends MaterialCardView {
                 progressView.setVisibility(GONE);
                 break;
             case ERROR:
-                cardColor = attr(R.attr.colorErrorContainer);
-                titleColor = attr(R.attr.colorOnErrorContainer);
-                subtitleColor = attr(R.attr.colorOnErrorContainer);
-                iconTint = attr(R.attr.colorOnErrorContainer);
+                cardColor = attr(colorErrorContainer);
+                titleColor = attr(colorOnErrorContainer);
+                subtitleColor = attr(colorOnErrorContainer);
+                iconTint = attr(colorOnErrorContainer);
                 iconView.setImageResource(R.drawable.ic_error);
                 iconView.setVisibility(VISIBLE);
                 progressView.setVisibility(GONE);
                 break;
             case DISCONNECTED:
             default:
-                cardColor = attr(R.attr.colorSurfaceContainer);
-                titleColor = attr(R.attr.colorOnSurface);
-                subtitleColor = attr(R.attr.colorOnSurfaceVariant);
-                iconTint = attr(R.attr.colorOnSurfaceVariant);
+                cardColor = attr(colorSurfaceContainer);
+                titleColor = attr(colorOnSurface);
+                subtitleColor = attr(colorOnSurfaceVariant);
+                iconTint = attr(colorOnSurfaceVariant);
                 iconView.setImageResource(R.drawable.ic_power);
                 iconView.setVisibility(VISIBLE);
                 progressView.setVisibility(GONE);
