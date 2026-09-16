@@ -44,6 +44,15 @@ jobs:
         echo "Version Name: $VERSION_NAME"
         echo "Version Code: $VERSION_CODE"
 
+    - name: Detect prerelease
+      run: |
+        # 语义化版本预发布标记（如 v1.2.0-preview.1 / -beta.1 / -rc.1）→ GitHub prerelease 标记
+        if echo "${{ github.ref_name }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-'; then
+          echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+        else
+          echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+        fi
+
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
@@ -225,7 +234,7 @@ jobs:
         name: ${{ env.RELEASE_TITLE }}
         body: ${{ env.RELEASE_BODY }}
         draft: false
-        prerelease: false
+        prerelease: ${{ env.IS_PRERELEASE }}
         files: app/build/outputs/apk/release/*.apk
                  
     - name: Notify on failure
