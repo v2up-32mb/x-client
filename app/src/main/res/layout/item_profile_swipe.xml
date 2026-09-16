@@ -97,8 +97,8 @@
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_share"
-            android:background="?attr/colorPrimaryContainer"
-            app:tint="?attr/colorOnPrimaryContainer"
+            android:background="@color/x_share_container"
+            app:tint="@color/x_on_share_container"
             android:scaleType="centerInside"
             android:padding="@dimen/spacing_lg"
             android:contentDescription="@string/acc_share"/>

@@ -36,9 +36,12 @@
     <color name="x_outline">#FF938F99</color>
     <color name="x_outline_variant">#FF49454F</color>
 
-    <!-- Tertiary（teal 系，与 light 成对） -->
+    <!-- Tertiary（teal 系，与 light 成对；share 取更亮一档与行高亮区分） -->
     <color name="x_tertiary">#FF83D5C9</color>
     <color name="x_on_tertiary">#FF00201C</color>
     <color name="x_tertiary_container">#FF1F4B46</color>
     <color name="x_on_tertiary_container">#FFB2ECE2</color>
+
+    <color name="x_share_container">#FF3B7CA8</color>
+    <color name="x_on_share_container">#FFCFE7F8</color>
 </resources>
