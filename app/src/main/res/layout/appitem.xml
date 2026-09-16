@@ -1,35 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-	android:orientation="horizontal"
-	android:layout_width="wrap_content"
-	android:layout_height="wrap_content"
-	android:padding="2dp" >
-	<LinearLayout
-		android:orientation="horizontal"
-		android:layout_width="fill_parent"
-		android:layout_height="wrap_content"
-		android:layout_alignParentLeft="true" >
-		<ImageView
-			android:id="@+id/icon"
-			android:layout_width="100px"
-			android:layout_height="100px"
-			android:layout_marginLeft="5px"
-			android:layout_marginRight="20px"
-			android:layout_marginTop="5px" />
-		<TextView
-			android:id="@+id/name"
-			android:layout_width="wrap_content"
-			android:layout_height="wrap_content"
-			android:textSize="50px"
-			android:maxEms="14"
-			android:ellipsize="end"
-			android:singleLine="true" />
-	</LinearLayout>
-	<CheckBox
-		android:id="@+id/checked"
-		android:layout_width="wrap_content"
-		android:layout_height="wrap_content"
-		android:layout_alignParentRight="true"
-		android:focusable="false"
-		android:clickable="false" />
-</RelativeLayout>
+<!--
+    应用列表行（AppList 重构）：
+    - 整行可点击，minHeight 64dp（≥56dp 触控行高）
+    - 图标固定 48dp；应用名 TitleMedium(onSurface)，包名 BodySmall(onSurfaceVariant)
+    - 右侧 CheckBox 48dp 触控目标，contentDescription 由 Java 按应用名注入（选中态由系统朗读）
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="?android:attr/selectableItemBackground"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingEnd="@dimen/spacing_lg"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <ImageView
+        android:id="@+id/icon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:importantForAccessibility="no"
+        tools:ignore="UseAppTint" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/spacing_lg"
+        android:layout_marginEnd="@dimen/spacing_md"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/package_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:maxLines="1"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <CheckBox
+        android:id="@+id/checked"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="@dimen/spacing_sm"
+        android:focusable="false"
+        android:clickable="false" />
+</LinearLayout>
