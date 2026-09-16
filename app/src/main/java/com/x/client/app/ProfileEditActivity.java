@@ -21,6 +21,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.textfield.TextInputLayout;
 import com.journeyapps.barcodescanner.ScanOptions;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -94,7 +95,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         setContentView(R.layout.activity_profile_edit);
 
         // 设置标题
-        setTitle("编辑配置: " + prefs.getProfileName(profileId));
+        setTitle(getString(R.string.edit_profile_title, prefs.getProfileName(profileId)));
 
         // 初始化控件
         spinner_protocol = findViewById(R.id.protocol_spinner);
@@ -140,9 +141,9 @@ public class ProfileEditActivity extends AppCompatActivity {
             xt_advanced_container.setVisibility(visible ? View.GONE : View.VISIBLE);
             xt_advanced_header.setText(getString(R.string.xt_advanced_params) + (visible ? " ▸" : " ▾"));
         });
-        // Hot Pair 关闭时数量输入框禁用
+        // Hot Pair 关闭时数量输入框禁用（连同外层输入容器一起置灰）
         checkbox_xt_enable_hot_pair.setOnCheckedChangeListener((buttonView, isChecked) ->
-                edittext_xt_hot_pair_count.setEnabled(isChecked));
+                setFieldEnabled(edittext_xt_hot_pair_count, isChecked));
 
         btn_import = findViewById(R.id.btn_import);
         btn_save = findViewById(R.id.btn_save);
@@ -174,7 +175,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         btn_save.setOnClickListener(v -> {
             if (savePrefs()) {
                 hasBeenSaved = true;
-                Toast.makeText(this, "配置已保存", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_profile_saved), Toast.LENGTH_SHORT).show();
                 finish();
             }
         });
@@ -230,7 +231,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
-        edittext_xt_hot_pair_count.setEnabled(prefs.getXtEnableHotPair());
+        setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
         loadXtAdvancedParams(prefs.getXtAdvancedParams());
 
         // 恢复原配置
@@ -241,40 +242,40 @@ public class ProfileEditActivity extends AppCompatActivity {
         boolean isCurrentProfile = profileId.equals(prefs.getCurrentProfileId());
 
         if (isVpnRunning && isCurrentProfile) {
-            // VPN 运行时禁用当前配置的修改
-            edittext_profile_name.setEnabled(false);
-            edittext_worker_host.setEnabled(false);
-            edittext_pref_ip.setEnabled(false);
-            edittext_user_id.setEnabled(false);
-            edittext_fallback_ip.setEnabled(false);
+            // VPN 运行时禁用当前配置的修改（输入框连同外层 TextInputLayout 一起置灰）
+            setFieldEnabled(edittext_profile_name, false);
+            setFieldEnabled(edittext_worker_host, false);
+            setFieldEnabled(edittext_pref_ip, false);
+            setFieldEnabled(edittext_user_id, false);
+            setFieldEnabled(edittext_fallback_ip, false);
             checkbox_disable_ech.setEnabled(false);
             checkbox_disable_ipv6_route.setEnabled(false);
-            edittext_ws_conn.setEnabled(false);
+            setFieldEnabled(edittext_ws_conn, false);
             checkbox_enable_dynamic_pool.setEnabled(false);
-            edittext_dynamic_pool_max.setEnabled(false);
-            edittext_xt_server_addr.setEnabled(false);
-            edittext_xt_token.setEnabled(false);
-            edittext_xt_relay_nodes.setEnabled(false);
-            edittext_xt_connections.setEnabled(false);
+            setFieldEnabled(edittext_dynamic_pool_max, false);
+            setFieldEnabled(edittext_xt_server_addr, false);
+            setFieldEnabled(edittext_xt_token, false);
+            setFieldEnabled(edittext_xt_relay_nodes, false);
+            setFieldEnabled(edittext_xt_connections, false);
             checkbox_xt_disable_ech.setEnabled(false);
             checkbox_xt_insecure.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
-            edittext_xt_hot_pair_count.setEnabled(false);
-            edittext_xt_adv_backpressure.setEnabled(false);
-            edittext_xt_adv_write_queue_wait.setEnabled(false);
-            edittext_xt_adv_dial_timeout.setEnabled(false);
-            edittext_xt_adv_handshake_timeout.setEnabled(false);
-            edittext_xt_adv_read_timeout.setEnabled(false);
-            edittext_xt_adv_write_timeout.setEnabled(false);
-            edittext_xt_adv_ping_interval.setEnabled(false);
-            edittext_xt_adv_reconnect_delay.setEnabled(false);
-            edittext_xt_adv_connect_timeout.setEnabled(false);
-            edittext_xt_adv_max_socks5.setEnabled(false);
-            edittext_xt_adv_udp_ports.setEnabled(false);
+            setFieldEnabled(edittext_xt_hot_pair_count, false);
+            setFieldEnabled(edittext_xt_adv_backpressure, false);
+            setFieldEnabled(edittext_xt_adv_write_queue_wait, false);
+            setFieldEnabled(edittext_xt_adv_dial_timeout, false);
+            setFieldEnabled(edittext_xt_adv_handshake_timeout, false);
+            setFieldEnabled(edittext_xt_adv_read_timeout, false);
+            setFieldEnabled(edittext_xt_adv_write_timeout, false);
+            setFieldEnabled(edittext_xt_adv_ping_interval, false);
+            setFieldEnabled(edittext_xt_adv_reconnect_delay, false);
+            setFieldEnabled(edittext_xt_adv_connect_timeout, false);
+            setFieldEnabled(edittext_xt_adv_max_socks5, false);
+            setFieldEnabled(edittext_xt_adv_udp_ports, false);
             spinner_protocol.setEnabled(false);
             btn_save.setEnabled(false);
 
-            Toast.makeText(this, "VPN 正在运行，无法修改当前配置", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_vpn_running_locked), Toast.LENGTH_LONG).show();
         }
     }
 
@@ -288,10 +289,12 @@ public class ProfileEditActivity extends AppCompatActivity {
     }
 
     private boolean savePrefs() {
+        clearFieldErrors();
+
         // 验证配置名称不为空
         String profileName = edittext_profile_name.getText().toString().trim();
         if (profileName.isEmpty()) {
-            Toast.makeText(this, "配置名称不能为空", Toast.LENGTH_SHORT).show();
+            showFieldError(edittext_profile_name, getString(R.string.error_profile_name_empty));
             return false;
         }
 
@@ -301,17 +304,17 @@ public class ProfileEditActivity extends AppCompatActivity {
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
             String serverAddr = edittext_xt_server_addr.getText().toString().trim();
             if (serverAddr.isEmpty()) {
-                Toast.makeText(this, "服务器地址不能为空", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_xt_server_addr, getString(R.string.error_server_addr_empty));
                 return false;
             }
             if (!serverAddr.startsWith("wss://") && !serverAddr.startsWith("ws://")) {
-                Toast.makeText(this, "服务器地址必须以 wss:// 或 ws:// 开头", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_xt_server_addr, getString(R.string.error_server_addr_scheme));
                 return false;
             }
         } else {
             String workerHost = edittext_worker_host.getText().toString().trim();
             if (workerHost.isEmpty()) {
-                Toast.makeText(this, "服务器地址不能为空", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_worker_host, getString(R.string.error_server_addr_empty));
                 return false;
             }
         }
@@ -323,11 +326,12 @@ public class ProfileEditActivity extends AppCompatActivity {
             try {
                 wsConn = wsConnText.isEmpty() ? Preferences.DEFAULT_WS_CONN : Integer.parseInt(wsConnText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "WebSocket 连接数格式错误", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_ws_conn, getString(R.string.error_ws_conn_invalid));
                 return false;
             }
             if (wsConn < 1 || wsConn > Preferences.MAX_DYNAMIC_POOL_LIMIT) {
-                Toast.makeText(this, "WebSocket 连接数必须在 1-" + Preferences.MAX_DYNAMIC_POOL_LIMIT + " 之间", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_ws_conn,
+                        getString(R.string.error_ws_conn_range, Preferences.MAX_DYNAMIC_POOL_LIMIT));
                 return false;
             }
         }
@@ -337,13 +341,13 @@ public class ProfileEditActivity extends AppCompatActivity {
             try {
                 dynamicPoolMax = limitText.isEmpty() ? Preferences.DEFAULT_DYNAMIC_POOL_MAX : Integer.parseInt(limitText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "动态扩容上限格式错误", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_dynamic_pool_max, getString(R.string.error_pool_max_invalid));
                 return false;
             }
             if (dynamicPoolMax > Preferences.MAX_DYNAMIC_POOL_LIMIT
                     || (checkbox_enable_dynamic_pool.isChecked() && dynamicPoolMax < wsConn)) {
-                Toast.makeText(this, "启用动态扩容时，上限必须在 WebSocket 连接数和 "
-                        + Preferences.MAX_DYNAMIC_POOL_LIMIT + " 之间", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_dynamic_pool_max,
+                        getString(R.string.error_pool_max_range, Preferences.MAX_DYNAMIC_POOL_LIMIT));
                 return false;
             }
         }
@@ -355,7 +359,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             try {
                 xtConnections = Integer.parseInt(xtConnectionsText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "连接数必须是数字", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_xt_connections, getString(R.string.error_xt_connections_invalid));
                 return false;
             }
         }
@@ -370,11 +374,12 @@ public class ProfileEditActivity extends AppCompatActivity {
             try {
                 xtHotPairCount = Integer.parseInt(xtHotPairCountText);
             } catch (NumberFormatException e) {
-                Toast.makeText(this, "热通道对数必须是数字", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_xt_hot_pair_count, getString(R.string.error_hot_pair_invalid));
                 return false;
             }
             if (xtHotPairCount < 1 || xtHotPairCount > Preferences.MAX_XT_HOT_PAIR_COUNT) {
-                Toast.makeText(this, "热通道对数必须在 1-" + Preferences.MAX_XT_HOT_PAIR_COUNT + " 之间", Toast.LENGTH_SHORT).show();
+                showFieldError(edittext_xt_hot_pair_count,
+                        getString(R.string.error_hot_pair_range, Preferences.MAX_XT_HOT_PAIR_COUNT));
                 return false;
             }
         }
@@ -382,9 +387,21 @@ public class ProfileEditActivity extends AppCompatActivity {
         // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
         String xtAdvancedParams = "";
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            // 就近报错：先定位格式非法的高级参数输入框（判定规则与 collectXtAdvancedParams 一致）
+            EditText invalidAdvField = findInvalidXtAdvField();
+            if (invalidAdvField != null) {
+                // 折叠的高级参数容器包含该字段时先展开，确保 inline 错误可见
+                if (xt_advanced_container.getVisibility() != View.VISIBLE) {
+                    xt_advanced_container.setVisibility(View.VISIBLE);
+                    xt_advanced_header.setText(getString(R.string.xt_advanced_params) + " ▾");
+                }
+                showFieldError(invalidAdvField, getString(R.string.error_xt_advanced_invalid));
+                return false;
+            }
             xtAdvancedParams = collectXtAdvancedParams();
             if (xtAdvancedParams == null) {
-                Toast.makeText(this, "高级参数数值无效，请检查输入（留空表示使用默认值）", Toast.LENGTH_SHORT).show();
+                // 兕底：预校验未覆盖到的异常情况，保持原有整体提示
+                Toast.makeText(this, getString(R.string.error_xt_advanced_invalid), Toast.LENGTH_SHORT).show();
                 return false;
             }
         }
@@ -428,6 +445,126 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setCurrentProfileId(originalId);
 
         return true;
+    }
+
+    // ======================== UI 辅助（inline 校验反馈 / 禁用置灰） ========================
+
+    // 取包裹该输入框的 TextInputLayout（未包裹时返回 null）
+    private TextInputLayout tilOf(EditText edit) {
+        android.view.ViewParent parent = edit.getParent();
+        return parent instanceof TextInputLayout ? (TextInputLayout) parent : null;
+    }
+
+    // 就近报错：在输入框所属的 TextInputLayout 上显示 inline 错误
+    private void showFieldError(EditText edit, String message) {
+        TextInputLayout til = tilOf(edit);
+        if (til != null) {
+            til.setError(message);
+        }
+    }
+
+    // 清空所有输入容器的 inline 错误
+    private void clearFieldErrors() {
+        EditText[] fields = {
+                edittext_profile_name, edittext_worker_host, edittext_pref_ip, edittext_user_id,
+                edittext_fallback_ip, edittext_ws_conn, edittext_dynamic_pool_max,
+                edittext_xt_server_addr, edittext_xt_token, edittext_xt_relay_nodes,
+                edittext_xt_connections, edittext_xt_hot_pair_count,
+                edittext_xt_adv_backpressure, edittext_xt_adv_write_queue_wait,
+                edittext_xt_adv_dial_timeout, edittext_xt_adv_handshake_timeout,
+                edittext_xt_adv_read_timeout, edittext_xt_adv_write_timeout,
+                edittext_xt_adv_ping_interval, edittext_xt_adv_reconnect_delay,
+                edittext_xt_adv_connect_timeout, edittext_xt_adv_max_socks5,
+                edittext_xt_adv_udp_ports};
+        for (EditText edit : fields) {
+            TextInputLayout til = tilOf(edit);
+            if (til != null) {
+                til.setError(null);
+            }
+        }
+    }
+
+    // 同步禁用/启用输入框与其外层 TextInputLayout（VPN 运行中整组置灰）
+    private void setFieldEnabled(EditText edit, boolean enabled) {
+        edit.setEnabled(enabled);
+        TextInputLayout til = tilOf(edit);
+        if (til != null) {
+            til.setEnabled(enabled);
+        }
+    }
+
+    // 就近定位第一个格式非法的 X-Tunnel 高级参数输入框（全部合法返回 null）
+    // 注意：判定规则与 collectXtAdvancedParams 保持一致，仅用于 inline 报错
+    private EditText findInvalidXtAdvField() {
+        if (!isEmpty(edittext_xt_adv_backpressure) && !isValidPositiveInt(edittext_xt_adv_backpressure)) {
+            return edittext_xt_adv_backpressure;
+        }
+        if (!isEmpty(edittext_xt_adv_write_queue_wait) && !isValidPositiveInt(edittext_xt_adv_write_queue_wait)) {
+            return edittext_xt_adv_write_queue_wait;
+        }
+        EditText[] timeoutFields = {
+                edittext_xt_adv_dial_timeout, edittext_xt_adv_handshake_timeout,
+                edittext_xt_adv_read_timeout, edittext_xt_adv_write_timeout,
+                edittext_xt_adv_ping_interval, edittext_xt_adv_reconnect_delay,
+                edittext_xt_adv_connect_timeout};
+        for (EditText field : timeoutFields) {
+            if (!isEmpty(field) && !isValidPositiveDecimal(field)) {
+                return field;
+            }
+        }
+        if (!isEmpty(edittext_xt_adv_max_socks5) && !isValidNonNegativeInt(edittext_xt_adv_max_socks5)) {
+            return edittext_xt_adv_max_socks5;
+        }
+        if (!isEmpty(edittext_xt_adv_udp_ports) && !isValidUdpPorts(edittext_xt_adv_udp_ports)) {
+            return edittext_xt_adv_udp_ports;
+        }
+        return null;
+    }
+
+    private boolean isEmpty(EditText edit) {
+        return edit.getText().toString().trim().isEmpty();
+    }
+
+    // 正整数（≥1）
+    private boolean isValidPositiveInt(EditText edit) {
+        try {
+            return Integer.parseInt(edit.getText().toString().trim()) >= 1;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    // 非负整数（≥0）
+    private boolean isValidNonNegativeInt(EditText edit) {
+        try {
+            return Integer.parseInt(edit.getText().toString().trim()) >= 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    // 正数（>0，允许小数）
+    private boolean isValidPositiveDecimal(EditText edit) {
+        try {
+            return Double.parseDouble(edit.getText().toString().trim()) > 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    // 逗号分隔端口，每个在 1-65535 之间
+    private boolean isValidUdpPorts(EditText edit) {
+        try {
+            for (String item : edit.getText().toString().trim().split(",")) {
+                int port = Integer.parseInt(item.trim());
+                if (port < 1 || port > 65535) {
+                    return false;
+                }
+            }
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     // ======================== X-Tunnel 高级参数 ========================
@@ -545,9 +682,10 @@ public class ProfileEditActivity extends AppCompatActivity {
 
     private void showImportDialog() {
         // 显示两个选项的对话框：手动输入和扫描 QR
-        final CharSequence[] options = {"手动输入", "扫描二维码"};
+        final CharSequence[] options = {
+                getString(R.string.dialog_option_manual), getString(R.string.dialog_option_scan)};
         new AlertDialog.Builder(this)
-                .setTitle("导入配置")
+                .setTitle(R.string.dialog_title_import)
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
                         showManualInputDialog();
@@ -555,29 +693,29 @@ public class ProfileEditActivity extends AppCompatActivity {
                         scanQrCode();
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
-        input.setHint("gcm://server.com?ip=1.1.1.1:443&fip=2.2.2.2&user_id=v2up#Name\nxtunnel://server:8443?token=t&relay=r1.com:443#Name");
+        input.setHint(getString(R.string.manual_import_hint));
         new AlertDialog.Builder(this)
-                .setTitle("导入配置")
+                .setTitle(R.string.dialog_title_import)
                 .setView(input)
-                .setPositiveButton("确定", (dialog, whichButton) -> {
+                .setPositiveButton(R.string.ok, (dialog, whichButton) -> {
                     String protocol = input.getText().toString().trim();
                     if (!protocol.isEmpty()) {
                         importFromProtocol(protocol);
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show();
     }
 
     private void scanQrCode() {
         ScanOptions options = new ScanOptions();
-        options.setPrompt("扫描配置二维码");
+        options.setPrompt(getString(R.string.scan_qr_prompt));
         options.setBeepEnabled(false);
         options.setOrientationLocked(true);
         options.setCaptureActivity(CustomCaptureActivity.class);
@@ -585,7 +723,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             Intent intent = options.createScanIntent(this);
             startActivityForResult(intent, REQUEST_SCAN_QR);
         } catch (Exception e) {
-            Toast.makeText(this, "无法启动扫描器", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_scanner_start_failed), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -609,7 +747,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
         boolean isXtunnel = protocol.startsWith("xtunnel://");
         if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
-            Toast.makeText(this, "无效的协议格式", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, getString(R.string.toast_invalid_protocol), Toast.LENGTH_SHORT).show();
             return;
         }
         int schemeLen = isXtunnel ? 10 : 6; // "xtunnel://" 为 10 个字符
@@ -640,7 +778,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         }
         // 拒绝缺少服务器主机的链接（如旧版 xtunnel://?token=... 无 host）
         if (wssAddr.startsWith("wss://") && wssAddr.length() <= 6) {
-            Toast.makeText(this, "链接缺少服务器地址，无法导入", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_import_missing_host), Toast.LENGTH_LONG).show();
             return;
         }
 
@@ -758,7 +896,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             checkbox_xt_insecure.setChecked(insecure);
             checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
             edittext_xt_hot_pair_count.setText(String.valueOf(hotPairCount));
-            edittext_xt_hot_pair_count.setEnabled(enableHotPair);
+            setFieldEnabled(edittext_xt_hot_pair_count, enableHotPair);
         } else {
             // GCM 配置
             setProtocolSelection(Preferences.PROTOCOL_GCM);
@@ -780,6 +918,6 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_profile_name.setText(profileName);
         }
 
-        Toast.makeText(this, "配置已导入，请检查并保存", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, getString(R.string.toast_imported_check), Toast.LENGTH_LONG).show();
     }
 }
