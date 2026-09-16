@@ -1,13 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFFFF</color>
+    <!-- ============================================================
+         Design Token 层级：Primitive → Semantic → Legacy alias
+         规则：布局/Java 组件层只允许引用 Semantic（x_*/md_*）；
+               Primitive（p_*）是原始色值，组件不得直接引用；
+               Legacy alias（toolbar_background 等）过渡期保留，C10 删除。
+         数值依据：docs/ui-ux/research-visual.md §5-§6（对比度实测达标）
+         ============================================================ -->
 
-    <!-- Toolbar 背景色: RGB(11, 163, 243) -->
-    <color name="toolbar_background">#0BA3F3</color>
+    <!-- ===== Primitive（主题不变） ===== -->
+    <!-- 品牌种子蓝（原 toolbar 蓝），组件不得直接引用 -->
+    <color name="p_brand_seed">#FF0BA3F3</color>
 
-    <!-- FAB 背景色: RGB(43, 99, 165) -->
-    <color name="fab_background">#2B63A5</color>
-    <color name="secondary_text">#6B7280</color>
-    <color name="divider">#E0E0E0</color>
-    <color name="code_background">#F0F0F0</color>
+    <!-- ===== Semantic：M3 颜色角色（light） ===== -->
+    <!-- Primary（品牌蓝深化 tone，#0BA3F3+白字 2.78:1 不达标，深化后 5.17:1） -->
+    <color name="x_primary">#FF0873AC</color>
+    <color name="x_on_primary">#FFFFFFFF</color>
+    <color name="x_primary_container">#FFCDE9FF</color>
+    <color name="x_on_primary_container">#FF00243A</color>
+
+    <!-- Success（扩展角色：已连接；语义色不随主题漂移，night 取亮 tone） -->
+    <color name="md_success">#FF146C43</color>
+    <color name="md_on_success">#FFFFFFFF</color>
+    <color name="md_success_container">#FFDCFCE7</color>
+    <color name="md_on_success_container">#FF052E16</color>
+
+    <!-- Warning（扩展角色：仅横幅/角标，不用于连接态） -->
+    <color name="md_warning">#FF9A5B00</color>
+    <color name="md_on_warning">#FFFFFFFF</color>
+
+    <!-- Error（M3 官方 baseline 值） -->
+    <color name="x_error">#FFB3261E</color>
+    <color name="x_on_error">#FFFFFFFF</color>
+    <color name="x_error_container">#FFF9DEDC</color>
+    <color name="x_on_error_container">#FF410E0B</color>
+
+    <!-- Background / Surface（M3 官方 baseline 中性值） -->
+    <color name="x_background">#FFFFFBFF</color>
+    <color name="x_on_background">#FF1D1B20</color>
+    <color name="x_surface">#FFFFFBFF</color>
+    <color name="x_on_surface">#FF1D1B20</color>
+    <color name="x_on_surface_variant">#FF49454F</color>
+    <color name="x_surface_container_lowest">#FFFFFFFF</color>
+    <color name="x_surface_container_low">#FFF7F2FA</color>
+    <color name="x_surface_container">#FFF3EDF7</color>
+    <color name="x_surface_container_high">#FFECE6F0</color>
+    <color name="x_surface_container_highest">#FFE6E0E9</color>
+
+    <!-- Outline -->
+    <color name="x_outline">#FF79747E</color>
+    <color name="x_outline_variant">#FFCAC4D0</color>
+
+    <!-- ===== Legacy alias（过渡期，组件迁移后于 C10 删除） ===== -->
+    <color name="toolbar_background">@color/x_surface_container</color>
+    <color name="fab_background">@color/x_primary_container</color>
+    <color name="secondary_text">@color/x_on_surface_variant</color>
+    <color name="divider">@color/x_outline_variant</color>
+    <color name="code_background">@color/x_surface_container_lowest</color>
 </resources>
