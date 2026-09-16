@@ -113,6 +113,82 @@
         <string name="manual_bypass_rules">手动规则（每行一条）</string>
         <string name="manual_bypass_rules_hint">192.168.1.0/24\nexample.com\nfull:api.example.com</string>
 
+        <!-- ===== C6 ProfileEdit 重构新增（仅限 ProfileEdit 代理插入） ===== -->
+        <!-- 分组标题 -->
+        <string name="section_basic_info">基础信息</string>
+        <string name="section_connection_params">连接参数</string>
+        <string name="section_advanced_params">进阶参数</string>
+        <!-- 输入框浮动提示（原 "xxx：" 标签去掉冒号） -->
+        <string name="profile_name_hint">配置名称</string>
+        <string name="protocol_spinner_label">代理协议</string>
+        <string name="worker_host_hint">服务器地址（Worker 域名）</string>
+        <string name="pref_ip_hint">优选中转节点（IP:端口，逗号分隔多个）</string>
+        <string name="user_id_hint">用户 ID</string>
+        <string name="fallback_ip_hint">出口代理 IP（逗号分隔多个，发往 Worker）</string>
+        <string name="ws_conn_hint">WebSocket 连接数</string>
+        <string name="dynamic_pool_max_hint">动态扩容连接上限</string>
+        <string name="xt_server_addr_hint">服务器地址（wss://）</string>
+        <string name="xt_token_hint">Token</string>
+        <string name="xt_relay_nodes_hint">中转节点（逗号分隔）</string>
+        <string name="xt_connections_hint">连接数</string>
+        <string name="xt_hot_pair_count_hint">热通道对数（1-8）</string>
+        <!-- 页面标题与提示 -->
+        <string name="edit_profile_title">编辑配置: %1$s</string>
+        <string name="toast_profile_saved">配置已保存</string>
+        <string name="toast_vpn_running_locked">VPN 正在运行，无法修改当前配置</string>
+        <string name="toast_imported_check">配置已导入，请检查并保存</string>
+        <string name="toast_import_missing_host">链接缺少服务器地址，无法导入</string>
+        <string name="toast_scanner_start_failed">无法启动扫描器</string>
+        <string name="scan_qr_prompt">扫描配置二维码</string>
+        <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name\nxtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+        <!-- 校验失败 inline 提示（TextInputLayout.setError） -->
+        <string name="error_profile_name_empty">配置名称不能为空</string>
+        <string name="error_server_addr_empty">服务器地址不能为空</string>
+        <string name="error_server_addr_scheme">服务器地址必须以 wss:// 或 ws:// 开头</string>
+        <string name="error_ws_conn_invalid">WebSocket 连接数格式错误</string>
+        <string name="error_ws_conn_range">WebSocket 连接数必须在 1-%1$d 之间</string>
+        <string name="error_pool_max_invalid">动态扩容上限格式错误</string>
+        <string name="error_pool_max_range">启用动态扩容时，上限必须在 WebSocket 连接数和 %1$d 之间</string>
+        <string name="error_xt_connections_invalid">连接数必须是数字</string>
+        <string name="error_hot_pair_invalid">热通道对数必须是数字</string>
+        <string name="error_hot_pair_range">热通道对数必须在 1-%1$d 之间</string>
+        <string name="error_xt_advanced_invalid">高级参数数值无效，请检查输入（留空表示使用默认值）</string>
+        <!-- ===== C7 Settings 重构新增（仅限 Settings 代理插入） ===== -->
+        <!-- 标题与分组头 -->
+        <string name="settings_title">全局设置</string>
+        <string name="settings_section_general">通用</string>
+        <string name="settings_section_network">网络</string>
+        <string name="settings_section_bypass">代理绕过</string>
+        <string name="settings_section_ech_dns">ECH 与 DNS</string>
+        <!-- 字段标签与占位示例 -->
+        <string name="settings_socks_port_label">本地代理端口</string>
+        <string name="settings_ech_dns_label">DoH 服务器</string>
+        <string name="settings_ech_domain_label">ECH 查询域名</string>
+        <string name="settings_placeholder_socks_port">1080</string>
+        <string name="settings_placeholder_ech_dns">https://doh.pub/dns-query</string>
+        <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
+        <!-- 当前值 summary 与生效条件提示 -->
+        <string name="settings_socks_port_summary">当前端口：%1$d</string>
+        <string name="settings_apps_row_summary">已选择 %1$d 个应用</string>
+        <string name="settings_apps_row_summary_none">未选择任何应用</string>
+        <string name="settings_log_level_summary">当前等级：%1$s</string>
+        <string name="settings_restart_required">修改后需重启 VPN 生效</string>
+        <string name="settings_global_hint">勾选为全局代理，不勾选为分应用代理</string>
+        <!-- Toast 与 inline 校验错误 -->
+        <string name="settings_saved">设置已保存</string>
+        <string name="settings_vpn_running_toast">VPN 正在运行，无法修改全局设置</string>
+        <string name="settings_error_port_format">端口号格式错误</string>
+        <string name="settings_error_port_min">端口号必须 ≥ 1024</string>
+        <string name="settings_error_bypass_rules">绕过规则格式错误：%1$s</string>
+        <!-- ===== C8 AppList 重构新增（仅限 AppList 代理插入） ===== -->
+        <string name="app_selected_count">已选 %1$d 个应用</string>
+        <string name="app_list_loading">正在加载应用…</string>
+        <string name="action_select_all">全选</string>
+        <string name="action_invert_selection">反选</string>
+        <string name="action_clear_selection">清除选择</string>
+        <string name="action_clear_search">清除搜索</string>
+        <string name="acc_app_select">选择 %1$s</string>
+
         <!-- 界面显示 -->
         <string name="show_server_addr">在配置列表中显示服务器地址</string>
         <string name="show_server_addr_hint">关闭后隐藏服务器地址，分享截图时不会泄露</string>

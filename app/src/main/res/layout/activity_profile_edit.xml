@@ -1,410 +1,533 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    配置编辑页重构（C6 / refactor-ui-ux）：
+    - 文本输入统一 TextInputLayout(OutlinedBox)，原 "xxx：" 标签 TextView 改为浮动 hint
+    - 按 基础信息 / 连接参数 / 进阶参数 三段视觉分组（组头 LabelLarge + colorOnSurfaceVariant）
+    - 保存=主色实心按钮，导入=描边按钮，触控目标 ≥48dp
+    - gcm_fields / xtunnel_fields 显隐由协议切换逻辑控制（保持不变）
+-->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
     <LinearLayout
-        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="16dp">
+        android:orientation="vertical"
+        android:padding="@dimen/spacing_lg">
 
-        <!-- 配置名称 -->
-        <TextView android:text="配置名称"
+        <!-- ==================== 基础信息 ==================== -->
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:paddingTop="8dp"/>
-        <EditText android:id="@+id/profile_name"
+            android:text="@string/section_basic_info"
+            android:textAppearance="?attr/textAppearanceLabelLarge"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.XClient.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="配置名称"
-            android:singleLine="true"/>
+            android:layout_marginTop="@dimen/spacing_md"
+            android:hint="@string/profile_name_hint">
 
-        <!-- 代理协议 -->
-        <TextView android:text="@string/protocol_label"
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/profile_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="text"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textStyle="bold"
-            android:paddingTop="8dp"/>
-        <Spinner android:id="@+id/protocol_spinner"
+            android:layout_marginTop="@dimen/spacing_md"
+            android:text="@string/protocol_spinner_label"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+
+        <Spinner
+            android:id="@+id/protocol_spinner"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"/>
+            android:layout_height="wrap_content"
+            android:minHeight="48dp" />
 
         <!-- ==================== GCM 协议字段 ==================== -->
         <LinearLayout
             android:id="@+id/gcm_fields"
-            android:orientation="vertical"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-            <!-- WSS 服务器地址 -->
-            <TextView android:text="@string/worker_host"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="8dp"/>
-            <EditText android:id="@+id/worker_host"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="wss://example.com"
-                android:singleLine="true"/>
-
-            <!-- 优选 IP -->
-            <TextView android:text="@string/pref_ip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/pref_ip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="1.1.1.1,8.8.8.8"
-                android:singleLine="true"/>
-
-            <!-- 用户 ID -->
-            <TextView android:text="@string/user_id"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/user_id"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="用户ID"
-                android:singleLine="true"/>
-
-            <!-- 出口代理 IP -->
-            <TextView android:text="@string/fallback_ip"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/fallback_ip"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="1.1.1.1,8.8.8.8"
-                android:singleLine="true"/>
-
-            <!-- 配置级选项 -->
+            <!-- 连接参数 -->
             <TextView
-                android:text="配置选项"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:paddingTop="24dp"
-                android:paddingBottom="8dp"/>
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:text="@string/section_connection_params"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-            <CheckBox android:id="@+id/disable_ech"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/disable_ech"/>
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/worker_host_hint">
 
-            <CheckBox android:id="@+id/disable_ipv6_route"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/worker_host"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/disable_ipv6_route"/>
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/pref_ip_hint">
 
-            <TextView android:text="@string/ws_conn"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/pref_ip"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/user_id_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/user_id"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/fallback_ip_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/fallback_ip"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 进阶参数 -->
+            <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="12dp"/>
-            <EditText android:id="@+id/ws_conn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="3"
-                android:inputType="number"
-                android:singleLine="true"/>
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:text="@string/section_advanced_params"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-            <CheckBox android:id="@+id/enable_dynamic_pool"
+            <CheckBox
+                android:id="@+id/disable_ech"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/enable_dynamic_pool"/>
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:minHeight="48dp"
+                android:text="@string/disable_ech"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
-            <TextView android:text="@string/dynamic_pool_max"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="12dp"/>
-            <EditText android:id="@+id/dynamic_pool_max"
+            <CheckBox
+                android:id="@+id/disable_ipv6_route"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="16"
-                android:inputType="number"
-                android:singleLine="true"/>
+                android:minHeight="48dp"
+                android:text="@string/disable_ipv6_route"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/ws_conn_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/ws_conn"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <CheckBox
+                android:id="@+id/enable_dynamic_pool"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/enable_dynamic_pool"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/dynamic_pool_max_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/dynamic_pool_max"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
         <!-- ==================== X-Tunnel 协议字段 ==================== -->
         <LinearLayout
             android:id="@+id/xtunnel_fields"
-            android:orientation="vertical"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="vertical"
             android:visibility="gone">
 
-            <TextView android:text="@string/xt_server_addr"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="8dp"/>
-            <EditText android:id="@+id/xt_server_addr"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="wss://tunnel.example.com:8443"
-                android:singleLine="true"/>
-
-            <TextView android:text="@string/xt_token"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/xt_token"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Token"
-                android:singleLine="true"/>
-
-            <TextView android:text="@string/xt_relay_nodes"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/xt_relay_nodes"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="relay1.example.com:443,relay2.example.com"
-                android:singleLine="true"/>
-
-            <TextView android:text="@string/xt_connections"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:paddingTop="16dp"/>
-            <EditText android:id="@+id/xt_connections"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="3"
-                android:inputType="number"
-                android:singleLine="true"/>
-
+            <!-- 连接参数 -->
             <TextView
-                android:text="配置选项"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="16sp"
-                android:paddingTop="24dp"
-                android:paddingBottom="8dp"/>
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:text="@string/section_connection_params"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-            <CheckBox android:id="@+id/xt_disable_ech"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/disable_ech"/>
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_server_addr_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_server_addr"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_token_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_token"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_relay_nodes_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_relay_nodes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_connections_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_connections"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 进阶参数 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_xl"
+                android:text="@string/section_advanced_params"
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <CheckBox
+                android:id="@+id/xt_disable_ech"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:minHeight="48dp"
+                android:text="@string/disable_ech"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
             <!-- ECH 查询域名与 DoH 服务器复用全局设置（SettingsActivity） -->
 
-            <CheckBox android:id="@+id/xt_insecure"
+            <CheckBox
+                android:id="@+id/xt_insecure"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/xt_insecure"/>
+                android:minHeight="48dp"
+                android:text="@string/xt_insecure"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
-            <CheckBox android:id="@+id/xt_enable_hot_pair"
+            <CheckBox
+                android:id="@+id/xt_enable_hot_pair"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/xt_enable_hot_pair"/>
+                android:minHeight="48dp"
+                android:text="@string/xt_enable_hot_pair"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:paddingTop="8dp"
-                android:text="@string/xt_hot_pair_count"
-                android:textStyle="bold"/>
-            <EditText android:id="@+id/xt_hot_pair_count"
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="1"
-                android:inputType="number"
-                android:singleLine="true"/>
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_hot_pair_count_hint">
 
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_hot_pair_count"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="number"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 高级参数（可折叠，点击展开/收起） -->
             <TextView
                 android:id="@+id/xt_advanced_header"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="8dp"
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:background="?attr/selectableItemBackground"
+                android:gravity="center_vertical"
+                android:minHeight="48dp"
                 android:text="@string/xt_advanced_params"
-                android:textStyle="bold"/>
+                android:textAppearance="?attr/textAppearanceLabelLarge"
+                android:textColor="?attr/colorOnSurfaceVariant" />
 
-            <LinearLayout android:id="@+id/xt_advanced_container"
+            <LinearLayout
+                android:id="@+id/xt_advanced_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_backpressure"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_backpressure"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="8"
-                    android:inputType="number"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_backpressure">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_write_queue_wait"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_write_queue_wait"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="100"
-                    android:inputType="number"
-                    android:singleLine="true"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_backpressure"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_dial_timeout"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_dial_timeout"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="3"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_write_queue_wait">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_handshake_timeout"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_handshake_timeout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="5"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_write_queue_wait"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_read_timeout"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_read_timeout"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="15"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_dial_timeout">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_write_timeout"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_write_timeout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="5"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_dial_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_ping_interval"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_ping_interval"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="5"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_handshake_timeout">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_reconnect_delay"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_reconnect_delay"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="1"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_handshake_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_connect_timeout"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_connect_timeout"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="15"
-                    android:inputType="numberDecimal"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_read_timeout">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_max_socks5"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_max_socks5"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="1024"
-                    android:inputType="number"
-                    android:singleLine="true"/>
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_read_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingTop="8dp"
-                    android:text="@string/xt_adv_udp_ports"
-                    android:textStyle="bold"/>
-                <EditText android:id="@+id/xt_adv_udp_ports"
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="443"
-                    android:inputType="text"
-                    android:singleLine="true"/>
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_write_timeout">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_write_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_ping_interval">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_ping_interval"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_reconnect_delay">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_reconnect_delay"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_connect_timeout">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_connect_timeout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_max_socks5">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_max_socks5"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/xt_adv_udp_ports">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/xt_adv_udp_ports"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="text"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <!-- 导入按钮 -->
-        <Button android:id="@+id/btn_import"
+        <!-- ==================== 操作按钮 ==================== -->
+        <Button
+            android:id="@+id/btn_import"
+            style="@style/Widget.XClient.OutlinedButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="导入配置"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#FF9800"
-            android:textSize="16sp"/>
+            android:layout_marginTop="@dimen/spacing_xl"
+            android:minHeight="48dp"
+            android:text="@string/dialog_title_import" />
 
-        <!-- 保存按钮 -->
-        <Button android:id="@+id/btn_save"
+        <Button
+            android:id="@+id/btn_save"
+            style="@style/Widget.XClient.Button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="保存"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#2196F3"
-            android:textSize="16sp"/>
+            android:layout_marginTop="@dimen/spacing_md"
+            android:minHeight="48dp"
+            android:text="@string/save" />
 
     </LinearLayout>
 </ScrollView>
