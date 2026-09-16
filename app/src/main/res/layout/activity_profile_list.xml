@@ -27,7 +27,7 @@
             android:id="@+id/profile_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="88dp"
+            android:paddingBottom="160dp"
             android:clipToPadding="false" />
 
         <com.x.client.app.ui.EmptyStateView
@@ -37,27 +37,27 @@
             android:layout_gravity="center"
             android:visibility="gone" />
 
-        <!-- 左下：VPN 连接主操作（compact 56dp，morph 展开为状态卡） -->
-        <com.x.client.app.ui.ConnectionFab
-            android:id="@+id/vpn_fab"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_gravity="bottom|start"
-            android:layout_marginStart="@dimen/spacing_lg"
-            android:layout_marginBottom="@dimen/spacing_xl" />
-
-        <!-- 右下：添加/导入（次级操作，与 VPN FAB 对称） -->
+        <!-- 右下：添加/导入（上层） -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_main"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
             android:layout_marginEnd="@dimen/spacing_lg"
-            android:layout_marginBottom="@dimen/spacing_xl"
+            android:layout_marginBottom="96dp"
             android:contentDescription="@string/acc_add_profile"
             android:src="@drawable/ic_add"
             app:tint="?attr/colorOnPrimaryContainer"
             app:backgroundTint="?attr/colorPrimaryContainer" />
+
+        <!-- 右下最底：VPN 连接主操作（compact 56dp 主色 container，morph 向左展开） -->
+        <com.x.client.app.ui.ConnectionFab
+            android:id="@+id/vpn_fab"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="@dimen/spacing_lg"
+            android:layout_marginBottom="@dimen/spacing_xl" />
 
     </FrameLayout>
 
