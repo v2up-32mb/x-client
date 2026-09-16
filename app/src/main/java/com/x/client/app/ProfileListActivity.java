@@ -192,7 +192,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         fabMain.setOnClickListener(v -> showFabMenu());
 
         // VPN FAB：tap=连接/断开主操作（展开态中 tap 由组件内部折叠，review §1）
-        vpnFab.setOnToggleListener(v -> toggleVpn());
+        vpnFab.setOnToggleListener(() -> toggleVpn());
         // 错误展开卡内嵌动作：重试 / 查看日志（收编原 ErrorBanner 能力，review §7.1）
         vpnFab.setOnRetryListener(this::toggleVpn);
         vpnFab.setOnDetailsListener(() ->
