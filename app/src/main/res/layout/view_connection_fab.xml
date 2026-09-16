@@ -22,36 +22,12 @@
         android:paddingTop="@dimen/spacing_md"
         android:paddingBottom="@dimen/spacing_md">
 
-        <FrameLayout
-            android:id="@+id/fab_icon_slot"
-            android:layout_width="24dp"
-            android:layout_height="24dp">
-
-            <ImageView
-                android:id="@+id/fab_icon"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:importantForAccessibility="no"
-                android:src="@drawable/ic_power" />
-
-            <com.google.android.material.progressindicator.CircularProgressIndicator
-                android:id="@+id/fab_progress"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:indeterminate="true"
-                android:importantForAccessibility="no"
-                android:visibility="gone"
-                app:indicatorSize="24dp"
-                app:trackCornerRadius="2dp"
-                app:trackThickness="3dp" />
-        </FrameLayout>
-
         <LinearLayout
             android:id="@+id/fab_text_block"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="@dimen/spacing_md"
+            android:layout_marginEnd="@dimen/spacing_md"
             android:orientation="vertical"
             android:accessibilityLiveRegion="polite"
             android:visibility="gone"
@@ -101,5 +77,29 @@
                     android:text="@string/common_view_logs" />
             </LinearLayout>
         </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/fab_icon_slot"
+            android:layout_width="24dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:id="@+id/fab_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_power" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/fab_progress"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:indeterminate="true"
+                android:importantForAccessibility="no"
+                android:visibility="gone"
+                app:indicatorSize="24dp"
+                app:trackCornerRadius="2dp"
+                app:trackThickness="3dp" />
+        </FrameLayout>
     </LinearLayout>
 </merge>

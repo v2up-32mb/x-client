@@ -87,6 +87,7 @@ public class ConnectionFab extends MaterialCardView {
     private boolean expanded = false;
     private int generation = 0;
     private final boolean animationsDisabled;
+    private int currentBg;
 
     private OnToggleListener toggleListener;
     private OnRetryListener retryListener;
@@ -112,7 +113,9 @@ public class ConnectionFab extends MaterialCardView {
 
         animationsDisabled = readAnimatorScale() == 0f;
 
-        // 与 Add FAB 视觉对称：56dp compact、elevation 一致
+        // 与 Add FAB 视觉一致：compact 恒主色 container、56dp、elevation 一致
+        currentBg = attr(com.google.android.material.R.attr.colorPrimaryContainer);
+        setCardBackgroundColor(currentBg);
         setRadius(dp(28));
         setCardElevation(dp(6));
         setClickable(true);
@@ -232,6 +235,7 @@ public class ConnectionFab extends MaterialCardView {
 
         int targetWidth = Math.min(dp(300),
                 getResources().getDisplayMetrics().widthPixels - dp(32));
+        // 图标在行尾（贴住原 FAB 位置），文字块在行首；向左展开时文字可用宽扣除图标+间距
         int textAvail = targetWidth - dp(16 + 24 + 12 + 16);
         textBlock.measure(
                 android.view.View.MeasureSpec.makeMeasureSpec(Math.max(dp(80), textAvail),
@@ -248,11 +252,15 @@ public class ConnectionFab extends MaterialCardView {
             getLayoutParams().width = targetWidth;
             getLayoutParams().height = targetHeight;
             setRadius(dp(16));
+            setCardBackgroundColor(bgColorFor(state, true));
+            currentBg = bgColorFor(state, true);
             textBlock.setAlpha(1f);
             textBlock.setTranslationX(0);
             requestLayout();
             return;
         }
+
+        animateBgTo(bgColorFor(state, true));
 
         ValueAnimator anim = ValueAnimator.ofFloat(0f, 1f);
         anim.setDuration((long) (EXPAND_DURATION_MS * animatorScale()));
@@ -270,9 +278,10 @@ public class ConnectionFab extends MaterialCardView {
         });
         anim.start();
 
+        // 右锥定下向左展开：内容从图标侧（右侧）被推入新空间，LIT 与 RTL 镜像
         boolean rtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
         textBlock.setAlpha(0f);
-        textBlock.setTranslationX(rtl ? dp(12) : -dp(12));
+        textBlock.setTranslationX(rtl ? -dp(12) : dp(12));
         textBlock.animate()
                 .alpha(1f)
                 .translationX(0f)
@@ -299,6 +308,7 @@ public class ConnectionFab extends MaterialCardView {
         int startW = Math.max(getWidth(), dp(56));
         int startH = Math.max(getHeight(), dp(56));
         float startRadius = getRadius();
+        animateBgTo(bgColorFor(state, false));
         textBlock.animate()
                 .alpha(0f)
                 .setDuration((long) (CONTENT_FADE_OUT_MS * animatorScale()))
@@ -335,6 +345,8 @@ public class ConnectionFab extends MaterialCardView {
         getLayoutParams().width = dp(56);
         getLayoutParams().height = dp(56);
         setRadius(dp(28));
+        setCardBackgroundColor(bgColorFor(state, false));
+        currentBg = bgColorFor(state, false);
         requestLayout();
     }
 
@@ -363,58 +375,109 @@ public class ConnectionFab extends MaterialCardView {
 
     // ================================ 视觉映射 ================================
 
+    /** 背景色：compact 恒为主色 container（与 Add FAB 一致，用户反馈修正）；展开卡按状态语义着色。 */
+    private int bgColorFor(State s, boolean isExpanded) {
+        if (!isExpanded) {
+            return attr(com.google.android.material.R.attr.colorPrimaryContainer);
+        }
+        switch (s) {
+            case CONNECTED:
+                return color(R.color.md_success_container);
+            case ERROR:
+                return attr(com.google.android.material.R.attr.colorErrorContainer);
+            case DISCONNECTED:
+                return attr(com.google.android.material.R.attr.colorSurfaceContainer);
+            default: // CONNECTING / DISCONNECTING
+                return attr(com.google.android.material.R.attr.colorPrimaryContainer);
+        }
+    }
+
+    /** 图标 tint：compact 藏蓝 container 前景系；展开卡按状态前景系。 */
+    private int iconTintFor(State s, boolean isExpanded) {
+        if (!isExpanded) {
+            switch (s) {
+                case CONNECTED:
+                    return color(R.color.md_success);
+                case ERROR:
+                    return attr(com.google.android.material.R.attr.colorError);
+                case CONNECTING:
+                case DISCONNECTING:
+                    return attr(com.google.android.material.R.attr.colorPrimary);
+                default:
+                    return attr(com.google.android.material.R.attr.colorOnPrimaryContainer);
+            }
+        }
+        switch (s) {
+            case CONNECTED:
+                return color(R.color.md_success);
+            case ERROR:
+                return attr(com.google.android.material.R.attr.colorOnErrorContainer);
+            case DISCONNECTED:
+                return attr(com.google.android.material.R.attr.colorOnSurfaceVariant);
+            default:
+                return attr(com.google.android.material.R.attr.colorPrimary);
+        }
+    }
+
+    /** 展开卡标题/副文案前景（compact 下文字隐藏，仅保持一致不闪烁）。 */
+    private int titleColorFor(State s, boolean isExpanded) {
+        if (!isExpanded) {
+            return attr(com.google.android.material.R.attr.colorOnPrimaryContainer);
+        }
+        switch (s) {
+            case CONNECTED:
+                return color(R.color.md_on_success_container);
+            case ERROR:
+                return attr(com.google.android.material.R.attr.colorOnErrorContainer);
+            case DISCONNECTED:
+                return attr(com.google.android.material.R.attr.colorOnSurface);
+            default:
+                return attr(com.google.android.material.R.attr.colorOnPrimaryContainer);
+        }
+    }
+
+    private void animateBgTo(int target) {
+        if (currentBg == target) {
+            return;
+        }
+        ValueAnimator bgAnim = ValueAnimator.ofArgb(currentBg, target);
+        bgAnim.setDuration((long) (EXPAND_DURATION_MS * animatorScale()));
+        bgAnim.addUpdateListener(a -> {
+            currentBg = (int) a.getAnimatedValue();
+            setCardBackgroundColor(currentBg);
+        });
+        bgAnim.start();
+    }
+
     private void applyVisuals(State s) {
-        int cardColor;
-        int titleColor;
-        int subtitleColor;
-        int iconTint;
         boolean showProgress = (s == State.CONNECTING || s == State.DISCONNECTING);
+        int cardColor = bgColorFor(s, expanded);
+        int titleColor = titleColorFor(s, expanded);
+        int subtitleColor = (expanded && s == State.DISCONNECTED)
+                ? attr(com.google.android.material.R.attr.colorOnSurfaceVariant) : titleColor;
+        int iconTint = iconTintFor(s, expanded);
         String desc;
 
         switch (s) {
             case CONNECTING:
-                cardColor = attr(com.google.android.material.R.attr.colorPrimaryContainer);
-                titleColor = attr(com.google.android.material.R.attr.colorOnPrimaryContainer);
-                subtitleColor = titleColor;
-                iconTint = attr(com.google.android.material.R.attr.colorPrimary);
-                iconView.setImageResource(R.drawable.ic_power);
                 desc = getContext().getString(R.string.acc_vpn_connecting);
                 break;
             case CONNECTED:
-                cardColor = color(R.color.md_success_container);
-                titleColor = color(R.color.md_on_success_container);
-                subtitleColor = titleColor;
-                iconTint = color(R.color.md_success);
-                iconView.setImageResource(R.drawable.ic_check_circle);
                 desc = getContext().getString(R.string.acc_disconnect);
                 break;
             case DISCONNECTING:
-                cardColor = attr(com.google.android.material.R.attr.colorSurfaceContainer);
-                titleColor = attr(com.google.android.material.R.attr.colorOnSurface);
-                subtitleColor = attr(com.google.android.material.R.attr.colorOnSurfaceVariant);
-                iconTint = subtitleColor;
-                iconView.setImageResource(R.drawable.ic_power);
                 desc = getContext().getString(R.string.acc_vpn_disconnecting);
                 break;
             case ERROR:
-                cardColor = attr(com.google.android.material.R.attr.colorErrorContainer);
-                titleColor = attr(com.google.android.material.R.attr.colorOnErrorContainer);
-                subtitleColor = titleColor;
-                iconTint = titleColor;
-                iconView.setImageResource(R.drawable.ic_error);
                 desc = getContext().getString(R.string.acc_vpn_error);
                 break;
             case DISCONNECTED:
             default:
-                cardColor = attr(com.google.android.material.R.attr.colorSurfaceContainer);
-                titleColor = attr(com.google.android.material.R.attr.colorOnSurface);
-                subtitleColor = attr(com.google.android.material.R.attr.colorOnSurfaceVariant);
-                iconTint = subtitleColor;
-                iconView.setImageResource(R.drawable.ic_power);
                 desc = getContext().getString(R.string.acc_connect);
                 break;
         }
 
+        currentBg = cardColor;
         setCardBackgroundColor(cardColor);
         titleView.setTextColor(titleColor);
         subtitleView.setTextColor(subtitleColor);
@@ -423,8 +486,8 @@ public class ConnectionFab extends MaterialCardView {
         progressView.setTrackColor(android.graphics.Color.TRANSPARENT);
         iconView.setVisibility(showProgress ? GONE : VISIBLE);
         progressView.setVisibility(showProgress ? VISIBLE : GONE);
-        // 错误卡内按钮前景与 onErrorContainer 对齐（对比度达标）
-        int actionColor = (s == State.ERROR) ? titleColor
+        // 错误卡内按钮前景与 onErrorContainer 对齐（对比度达标）；非错误卡用主色
+        int actionColor = (s == State.ERROR && expanded) ? titleColor
                 : attr(com.google.android.material.R.attr.colorPrimary);
         ((MaterialButton) findViewById(R.id.fab_retry)).setTextColor(actionColor);
         ((MaterialButton) findViewById(R.id.fab_details)).setTextColor(actionColor);
