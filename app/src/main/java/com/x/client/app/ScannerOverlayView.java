@@ -20,14 +20,26 @@ public class ScannerOverlayView extends ViewfinderView {
     private Paint maskPaint;
     private Paint framePaint;
     private Paint cornerPaint;
+    // 默认值与 values/colors.xml 的 scanner_* token 一致；
+    // 实际取值来自 custom_barcode_scanner.xml 的 app:scanner* 属性（token 化，见 C9）
     private int maskColor = 0x80000000; // 半透明黑色
     private int frameColor = 0xFFFFFFFF; // 白色边框
-    private int cornerColor = 0xFF00FF00; // 绿色角标
+    private int cornerColor = 0xFF00C853; // 绿色角标
+    private int lineColor = 0x8000E676; // 半透明绿色扫描线
     private int cornerLength = 60; // 角标长度
     private int cornerWidth = 8; // 角标宽度
 
     public ScannerOverlayView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        if (attrs != null) {
+            android.content.res.TypedArray ta = context.obtainStyledAttributes(attrs,
+                    com.x.client.app.R.styleable.ScannerOverlayView);
+            maskColor = ta.getColor(com.x.client.app.R.styleable.ScannerOverlayView_scannerMaskColor, maskColor);
+            frameColor = ta.getColor(com.x.client.app.R.styleable.ScannerOverlayView_scannerFrameColor, frameColor);
+            cornerColor = ta.getColor(com.x.client.app.R.styleable.ScannerOverlayView_scannerCornerColor, cornerColor);
+            lineColor = ta.getColor(com.x.client.app.R.styleable.ScannerOverlayView_scannerLineColor, lineColor);
+            ta.recycle();
+        }
         init();
     }
 
@@ -105,7 +117,7 @@ public class ScannerOverlayView extends ViewfinderView {
         int scanLineTop = frame.top + (int) ((currentTime / 10) % frame.height());
 
         Paint scanLinePaint = new Paint();
-        scanLinePaint.setColor(0x8000FF00); // 半透明绿色
+        scanLinePaint.setColor(lineColor); // 半透明绿色（token）
         scanLinePaint.setStrokeWidth(4);
 
         canvas.drawLine(frame.left, scanLineTop, frame.right, scanLineTop, scanLinePaint);

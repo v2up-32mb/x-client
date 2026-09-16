@@ -8,11 +8,15 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <!-- 自定义遮罩视图 -->
+    <!-- 自定义遮罩视图（颜色 token 见 values/colors.xml scanner_*，扫码页恒暗、不随主题切换） -->
     <com.x.client.app.ScannerOverlayView
         android:id="@+id/zxing_viewfinder_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent"
+        app:scannerMaskColor="@color/scanner_mask"
+        app:scannerFrameColor="@color/scanner_frame"
+        app:scannerCornerColor="@color/scanner_corner"
+        app:scannerLineColor="@color/scanner_line" />
 
     <!-- 提示文本 -->
     <TextView
@@ -21,10 +25,10 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal|bottom"
         android:layout_marginBottom="80dp"
-        android:text="将二维码对准扫描框"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:background="#80000000"
-        android:padding="12dp" />
+        android:text="@string/scanner_hint"
+        android:textColor="@color/scanner_frame"
+        android:textAppearance="?attr/textAppearanceBodyLarge"
+        android:background="@color/scanner_mask"
+        android:padding="@dimen/spacing_md" />
 
 </merge>

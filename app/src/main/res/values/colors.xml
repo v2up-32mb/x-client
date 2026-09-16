@@ -8,6 +8,12 @@
          数值依据：docs/ui-ux/research-visual.md §5-§6（对比度实测达标）
          ============================================================ -->
 
+        <!-- ===== C9 扫码页/导出对话框（恒暗功能色，不随主题） ===== -->
+        <color name="scanner_mask">#80000000</color>
+        <color name="scanner_frame">#FFFFFFFF</color>
+        <color name="scanner_corner">#FF00C853</color>
+        <color name="scanner_line">#8000E676</color>
+
     <!-- 启动图标自适应背景（mipmap-anydpi-v26 引用） -->
     <color name="ic_launcher_background">#FFFFFFFF</color>
 
@@ -53,11 +59,4 @@
     <!-- Outline -->
     <color name="x_outline">#FF79747E</color>
     <color name="x_outline_variant">#FFCAC4D0</color>
-
-    <!-- ===== Legacy alias（过渡期，组件迁移后于 C10 删除） ===== -->
-    <color name="toolbar_background">@color/x_surface_container</color>
-    <color name="fab_background">@color/x_primary_container</color>
-    <color name="secondary_text">@color/x_on_surface_variant</color>
-    <color name="divider">@color/x_outline_variant</color>
-    <color name="code_background">@color/x_surface_container_lowest</color>
 </resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 扫码遮罩自定义属性（功能色与主题解耦，见 research-visual §6.2） -->
+    <declare-styleable name="ScannerOverlayView">
+        <attr name="scannerMaskColor" format="color" />
+        <attr name="scannerFrameColor" format="color" />
+        <attr name="scannerCornerColor" format="color" />
+        <attr name="scannerLineColor" format="color" />
+    </declare-styleable>
+</resources>

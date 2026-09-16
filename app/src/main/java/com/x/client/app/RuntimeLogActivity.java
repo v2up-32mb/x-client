@@ -116,10 +116,37 @@ public class RuntimeLogActivity extends AppCompatActivity {
             return;
         }
 
-        textLogs.setText(currentLogs);
+        textLogs.setText(colorize(currentLogs));
         textStatus.setText(getString(R.string.runtime_logs_line_count, countLines(currentLogs)));
         btnCopy.setEnabled(true);
         scrollLogs.post(() -> scrollLogs.fullScroll(ScrollView.FOCUS_DOWN));
+    }
+
+    /**
+     * 日志行级语义着色（redesign-plan §6.5：ERROR=错误红、WARN=警告橙）。
+     * 按行前缀匹配（golib 运行时日志格式 [scope][LEVEL]），不改变文本内容，仅影响显示。
+     */
+    private CharSequence colorize(String logs) {
+        String[] lines = logs.split("\n");
+        android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
+        int errorColor = androidx.core.content.ContextCompat.getColor(this, R.color.x_error);
+        int warnColor = androidx.core.content.ContextCompat.getColor(this, R.color.md_warning);
+        int normalColor = androidx.core.content.ContextCompat.getColor(this, R.color.x_on_surface);
+        for (String line : lines) {
+            int start = sb.length();
+            sb.append(line).append('\n');
+            if (line.contains("ERROR")) {
+                sb.setSpan(new android.text.style.ForegroundColorSpan(errorColor), start, sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else if (line.contains("WARN")) {
+                sb.setSpan(new android.text.style.ForegroundColorSpan(warnColor), start, sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            } else {
+                sb.setSpan(new android.text.style.ForegroundColorSpan(normalColor), start, sb.length(),
+                        android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
+        }
+        return sb;
     }
 
     private int countLines(String value) {
