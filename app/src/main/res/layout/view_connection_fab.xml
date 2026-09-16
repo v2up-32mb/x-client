@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    VPN Connection FAB：compact（56×56 图标）↔ expanded（morph 为状态卡）。
+    morph 规格：宽 56→≤300dp、高 56→minHeight 76dp（wrap_content 适配 fontScale）、圆角 28→16dp。
+    五态配色见 docs/ui-ux/redesign-plan.md §6.5 与 docs/ui-ux/refine-ux-review.md §3。
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:parentTag="com.google.android.material.card.MaterialCardView"
+    tools:theme="@style/Theme.XClient">
+
+    <LinearLayout
+        android:id="@+id/fab_content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingTop="@dimen/spacing_md"
+        android:paddingBottom="@dimen/spacing_md">
+
+        <FrameLayout
+            android:id="@+id/fab_icon_slot"
+            android:layout_width="24dp"
+            android:layout_height="24dp">
+
+            <ImageView
+                android:id="@+id/fab_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_power" />
+
+            <com.google.android.material.progressindicator.CircularProgressIndicator
+                android:id="@+id/fab_progress"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:indeterminate="true"
+                android:importantForAccessibility="no"
+                android:visibility="gone"
+                app:indicatorSize="24dp"
+                app:trackCornerRadius="2dp"
+                app:trackThickness="3dp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/fab_text_block"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="@dimen/spacing_md"
+            android:orientation="vertical"
+            android:accessibilityLiveRegion="polite"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/fab_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                tools:text="正在连接…" />
+
+            <TextView
+                android:id="@+id/fab_subtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:maxLines="2"
+                android:ellipsize="end"
+                tools:text="默认节点 · example.com" />
+
+            <LinearLayout
+                android:id="@+id/fab_error_actions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fab_retry"
+                    style="@style/Widget.XClient.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="@dimen/touch_target_min"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/common_retry" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/fab_details"
+                    style="@style/Widget.XClient.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="@dimen/spacing_sm"
+                    android:minWidth="@dimen/touch_target_min"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/common_view_logs" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</merge>
