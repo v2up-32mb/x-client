@@ -29,10 +29,10 @@ TYPE = 2 CLOSE       无 DATA
 
 WebSocket 连接：`wss://<workerHost>/<userID>?fallbackip=<出口IP列表>`
 
-### x-tunnel（计划集成）
+### x-tunnel（已实现）
 
-多通道 WebSocket 隧道，8 字节头协议，支持通道选择机制 + Hot Pair + UDP associate。
-详见 `INTEGRATION_PLAN.md`。
+多通道 WebSocket 隧道，8 字节头协议（connID + msgType），支持通道选择机制 +
+Hot Pair + UDP associate + 独立 HTTP 代理 + 背压控制。协议细节见 `golib/README.md`。
 
 ## 构建
 
@@ -103,7 +103,9 @@ x-tunnel 连接池自带持续重连；SOCKS5/HTTP 无可用通道时返回标�
 - Android Java 包名 `com.x.client.app`，NDK PKGNAME `com/x/client/app`
 - hev-socks5-tunnel 子模块在 CI 阶段 clone 到 `app/src/main/jni`
 - 支持 4 种 ABI: armeabi-v7a, arm64-v8a, x86, x86_64
-- 集成计划详见 `INTEGRATION_PLAN.md`
+- 模块功能文档：[`golib/README.md`](golib/README.md)（Go 核心）与 [`app/README.md`](app/README.md)（Android）
+- 本地开发过程文件（调研报告、历史日志、实施计划 `INTEGRATION_PLAN.md`）仅存于本地
+  `docs/` 与仓库根目录，已在 `.gitignore` 声明，不推送远程
 
 ---
 

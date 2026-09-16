@@ -19,7 +19,7 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 - **节点管理**：多 Profile、命名、导入/导出、二维码扫描
 - **全局设置**：SOCKS5 端口、DoH 服务器、ECH 域名、DNS 预热、日志等级
 - **运行日志**：内存环形缓冲，日志等级可调，时间戳跟随 Android 系统时区
-- **主题**：跟随系统 / 亮色 / 暗色
+- **主题与 UI**：Material 3（`Theme.XClient`），右下角五态 `Connection FAB`，Profile 行滑动菜单，跟随系统 / 亮色 / 暗色
 - **X-Tunnel 独有**：UDP associate（SOCKS5 UDP 代理）、Hot Pair 热通道预绑定、
   Fast Retry、通道竞争选路、背压控制、HTTP 代理
 
@@ -42,11 +42,11 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 
 | 文件 | 适用设备 |
 |---|---|
-| `x-client-arm64-v8a-release-signed.apk` | 64 位 ARM（大多数现代设备） |
-| `x-client-armeabi-v7a-release-signed.apk` | 32 位 ARM |
-| `x-client-x86-release-signed.apk` | 32 位 x86（模拟器） |
-| `x-client-x86_64-release-signed.apk` | 64 位 x86（模拟器） |
-| `x-client-universal-release-signed.apk` | 全架构（体积最大） |
+| `x-client-arm64-v8a-release.apk` | 64 位 ARM（大多数现代设备） |
+| `x-client-armeabi-v7a-release.apk` | 32 位 ARM |
+| `x-client-x86-release.apk` | 32 位 x86（模拟器） |
+| `x-client-x86_64-release.apk` | 64 位 x86（模拟器） |
+| `x-client-universal-release.apk` | 全架构（体积最大） |
 
 ## 构建
 
@@ -58,33 +58,34 @@ X Client 是一个 Android 多协议 VPN 客户端。每个 Profile（节点）�
 - Go 1.25+、[gomobile](https://pkg.go.dev/golang.org/x/mobile/cmd/gomobile)
 - hev-socks5-tunnel 需在构建前 clone 到 `app/src/main/jni`（CI 会自行完成）
 
-### 本地构建
+### 本地构建（仅 Go 侧 / AAR）
+
+> APK 编译与发版一律由 GitHub Actions 完成（见下节），本地不尝试构建 APK。
 
 ```bash
 # 1. 克隆 hev-socks5-tunnel（TUN 转发层）
 git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
 
-# 2. 编译 Go 核心库为 AAR
+# 2. 编译 Go 核心库为 AAR（供 Android 层使用）
 cd golib
 go get golang.org/x/mobile/bind
 gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
-
-# 3. 构建 APK（版本号由 CI 从 tag 注入）
-cd ..
-./gradlew assembleDebug
 ```
+
+各模块功能文档：[golib/README.md](golib/README.md) ｜ [app/README.md](app/README.md)
 
 ### CI 工作流
 
 | 工作流 | 触发方式 | 产物 |
 |---|---|---|
-| `build-debug.yml` | `workflow_dispatch` 手动 | 4 ABI debug APK |
-| `release.yml` | 推送 `v*` 标签 | 签名 APK + GitHub Release |
+| `build-aar.yml` | 推送到 `main`（`golib/**` 变更）/ 手动 | 预热默认分支作用域的 gomobile AAR 缓存 |
+| `release.yml` | 推送 `v*` 标签：构建 + 签名 + 发版；手动 workflow_dispatch：仅 release 类型 CI 构建验证（unsigned，不发版） | 签名 APK + GitHub Release |
 | `check-keystore.yml` | `workflow_dispatch` 手动 | 验证签名密钥 secrets |
 
-Release 流程：打附注标签（如 `v1.1.2`）并推送，`release.yml` 自动构建、签名
+Release 流程：打附注标签（如 `v1.2.2`）并推送，`release.yml` 自动构建、签名
 （secrets：`SIGNING_KEY` / `ALIAS` / `KEY_STORE_PASSWORD` / `KEY_PASSWORD`）并创建 Release，
-`VERSION_NAME` 取标签去掉 `v` 前缀，`VERSION_CODE` 取提交计数。
+`VERSION_NAME` 取标签去掉 `v` 前缀，`VERSION_CODE` 取提交计数；语义化版本带
+`-preview` / `-beta` / `-rc` 后缀自动标记 prerelease。
 
 ## 使用
 
@@ -116,8 +117,9 @@ x-client/
 │   ├── gcm/              # GCM 协议后端（backend/pool/relay/protocol）
 │   ├── xtunnel/          # X-Tunnel 协议后端（client/relay/protocol）
 │   └── shared/           # 共享模块（config/dns/ech/logger/routing/socks5）
-├── .github/workflows/    # CI：Debug 构建 / Release 发布 / 密钥检查
-└── ... / AGENTS.md、INTEGRATION_PLAN.md、tasks.md、progress.md
+├── .github/workflows/    # CI：AAR 预热 / Release 发布与 CI 构建 / 密钥检查
+├── docs/                 # 本地开发文档（不推送），模块文档见 golib/ 与 app/ 的 README
+└── AGENTS.md             # Agent 约定（构建约束 / commit 规范）
 ```
 
 数据流：
