@@ -117,7 +117,7 @@ x-client/
 │   ├── xtunnel/          # X-Tunnel 协议后端（client/relay/protocol）
 │   └── shared/           # 共享模块（config/dns/ech/logger/routing/socks5）
 ├── .github/workflows/    # CI：Debug 构建 / Release 发布 / 密钥检查
-└── ... / CLAUDE.md、INTEGRATION_PLAN.md、tasks.md、progress.md
+└── ... / AGENTS.md、INTEGRATION_PLAN.md、tasks.md、progress.md
 ```
 
 数据流：
