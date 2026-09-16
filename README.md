@@ -165,4 +165,4 @@ VPN TUN ──► hev-socks5-tunnel ──► 本地 SOCKS5 ──► Go 协议�
 - Go 模块名为 `xclient`；gomobile 生成的 AAR 类名前缀为 `xclient.Xclient`
 - 网络直连 GitHub 可能被 SNI 阻断，可配置 git 仓库级 `http.proxy`
 - `golib/go.mod` 中 `golang.org/x/mobile/bind` 由 CI 自行 `go get`，不提交依赖改动
-- 集成设计与两项目架构交叉分析详见 `INTEGRATION_PLAN.md`
+- 集成设计与两项目架构交叉分析原文见本地 `INTEGRATION_PLAN.md`（已本地化，不推送）
