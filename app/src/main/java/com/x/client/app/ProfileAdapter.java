@@ -73,7 +73,13 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         Preferences.ProfileInfo profile = profiles.get(position);
 
         // 设置选中状态
-        holder.radioSelected.setChecked(profile.id.equals(selectedProfileId));
+        boolean isSelected = profile.id.equals(selectedProfileId);
+        holder.radioSelected.setChecked(isSelected);
+
+        // 当前配置高亮（primaryContainer 底色，redesign-plan §8.1；主题切换由 color 资源限定符承接）
+        holder.foregroundLayout.setBackgroundColor(androidx.core.content.ContextCompat.getColor(
+                holder.foregroundLayout.getContext(),
+                isSelected ? R.color.x_primary_container : R.color.x_surface));
 
         // 设置配置名称
         holder.textProfileName.setText(profile.name);
@@ -159,7 +165,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             boolean isCurrentProfile = profile.id.equals(selectedProfileId);
             if (isVpnRunning && isCurrentProfile) {
                 // VPN 运行且是当前配置：显示提示
-                android.widget.Toast.makeText(v.getContext(), "VPN 正在运行，无法编辑当前配置", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(v.getContext(), R.string.cannot_edit_running, android.widget.Toast.LENGTH_SHORT).show();
             } else if (listener != null) {
                 listener.onEditClick(profile.id);
             }
@@ -172,7 +178,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             boolean isCurrentProfile = profile.id.equals(selectedProfileId);
             if (isVpnRunning && isCurrentProfile) {
                 // VPN 运行且是当前配置：显示提示
-                android.widget.Toast.makeText(v.getContext(), "VPN 正在运行，无法删除当前配置", android.widget.Toast.LENGTH_SHORT).show();
+                android.widget.Toast.makeText(v.getContext(), R.string.cannot_delete_running, android.widget.Toast.LENGTH_SHORT).show();
             } else if (listener != null) {
                 listener.onDeleteClick(profile.id);
             }

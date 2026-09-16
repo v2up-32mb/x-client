@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Profile 列表项（滑动操作）token 化重构（redesign-plan §8.1）：
+    - 行高 56dp→64dp，触控目标达标；字号并入 M3 字阶
+    - 滑动操作按钮按语义着色：分享/复制=中性 tonal，编辑=primaryContainer，删除=error
+    - contentDescription 全部走字符串资源
+-->
 <com.x.client.app.SwipeRevealLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -10,13 +16,13 @@
     <LinearLayout
         android:id="@+id/foreground_layout"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingEnd="10dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:background="?android:attr/colorBackground"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingBottom="@dimen/spacing_sm"
+        android:background="?attr/colorSurface"
         android:gravity="center_vertical">
 
         <!-- 选中指示器 -->
@@ -32,7 +38,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
+            android:layout_marginStart="@dimen/spacing_sm"
             android:orientation="vertical">
 
             <!-- 配置名称 -->
@@ -40,9 +46,9 @@
                 android:id="@+id/text_profile_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:text="配置名称"/>
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/colorOnSurface"
+                android:text="@string/default_profile_name"/>
 
             <!-- 服务器地址 -->
             <TextView
@@ -50,7 +56,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:textSize="11sp"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
                 android:textColor="@color/secondary_text"
                 android:text="server.com"/>
 
@@ -62,9 +68,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="@dimen/spacing_xs"
             android:layout_marginBottom="2dp"
-            android:textSize="10sp"
+            android:textAppearance="?attr/textAppearanceLabelMedium"
             android:textColor="@color/secondary_text"
             android:text="GCM"/>
 
@@ -81,54 +87,54 @@
     <LinearLayout
         android:id="@+id/action_buttons"
         android:layout_width="wrap_content"
-        android:layout_height="56dp"
+        android:layout_height="64dp"
         android:layout_gravity="end|top"
         android:orientation="horizontal"
         android:visibility="gone">
 
         <ImageButton
             android:id="@+id/btn_share"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_share"
-            android:background="#4CAF50"
-            android:tint="#FFFFFF"
+            android:background="?attr/colorSurfaceContainerHigh"
+            app:tint="?attr/colorOnSurface"
             android:scaleType="centerInside"
-            android:padding="16dp"
-            android:contentDescription="分享"/>
+            android:padding="@dimen/spacing_lg"
+            android:contentDescription="@string/acc_share"/>
 
         <ImageButton
             android:id="@+id/btn_copy"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@drawable/ic_action_copy"
-            android:background="#FF9800"
-            android:tint="#FFFFFF"
+            android:background="?attr/colorSurfaceContainerHigh"
+            app:tint="?attr/colorOnSurface"
             android:scaleType="centerInside"
-            android:padding="16dp"
-            android:contentDescription="复制"/>
+            android:padding="@dimen/spacing_lg"
+            android:contentDescription="@string/acc_copy"/>
 
         <ImageButton
             android:id="@+id/btn_edit"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_edit"
-            android:background="#2196F3"
-            android:tint="#FFFFFF"
+            android:background="?attr/colorPrimaryContainer"
+            app:tint="?attr/colorOnPrimaryContainer"
             android:scaleType="centerInside"
-            android:padding="16dp"
-            android:contentDescription="修改"/>
+            android:padding="@dimen/spacing_lg"
+            android:contentDescription="@string/acc_edit"/>
 
         <ImageButton
             android:id="@+id/btn_delete"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="64dp"
+            android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_delete"
-            android:background="#F44336"
-            android:tint="#FFFFFF"
+            android:background="?attr/colorError"
+            app:tint="?attr/colorOnError"
             android:scaleType="centerInside"
-            android:padding="16dp"
-            android:contentDescription="删除"/>
+            android:padding="@dimen/spacing_lg"
+            android:contentDescription="@string/acc_delete"/>
     </LinearLayout>
 
 </com.x.client.app.SwipeRevealLayout>
