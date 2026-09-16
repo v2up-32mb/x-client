@@ -65,4 +65,8 @@
     <color name="x_on_tertiary">#FFFFFFFF</color>
     <color name="x_tertiary_container">#FFB4EBE3</color>
     <color name="x_on_tertiary_container">#FF003733</color>
+
+    <!-- Share 专属加深蓝（与行选中高亮 primaryContainer 区分边界，用户反馈修正） -->
+    <color name="x_share_container">#FF8FCBF2</color>
+    <color name="x_on_share_container">#FF00243A</color>
 </resources>

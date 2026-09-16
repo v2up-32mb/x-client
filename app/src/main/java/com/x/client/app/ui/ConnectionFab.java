@@ -113,10 +113,10 @@ public class ConnectionFab extends MaterialCardView {
 
         animationsDisabled = readAnimatorScale() == 0f;
 
-        // 与 Add FAB 视觉一致：compact 恒主色 container、56dp、elevation 一致
+        // 与 Add FAB 视觉一致：compact 恒主色 container、56dp、16dp 圆角方形（M3 FAB 形状）、elevation 一致
         currentBg = attr(com.google.android.material.R.attr.colorPrimaryContainer);
         setCardBackgroundColor(currentBg);
-        setRadius(dp(28));
+        setRadius(dp(16));
         setCardElevation(dp(6));
         setClickable(true);
         setFocusable(true);
@@ -251,7 +251,6 @@ public class ConnectionFab extends MaterialCardView {
         if (animationsDisabled) {
             getLayoutParams().width = targetWidth;
             getLayoutParams().height = targetHeight;
-            setRadius(dp(16));
             setCardBackgroundColor(bgColorFor(state, true));
             currentBg = bgColorFor(state, true);
             textBlock.setAlpha(1f);
@@ -273,7 +272,6 @@ public class ConnectionFab extends MaterialCardView {
             float t = a.getAnimatedFraction();
             getLayoutParams().width = (int) (startW + (targetWidth - startW) * t);
             getLayoutParams().height = (int) (startH + (targetHeight - startH) * t);
-            setRadius(dp(28) + (dp(16) - dp(28)) * t);
             requestLayout();
         });
         anim.start();
@@ -307,7 +305,6 @@ public class ConnectionFab extends MaterialCardView {
 
         int startW = Math.max(getWidth(), dp(56));
         int startH = Math.max(getHeight(), dp(56));
-        float startRadius = getRadius();
         animateBgTo(bgColorFor(state, false));
         textBlock.animate()
                 .alpha(0f)
@@ -324,7 +321,6 @@ public class ConnectionFab extends MaterialCardView {
             float t = a.getAnimatedFraction();
             getLayoutParams().width = (int) (startW + (dp(56) - startW) * t);
             getLayoutParams().height = (int) (startH + (dp(56) - startH) * t);
-            setRadius(startRadius + (dp(28) - startRadius) * t);
             requestLayout();
         });
         anim.addListener(new android.animation.AnimatorListenerAdapter() {
@@ -344,10 +340,12 @@ public class ConnectionFab extends MaterialCardView {
         textBlock.setTranslationX(0);
         getLayoutParams().width = dp(56);
         getLayoutParams().height = dp(56);
-        setRadius(dp(28));
+        setRadius(dp(16));
         setCardBackgroundColor(bgColorFor(state, false));
         currentBg = bgColorFor(state, false);
         requestLayout();
+        // 收折后从反馈图标（√）回到常驻状态图标（connected：✓ 实心圆）
+        applyVisuals(state);
     }
 
     private void scheduleCollapse(long delay) {
@@ -474,6 +472,21 @@ public class ConnectionFab extends MaterialCardView {
             case DISCONNECTED:
             default:
                 desc = getContext().getString(R.string.acc_connect);
+                break;
+        }
+
+        switch (s) {
+            case CONNECTED:
+                // 反馈期（展开中）用 √ 过渡图标；收折后回常驻 ✓ 实心圆（中间状态）
+                iconView.setImageResource(expanded ? R.drawable.ic_check : R.drawable.ic_check_circle);
+                break;
+            case ERROR:
+                iconView.setImageResource(R.drawable.ic_error);
+                break;
+            case DISCONNECTING:
+            case DISCONNECTED:
+            default:
+                iconView.setImageResource(R.drawable.ic_power);
                 break;
         }
 
