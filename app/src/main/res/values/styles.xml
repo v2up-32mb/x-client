@@ -17,6 +17,10 @@
         <!-- Secondary/Tertiary 未定制品牌色，继承 M3 默认；显式绑定 primary 保持界面收敛 -->
         <item name="colorSecondary">@color/x_primary</item>
         <item name="colorOnSecondary">@color/x_on_primary</item>
+        <item name="colorTertiary">@color/x_tertiary</item>
+        <item name="colorOnTertiary">@color/x_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/x_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/x_on_tertiary_container</item>
 
         <!-- Surface / Background -->
         <item name="android:colorBackground">@color/x_background</item>

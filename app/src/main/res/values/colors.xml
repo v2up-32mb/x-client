@@ -59,4 +59,10 @@
     <!-- Outline -->
     <color name="x_outline">#FF79747E</color>
     <color name="x_outline_variant">#FFCAC4D0</color>
+
+    <!-- Tertiary（teal 系，品牌种子 #0BA3F3 邻近色相偏移，refine-ux-review §5） -->
+    <color name="x_tertiary">#FF006961</color>
+    <color name="x_on_tertiary">#FFFFFFFF</color>
+    <color name="x_tertiary_container">#FFB4EBE3</color>
+    <color name="x_on_tertiary_container">#FF003733</color>
 </resources>
