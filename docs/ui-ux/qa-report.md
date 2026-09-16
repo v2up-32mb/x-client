@@ -97,3 +97,59 @@
 | 设置校验（端口≥1024、bypass 规则） | ✅ 语义保留 |
 | 主题切换（三模式） | ✅ ThemeManager 未改动，入口保留 |
 | 60s 启动超时 | ✅ 超时路径保留并升级为横幅 |
+
+---
+
+# 精修阶段（Phase 2）验证记录
+
+> 范围：VPN Connection FAB（五态 morph）+ Profile 菜单语义色。UX Review 全文见 `refine-ux-review.md`，其 7 节结论逐条落实。
+
+## P-1 编译验证
+
+| Commit | 内容 | CI |
+|---|---|---|
+| `4a0e7c7` | tertiary teal token（light/dark）+ 双 theme 绑定 + 菜单语义色 | ✅（随 `3cb8812` 验证） |
+| `3cb8812` | ConnectionFab 组件 + 顶部状态卡/横幅退役 + 接线 | ✅（修复 1 处 lambda 签名后绿） |
+| `7bd7579` | 签名修正 | ✅ run 35082380269 |
+
+## P-2 主页状态承载面变更（矩阵修订）
+
+原 §3 矩阵中主页行的"状态卡片"承载面替换为：
+
+| 状态 | compact FAB | morph 展开卡 | 停留 |
+|---|---|---|---|
+| Disconnected | surfaceContainer + 电源 | "已断开 / 点击连接"（长按查看） | 手动收起 |
+| Connecting | primaryContainer + 进度圈 | "正在连接… / 当前配置：X" | 无倒计时，等终态 |
+| Connected | successContainer + ✓ | "已连接 / 当前配置：X" | 2s 自动折叠 |
+| Disconnecting | surfaceContainer + 进度圈 | "正在断开… / 当前配置：X" | 无倒计时（3s UI 兜底） |
+| Error | errorContainer + !（常驻） | "连接出错 / 原因摘要 + 重试/查看日志" | 3.5s 自动折叠 |
+
+- 顶部状态卡与 ErrorBanner 已删除，页面唯一主操作 = VPN FAB（验收项"不保留两个重复 Connect 入口"✅）
+- 被删信息的补偿：列表当前项 primaryContainer 高亮常驻 + refreshProfileList 中当前行滚出视口时 scrollToPosition
+- 错误链路完整性：ErrorBanner 的消息/重试/查看日志三项能力全部收编进 FAB 错误展开卡；compact 红色 ! 常驻至用户操作（不被计时器抹除）
+- 冗余 Toast（STARTED/ERROR）已删除，TalkBack 不再双读
+
+## P-3 动画与无障碍
+
+- morph：宽 56→min(300dp, 屏宽-32dp)、高 56→minHeight 76dp（wrap_content 承接 fontScale 2.0，review §6.8 修正）、圆角 28→16dp；expand 250ms / content 150ms(+80ms delay) / collapse 220ms
+- **reduced-motion**：`ANIMATOR_DURATION_SCALE=0` 时全部跳切（组件内显式判断，不依赖系统缩放）
+- **TalkBack**：五态 contentDescription 动态切换（含动作动词）；根节点与文本容器 `accessibilityLiveRegion=polite`；长按注册带标签辅助动作"查看连接信息"；**触摸探索开启时冻结自动折叠计时器**；装饰层 importantForAccessibility=no
+- 颜色非唯一通道：五态由图标形状（电源/进度/✓/!）+ 文案 + contentDescription 三通道承载
+- 折叠触发兜底：终态 dwell / 展开态 tap / 列表拖动滚动 / 状态代际失效 / onDetachedFromWindow / onStop 移除 Handler 回调
+
+## P-4 菜单语义色（终值）
+
+| 操作 | 底色 | 图标 tint |
+|---|---|---|
+| Share | `?attr/colorPrimaryContainer`（蓝） | `?attr/colorOnPrimaryContainer` |
+| Copy | `?attr/colorSurfaceContainerHigh`（中性） | `?attr/colorOnSurface` |
+| Edit | `?attr/colorTertiaryContainer`（teal，light #B4EBE3 / dark #1F4B46，对比度 10.0:1 / 7.4:1） | `?attr/colorOnTertiaryContainer` |
+| Delete | `?attr/colorError`（实心，保持） | `?attr/colorOnError` |
+
+色相互斥（蓝/中性/teal/红），无彩色按钮墙；theme 双声明（values + values-night）均绑定 tertiary 四 attr。
+
+## P-5 已知限制
+
+1. **旋转/重建丢失展开态**（可接受，morph 属瞬时 UI 态；compact 由广播重建）；review §7.4 指出的"重建时 STARTING 中 FAB 短暂显示 DISCONNECTED"为既有行为，本轮记录未修。
+2. 展开卡左下角覆盖列表最后一行一部分（dwell ≤3.5s + 滚动即折叠自愈；QA 真机如反馈遮挡再加 paddingBottom）。
+3. 截图 QA（7 状态）待真机：Disconnected / Connecting / Connected / Error / 菜单展开 / Light / Dark。
