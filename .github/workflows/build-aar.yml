@@ -25,18 +25,18 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         ref: main  # 无论从哪里手动触发，固定构建 main
 
     - name: Set up JDK 17
-      uses: actions/setup-java@v4
+      uses: actions/setup-java@v6
       with:
         distribution: temurin
         java-version: 17
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
       with:
         packages: platform-tools build-tools;34.0.0 platforms;android-34
 
@@ -48,7 +48,7 @@ jobs:
 
     - name: Restore gomobile AAR cache
       id: aar-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: app/libs/xclient.aar
         key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
