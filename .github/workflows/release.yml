@@ -92,7 +92,9 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.26'
-          # 不用 action 自带缓存（下方显式管理 GOMODCACHE/GOCACHE）
+          # 关闭 action 内置缓存（下方已显式用 actions/cache 管理 GOMODCACHE/GOCACHE，
+          # 双层缓存会重复上传；且内置缓存在仓库根探测 go.mod，本仓在 golib/ 下会发告警）
+          cache: false
 
       - name: Restore Go build cache
         # bind 提速：模块缓存 + 构建缓存（key 随 golib 内容变化自动失效；job 结束时自动 save）
