@@ -46,73 +46,27 @@ jobs:
             echo "is_prerelease=false" >> $GITHUB_OUTPUT
           fi
 
-  # ── 2. golib AAR（并行分支①）：gomobile 交叉编译，缓存命中时跳过编译段 ──
-  golib:
-    needs: meta
+  # ── 2. 编译（needs 仅 meta，与 build-aar.yml 的 AAR 预热天然并行）：
+  #    AAR 缓存命中 → 直接 assemble；未命中 → 后台 bind ∥ 前台 SDK/gradle 准备 → 汇合 assemble ──
+  # 注：SDK/NDK 准备不能拆到独立 job——Actions 每个 job 独立 runner VM，装好的环境
+  # 无法跨 job 传递（只有 artifact/cache/outputs 三种机制），拆出去只会重复安装；
+  # gomobile bind 同理不能另开 job 再传回（artifact 在上游 job 结束前不存在，
+  # download-artifact 无 wait 机制）——改为 job 内后台进程并行（见下）
+  compile:
+    needs: [meta]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Restore gomobile AAR cache
-        # 按 golib 内容哈希缓存交叉编译产物：命中时跳过 Go 环境与 gomobile bind（省 2-4 分钟）；
-        # main 分支作用域的缓存对所有 workflow（含 tag 触发）可读
+        # 按 golib 内容哈希命中交叉编译产物：命中跳过整段 Go 环境/bind（省 2-4 分钟）；
+        # 常态下该缓存由 build-aar.yml 在 main 预热（同 key），tag 触发可直接命中；
+        # 未命中时本 job 结束会自动 save，下次命中
         uses: actions/cache@v4
         id: aar_cache
         with:
           path: app/libs/xclient.aar
           key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
-
-      - name: Restore Go build cache
-        # 未命中时的 bind 提速：模块缓存 + 构建缓存（key 随 golib 内容变化自动失效）
-        if: steps.aar_cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-${{ hashFiles('golib/**/*.go', 'golib/go.mod') }}
-          restore-keys: |
-            gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-
-
-      - name: Setup Go
-        if: steps.aar_cache.outputs.cache-hit != 'true'
-        uses: actions/setup-go@v6
-        with:
-          go-version: '1.26'
-          # 不用 action 自带缓存（上方已显式管理 GOMODCACHE/GOCACHE）
-
-      - name: Build xclient.aar (gomobile bind, 4 ABI)
-        if: steps.aar_cache.outputs.cache-hit != 'true'
-        run: |
-          # x/mobile 2026-08-21 (b9947785) 起 go 指令要求 >= 1.26，setup-go 必须保持 >= 1.26
-          go install golang.org/x/mobile/cmd/gomobile@latest
-          gomobile init
-          cd golib
-          mkdir -p ../app/libs
-          go get golang.org/x/mobile/bind
-          gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
-
-      - name: Check aar presence
-        id: verify
-        run: |
-          test -f app/libs/xclient.aar || { echo "::error::xclient.aar 缺失"; exit 1; }
-          ls -la app/libs
-
-      - name: Upload aar artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: xclient-aar
-          path: app/libs/xclient.aar
-          retention-days: 1
-
-  # ── 3. 编译（needs 二者齐备）：assembleRelease，产出 unsigned APK ──
-  # 注：SDK/NDK 准备不能拆到独立 job——Actions 每个 job 独立 runner VM，装好的环境
-  # 无法跨 job 传递（只有 artifact/cache/outputs 三种机制），拆出去只会重复安装
-  compile:
-    needs: [meta, golib]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -133,11 +87,46 @@ jobs:
           sdkmanager --install "ndk;26.3.11579264" >/dev/null 2>&1 || true
           ls /usr/local/lib/android/sdk/ndk/ | grep -q 26.3.11579264 && echo "NDK 26.3.11579264 ✓"
 
-      - name: Download aar artifact
-        uses: actions/download-artifact@v4
+      - name: Setup Go
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v6
         with:
-          name: xclient-aar
-          path: app/libs
+          go-version: '1.26'
+          # 不用 action 自带缓存（下方显式管理 GOMODCACHE/GOCACHE）
+
+      - name: Restore Go build cache
+        # bind 提速：模块缓存 + 构建缓存（key 随 golib 内容变化自动失效；job 结束时自动 save）
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-${{ hashFiles('golib/**/*.go', 'golib/go.mod') }}
+          restore-keys: |
+            gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-
+
+      - name: Start gomobile bind in background
+        # AAR 缓存未命中时，将 gomobile bind（关键路径最大项，2-4 分钟）放入后台，
+        # 与前台的 SDK/gradle 准备、依赖下载并行；每步是独立 bash 进程，跨步骤不能 wait，
+        # 故用完成标记 + pid 探活收尾（见下方 Wait 步骤）。
+        # 常态下 AAR 缓存由 build-aar.yml 在 main 预热（同 key），本步骤仅兜底
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        run: |
+          # x/mobile 2026-08-21 (b9947785) 起 go 指令要求 >= 1.26，setup-go 必须保持 >= 1.26
+          rm -f /tmp/bind.done
+          (
+            set -e
+            go install golang.org/x/mobile/cmd/gomobile@latest
+            gomobile init
+            cd golib
+            mkdir -p ../app/libs
+            go get golang.org/x/mobile/bind
+            gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
+            touch /tmp/bind.done
+          ) > /tmp/bind.log 2>&1 &
+          echo $! > /tmp/bind.pid
+          echo "bind 已后台启动 (pid $(cat /tmp/bind.pid))，与前台准备步骤并行"
 
       - name: Clone hev-socks5-tunnel
         run: |
@@ -159,6 +148,24 @@ jobs:
       - name: Download dependencies
         run: ./gradlew dependencies --no-daemon >/dev/null
 
+      - name: Wait for background bind
+        # 汇合后台 bind：完成标记存在 → 成功；进程已退出且无标记 → 失败（打日志终止）
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        run: |
+          pid=$(cat /tmp/bind.pid)
+          for i in $(seq 1 240); do
+            [ -f /tmp/bind.done ] && break
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "::error::gomobile bind 失败（进程已退出，无完成标记）"
+              tail -n 40 /tmp/bind.log
+              exit 1
+            fi
+            sleep 5
+          done
+          [ -f /tmp/bind.done ] || { echo "::error::gomobile bind 超时（20 分钟）"; exit 1; }
+          tail -n 5 /tmp/bind.log
+          test -f app/libs/xclient.aar && ls -la app/libs
+
       - name: Build release APK
         run: |
           ./gradlew assembleRelease \
@@ -173,7 +180,7 @@ jobs:
           path: app/build/outputs/apk/release/*-unsigned.apk
           retention-days: 1
 
-  # ── 5. 签名（仅 tag）：zipalign + apksigner ──
+  # ── 3. 签名（仅 tag）：zipalign + apksigner ──
   sign:
     needs: [meta, compile]
     if: needs.meta.outputs.is_tag == 'true'
@@ -228,7 +235,7 @@ jobs:
           path: apk-signed/*.apk
           retention-days: 1
 
-  # ── 6. 发布（仅 tag，串行在签名后）：release notes + GitHub Release ──
+  # ── 4. 发布（仅 tag，串行在签名后）：release notes + GitHub Release ──
   publish:
     needs: [meta, sign]
     if: needs.meta.outputs.is_tag == 'true'
@@ -320,7 +327,7 @@ jobs:
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
           files: apk-signed/*.apk
 
-  # ── 7. 手动触发的构建验证产物（非 tag）：unsigned APK 归档 ──
+  # ── 5. 手动触发的构建验证产物（非 tag）：unsigned APK 归档 ──
   ci-artifacts:
     needs: [meta, compile]
     if: needs.meta.outputs.is_tag != 'true'
