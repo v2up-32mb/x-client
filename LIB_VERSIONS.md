@@ -17,8 +17,10 @@
 | 消费方 | 引用的库 | go.mod 位置 |
 |---|---|---|
 | **x-client**（Android AAR） | xshared v0.1.0 · gcm v0.1.0 · xtunnel v0.1.0 | `golib/go.mod` |
-| **gcm-cli** | xshared v0.1.0 · gcm v0.1.0 | `go.mod` |
-| **xtunnel-cli** | xshared v0.1.0 · xtunnel v0.1.0 | `go.mod` |
+| **gcm-cli** | xshared `99d0b0a`（dat 支持） · gcm v0.1.0 | `go.mod` |
+| **xtunnel-cli** | xshared `99d0b0a`（dat 支持） · xtunnel v0.1.0 | `go.mod` |
+
+> CLI 仓引用 xshared 伪版本 `99d0b0a`（`NewMatcherWithGeoFile` 路由数据文件支持）；下个 xshared tag 发布后统一收敛。
 
 ## 库间依赖
 

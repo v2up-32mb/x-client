@@ -300,6 +300,21 @@
                 android:text="@string/xt_insecure"
                 android:textAppearance="?attr/textAppearanceBodyMedium" />
 
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.XClient.TextInputLayout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:hint="@string/xt_ip_strategy_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/xt_ip_strategy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="text"
+                    android:singleLine="true" />
+            </com.google.android.material.textfield.TextInputLayout>
+
             <CheckBox
                 android:id="@+id/xt_enable_hot_pair"
                 android:layout_width="match_parent"

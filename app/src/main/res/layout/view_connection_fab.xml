@@ -21,7 +21,13 @@
         android:paddingEnd="@dimen/spacing_lg"
         android:paddingTop="@dimen/spacing_md"
         android:paddingBottom="@dimen/spacing_md"
-        android:clipToPadding="false">
+        android:clipToPadding="false"
+        android:clipChildren="false">
+        <!-- clipChildren=false：解除「icon_slot 子树被裁到 slot 自身 bounds」这一层裁切
+             （ViewGroup 默认 clipChildren=true 时，子 View 绘制被裁到子的自身 bounds：
+             SW 路径 canvas.clipRect(0,0,w,h)，HW 路径 RenderNode.setClipToBounds(true)）。
+             CircularProgressIndicator 的 onMeasure 无视 layout_width，恒实测
+             indicatorSize+2*indicatorInset=32dp，需允许其溢出 24dp 的 slot 才能画全 -->
 
         <LinearLayout
             android:id="@+id/fab_text_block"
@@ -96,9 +102,8 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:clipChildren="false">
-            <!-- clipChildren=false：进度圈描边沿 indicatorSize 圆周中心线绘制，
-                 实际外径 = 24+trackThickness，需允许 1.5dp 对称溢出，否则圆环被裁切；
-                 溢出对称，圆心仍在 FAB 正中 -->
+            <!-- clipChildren=false：防御层，防 slot 的子 View 被裁到各自 bounds；
+                 与外层 fab_content 的 clipChildren=false 配合，保证进度圈完整绘制 -->
 
             <ImageView
                 android:id="@+id/fab_icon"
@@ -107,10 +112,16 @@
                 android:importantForAccessibility="no"
                 android:src="@drawable/ic_power" />
 
+            <!-- material 的 onMeasure 直接 setMeasuredDimension(preferred) 无视
+                 layout_width，恒实测 indicatorSize+2*inset=32dp（inset 默认 4dp）；
+                 此处声明 32dp + center 使强制溢出对称（每边 4dp），圆环
+                 （外径=indicatorSize=24dp，描边画在 indicatorSize 内侧）
+                 圆心落在 FAB 正中 -->
             <com.google.android.material.progressindicator.CircularProgressIndicator
                 android:id="@+id/fab_progress"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_gravity="center"
                 android:indeterminate="true"
                 android:importantForAccessibility="no"
                 android:visibility="gone"

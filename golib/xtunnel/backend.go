@@ -13,6 +13,7 @@ import (
 	"github.com/v2up-32mb/xshared/routing"
 	"github.com/v2up-32mb/xshared/socks5"
 	xtlib "github.com/v2up-32mb/xtunnel"
+	"github.com/v2up-32mb/xtunnel/protocol"
 )
 
 // Param keys accepted by Backend.Start（与 Android 侧 X_TUNNEL Profile 字段对齐）。
@@ -28,6 +29,7 @@ const (
 	ParamECHDomain     = "ech_domain"
 	ParamDNSServer     = "dns_server"
 	ParamInsecure      = "insecure"
+	ParamIPStrategy    = "ip_strategy"
 	ParamEnableHotPair = "enable_hot_pair"
 	ParamHotPairCount  = "hot_pair_count"
 	ParamLogLevel      = "log_level"
@@ -242,6 +244,14 @@ func buildConfig(params map[string]string) (*xtlib.Config, error) {
 		return nil, err
 	} else {
 		c.InsecureSkipVerify = v
+	}
+	// IP 策略（4/6/4,6/6,4，缺省跟随库默认），对应 CLI 的 -ips 参数
+	if v := stringParam(params, ParamIPStrategy, ""); v != "" {
+		s, err := protocol.ParseIPStrategy(v)
+		if err != nil {
+			return nil, fmt.Errorf("param %q: %w", ParamIPStrategy, err)
+		}
+		c.IPStrategy = s
 	}
 	if v, err := boolParam(params, ParamEnableHotPair, false); err != nil {
 		return nil, err

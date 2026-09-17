@@ -335,6 +335,7 @@ public class TProxyService extends VpnService {
         params.put("ech_domain", prefs.getEchDomain());
         params.put("dns_server", prefs.getEchDns());
         params.put("insecure", prefs.getXtInsecure());
+        params.put("ip_strategy", prefs.getXtIpStrategy());
         params.put("enable_hot_pair", prefs.getXtEnableHotPair());
         params.put("hot_pair_count", prefs.getXtHotPairCount());
         params.put("log_level", prefs.getLogLevel());

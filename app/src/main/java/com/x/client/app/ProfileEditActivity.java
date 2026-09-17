@@ -60,6 +60,7 @@ public class ProfileEditActivity extends AppCompatActivity {
     private EditText edittext_xt_connections;
     private CheckBox checkbox_xt_disable_ech;
     private CheckBox checkbox_xt_insecure;
+    private EditText edittext_xt_ip_strategy;
     private CheckBox checkbox_xt_enable_hot_pair;
     private EditText edittext_xt_hot_pair_count;
     private TextView xt_advanced_header;
@@ -119,6 +120,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_connections = findViewById(R.id.xt_connections);
         checkbox_xt_disable_ech = findViewById(R.id.xt_disable_ech);
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
+        edittext_xt_ip_strategy = findViewById(R.id.xt_ip_strategy);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
         edittext_xt_hot_pair_count = findViewById(R.id.xt_hot_pair_count);
         xt_advanced_header = findViewById(R.id.xt_advanced_header);
@@ -229,6 +231,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_connections.setText(String.valueOf(prefs.getXtConnections()));
         checkbox_xt_disable_ech.setChecked(prefs.getXtDisableEch());
         checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
+        edittext_xt_ip_strategy.setText(prefs.getXtIpStrategy());
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
@@ -259,6 +262,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             setFieldEnabled(edittext_xt_connections, false);
             checkbox_xt_disable_ech.setEnabled(false);
             checkbox_xt_insecure.setEnabled(false);
+            setFieldEnabled(edittext_xt_ip_strategy, false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
             setFieldEnabled(edittext_xt_hot_pair_count, false);
             setFieldEnabled(edittext_xt_adv_backpressure, false);
@@ -384,6 +388,19 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
+        // 校验 IP 策略（仅 X-Tunnel 有效；非法值回落 default 并 Toast 提示，不阻断保存）
+        String xtIpStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            String ipStrategyText = edittext_xt_ip_strategy.getText().toString().trim();
+            if (!ipStrategyText.isEmpty()) {
+                if (Preferences.isValidXtIpStrategy(ipStrategyText)) {
+                    xtIpStrategy = ipStrategyText;
+                } else {
+                    Toast.makeText(this, getString(R.string.error_xt_ip_strategy_invalid), Toast.LENGTH_SHORT).show();
+                }
+            }
+        }
+
         // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
         String xtAdvancedParams = "";
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
@@ -439,6 +456,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
         prefs.setXtHotPairCount(xtHotPairCount);
+        prefs.setXtIpStrategy(xtIpStrategy);
         prefs.setXtAdvancedParams(xtAdvancedParams);
 
         // 恢复原配置
@@ -469,7 +487,7 @@ public class ProfileEditActivity extends AppCompatActivity {
                 edittext_profile_name, edittext_worker_host, edittext_pref_ip, edittext_user_id,
                 edittext_fallback_ip, edittext_ws_conn, edittext_dynamic_pool_max,
                 edittext_xt_server_addr, edittext_xt_token, edittext_xt_relay_nodes,
-                edittext_xt_connections, edittext_xt_hot_pair_count,
+                edittext_xt_connections, edittext_xt_ip_strategy, edittext_xt_hot_pair_count,
                 edittext_xt_adv_backpressure, edittext_xt_adv_write_queue_wait,
                 edittext_xt_adv_dial_timeout, edittext_xt_adv_handshake_timeout,
                 edittext_xt_adv_read_timeout, edittext_xt_adv_write_timeout,
@@ -796,6 +814,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         boolean insecure = false;
         boolean enableHotPair = false;
         int hotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
+        String ipStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -870,6 +889,12 @@ public class ProfileEditActivity extends AppCompatActivity {
                                 hotPairCount = 1;
                             }
                             break;
+                        case "ips":
+                            // IP 策略（default/4/6/4,6/6,4）；缺失回落默认，非法值忽略
+                            if (Preferences.isValidXtIpStrategy(value)) {
+                                ipStrategy = value;
+                            }
+                            break;
                     }
                 }
             }
@@ -894,6 +919,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_xt_connections.setText(String.valueOf(connections));
             checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
+            edittext_xt_ip_strategy.setText(ipStrategy);
             checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
             edittext_xt_hot_pair_count.setText(String.valueOf(hotPairCount));
             setFieldEnabled(edittext_xt_hot_pair_count, enableHotPair);
