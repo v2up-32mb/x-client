@@ -219,4 +219,3 @@ func AppendRuntimeLog(scope, message string) {
 func GetRuntimeLogs() string {
 	return logger.GetRuntimeLogs()
 }
-// 缓存失效验证（临时，验证后移除）
