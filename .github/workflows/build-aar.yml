@@ -52,6 +52,11 @@ jobs:
       with:
         path: app/libs/xclient.aar
         key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
+        # cache@v6 默认在仓库根找 go.mod（本仓在 golib/ 下）→ "Dependencies file is not found" 告警；
+        # 显式指向依赖文件后该检查静默通过（key 本身用 hashFiles，不受此影响）
+        cache-dependency-path: |
+          golib/go.mod
+          golib/go.sum
 
     - name: Build xclient.aar
       if: steps.aar-cache.outputs.cache-hit != 'true'
