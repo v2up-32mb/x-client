@@ -9,9 +9,9 @@ import (
 	"time"
 	_ "time/tzdata" // 嵌入 IANA 时区数据库，保证 Android 系统缺少 zoneinfo 时 LoadLocation 可用
 
+	"github.com/v2up-32mb/xshared/logger"
+	"github.com/v2up-32mb/xshared/routing"
 	"xclient/gcm"
-	"xclient/shared/logger"
-	"xclient/shared/routing"
 	"xclient/xtunnel"
 )
 

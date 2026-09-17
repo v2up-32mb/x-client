@@ -6,7 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"xclient/shared/config"
+	"github.com/v2up-32mb/xshared/config"
+	xtlib "github.com/v2up-32mb/xtunnel"
 )
 
 func TestBuildConfigFullParams(t *testing.T) {
@@ -194,8 +195,8 @@ func TestBuildConfigAdvancedParams(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildConfig() error = %v", err)
 	}
-	if cfg.BackpressureLimitBytes != DefaultBackpressureLimitBytes {
-		t.Fatalf("default BackpressureLimitBytes = %d, want %d", cfg.BackpressureLimitBytes, DefaultBackpressureLimitBytes)
+	if cfg.BackpressureLimitBytes != xtlib.DefaultBackpressureLimitBytes {
+		t.Fatalf("default BackpressureLimitBytes = %d, want %d", cfg.BackpressureLimitBytes, xtlib.DefaultBackpressureLimitBytes)
 	}
 
 	// 显式字节/毫秒/端口/连接数

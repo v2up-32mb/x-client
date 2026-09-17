@@ -8,9 +8,11 @@ import (
 	"sync"
 	"time"
 
-	"xclient/shared/config"
-	"xclient/shared/logger"
-	"xclient/shared/routing"
+	"github.com/v2up-32mb/xshared/config"
+	"github.com/v2up-32mb/xshared/logger"
+	"github.com/v2up-32mb/xshared/routing"
+	"github.com/v2up-32mb/xshared/socks5"
+	xtlib "github.com/v2up-32mb/xtunnel"
 )
 
 // Param keys accepted by Backend.Start（与 Android 侧 X_TUNNEL Profile 字段对齐）。
@@ -53,8 +55,9 @@ const (
 // Backend 运行 x-tunnel 协议栈：多通道 WebSocket 隧道 + 通道竞争/Hot Pair/
 // UDP associate/HTTP 代理。它满足 xclient.ProxyBackend 接口（结构化实现）。
 type Backend struct {
-	mu     sync.Mutex
-	client *Client
+	mu           sync.Mutex
+	client       *xtlib.Client
+	socks5Server *socks5.Server
 }
 
 // NewBackend 返回一个空闲的 x-tunnel 后端。
@@ -78,37 +81,82 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	if err != nil {
 		return err
 	}
-	bypassMatcher, err := routing.NewMatcher(cfg.BypassPrivate, cfg.BypassGeoIPCN, cfg.BypassGeoSiteCN, cfg.BypassRules)
+	bypassPrivate, err := boolParam(params, ParamBypassPrivate, false)
+	if err != nil {
+		return err
+	}
+	bypassGeoIPCN, err := boolParam(params, ParamBypassGeoIPCN, false)
+	if err != nil {
+		return err
+	}
+	bypassGeoSiteCN, err := boolParam(params, ParamBypassGeoSiteCN, false)
+	if err != nil {
+		return err
+	}
+	bypassMatcher, err := routing.NewMatcher(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, stringParam(params, ParamBypassRules, ""))
 	if err != nil {
 		return fmt.Errorf("invalid bypass rules: %w", err)
 	}
 
 	logger.ClearRuntimeLogs()
-	sharedCfg := newSharedConfig(cfg)
+	sharedCfg := newSharedConfigView(cfg)
 	sharedCfg.LogLevel = logLevelFromParams(params, verbose)
 	logger.InitGlobalLogger(sharedCfg)
 	systemLog := logger.GetLogger("System")
 	systemLog.Info("启动 X-Tunnel: Server=%s, 连接数=%d, ECH=%v, RelayNodes=%d, HotPair=%v",
 		cfg.ServerAddr, cfg.Connections, cfg.EnableECH, len(cfg.RelayNodes), cfg.EnableHotPair)
 
-	c, err := NewClient(cfg)
+	c, err := xtlib.NewClient(cfg)
 	if err != nil {
 		logger.Close()
 		return err
 	}
-	c.SetBypassMatcher(bypassMatcher)
 	if err := c.Start(); err != nil {
 		logger.Close()
 		return err
 	}
-	if err := c.ListenSOCKS5(listenAddr); err != nil {
+
+	// 本地 SOCKS5：共享服务器承接（xshared/socks5）。
+	// bypass/并发上限/UDP 端口拦截以 Option 注入；数据面 ProxyDialer()（TCP + UDP ASSOCIATE）。
+	host, user, pass, err := xtlib.ParseSocks5Auth(listenAddr)
+	if err != nil {
+		_ = c.Shutdown()
+		logger.Close()
+		return err
+	}
+	opts := []socks5.Option{socks5.WithBypassMatcher(bypassMatcher)}
+	if cfg.MaxSOCKS5Connections > 0 {
+		opts = append(opts, socks5.WithMaxConns(cfg.MaxSOCKS5Connections))
+	}
+	if len(cfg.UDPBlockedPorts) > 0 {
+		opts = append(opts, socks5.WithBlockedPorts(cfg.UDPBlockedPorts))
+	}
+	if user != "" || pass != "" {
+		opts = append(opts, socks5.WithUserPassAuth(func(u, p string) bool {
+			return xtlib.AuthEqual(u, user) && xtlib.AuthEqual(p, pass)
+		}))
+	}
+	srv := socks5.NewServer(&config.Config{ListenAddress: host}, c.ProxyDialer(), opts...)
+	if err := srv.Start(); err != nil {
 		_ = c.Shutdown()
 		logger.Close()
 		return fmt.Errorf("start SOCKS5 server: %w", err)
 	}
 	b.client = c
+	b.socks5Server = srv
 	systemLog.Info("X-Tunnel 已就绪")
 	return nil
+}
+
+// newSharedConfigView 将 x-tunnel 配置映射为共享配置视图（logger 使用；
+// 原 shared.go 的 newSharedConfig，Config 类型换成库侧）。
+func newSharedConfigView(cfg *xtlib.Config) *config.Config {
+	shared := config.DefaultConfig()
+	shared.EnableDoH = true
+	if dnsServer := strings.TrimSpace(cfg.DNSServer); dnsServer != "" {
+		shared.DoHUrl = dnsServer
+	}
+	return shared
 }
 
 // Stop 停止后端并释放所有资源（含 SOCKS5 监听端口）。
@@ -117,6 +165,10 @@ func (b *Backend) Stop() error {
 	defer b.mu.Unlock()
 	if b.client == nil {
 		return nil
+	}
+	if b.socks5Server != nil {
+		_ = b.socks5Server.Close()
+		b.socks5Server = nil
 	}
 	err := b.client.Shutdown()
 	logger.Close()
@@ -144,8 +196,8 @@ func (b *Backend) NotifyNetworkChanged() {
 	b.Reconnect("Android default network changed")
 }
 
-func buildConfig(params map[string]string) (*Config, error) {
-	c := DefaultConfig()
+func buildConfig(params map[string]string) (*xtlib.Config, error) {
+	c := xtlib.DefaultConfig()
 	c.ServerAddr = strings.TrimSpace(stringParam(params, ParamServerAddr, ""))
 	if c.ServerAddr == "" {
 		return nil, fmt.Errorf("server address is required")
@@ -205,16 +257,14 @@ func buildConfig(params map[string]string) (*Config, error) {
 		c.HotPairCount = v
 	}
 
-	// 路由绕过：先校验布尔类型，Matcher 在 Start 中构建（错误路径统一报 invalid bypass rules）
+	// 路由绕过：先校验布尔类型，Matcher 在 Start 中构建（错误路径统一报 invalid bypass rules）；
+	// bypass 配置不进入协议库 Config（由后端经 xshared 服务器 Option 注入）
 	for _, key := range []string{ParamBypassPrivate, ParamBypassGeoIPCN, ParamBypassGeoSiteCN} {
 		if _, err := boolParam(params, key, false); err != nil {
 			return nil, err
 		}
 	}
-	c.BypassPrivate, _ = boolParam(params, ParamBypassPrivate, false)
-	c.BypassGeoIPCN, _ = boolParam(params, ParamBypassGeoIPCN, false)
-	c.BypassGeoSiteCN, _ = boolParam(params, ParamBypassGeoSiteCN, false)
-	c.BypassRules = stringParam(params, ParamBypassRules, "")
+	_ = stringParam(params, ParamBypassRules, "")
 
 	// 高级参数解析（字节/毫秒整数；负值非法，0 或缺省使用默认值）
 	if v, err := intParam(params, ParamBackpressureLimit, 0); err != nil {
