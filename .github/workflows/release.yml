@@ -152,9 +152,16 @@ jobs:
 
       - name: Gradle wrapper
         run: |
-          # runner 预装 gradle；生成 wrapper 后的 dist 由 GRADLE_USER_HOME 缓存（setup-java cache: gradle）
-          gradle wrapper >/dev/null
-          chmod +x gradlew
+          # wrapper 已提交仓库（gradle-9.2.1，与 AGP 8 兼容）；此处仅兜底：
+          # runner 预装 gradle 为 9.7.x，评估 app/build.gradle 会触发 AGP 8 内部 API 移除错误，
+          # 故仅在仓库缺 wrapper 时才生成（届时需留意预装 gradle 版本兼容性）
+          if [ ! -f gradlew ]; then
+            gradle wrapper >/dev/null
+            chmod +x gradlew
+            echo "::warning::仓库缺少 gradle wrapper，已用 runner 预装 gradle 生成——建议将 gradlew/gradle-wrapper 提交入库"
+          else
+            chmod +x gradlew
+          fi
 
       - name: Download dependencies
         run: ./gradlew dependencies --no-daemon >/dev/null
