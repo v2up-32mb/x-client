@@ -6,261 +6,334 @@ on:
       - 'v*'  # tag 触发：构建 + 签名 + 发版
   workflow_dispatch:  # 手动触发：仅普通 CI 构建（release 类型，不上传 unsigned 产物，不发版）
 
+permissions:
+  contents: write
+
 jobs:
-  release:
+  # ── 1. 基础信息（串行头）：版本计算与发布判定，输出给全部下游 job ──
+  meta:
     runs-on: ubuntu-latest
-
-    env:
-      ANDROID_NDK_VERSION: 26.3.11579264 
-      JAVA_HOME: /usr/lib/jvm/java-17-openjdk
-      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF8
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-    
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+      is_tag: ${{ steps.version.outputs.is_tag }}
+      is_prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # 获取完整的 Git 历史，以便计算版本号
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 版本号基于提交次数、release notes 基于 git log
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: 17
-        cache: gradle
+      - name: Compute version
+        id: version
+        run: |
+          # tag 触发：发版构建，版本名取 tag；手动触发：仅 CI 构建，版本名用 ci-<shortsha>
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+            echo "version_name=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          else
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "version_name=ci-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          fi
+          echo "version_code=$(git rev-list --count HEAD)" >> $GITHUB_OUTPUT
 
-    - name: Get version
-      run: |
-        # tag 触发：发版构建，版本名取 tag；手动触发：仅 CI 构建，版本名用 ci-<shortsha>
-        if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
-          echo "IS_TAG_RELEASE=true" >> $GITHUB_ENV
-          echo "VERSION_NAME=${GITHUB_REF_NAME#v}" >> $GITHUB_ENV
-        else
-          echo "IS_TAG_RELEASE=false" >> $GITHUB_ENV
-          echo "VERSION_NAME=ci-$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-        fi
+      - name: Detect prerelease
+        id: prerelease
+        run: |
+          # 语义化版本预发布标记（如 v1.2.0-preview.1 / -beta.1 / -rc.1）→ GitHub prerelease 标记；非 tag 一律 false
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]] && echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-'; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
 
-        # 计算版本号（基于提交次数）
-        VERSION_CODE=$(git rev-list --count HEAD)
-        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+  # ── 2. golib AAR（并行分支①）：gomobile 交叉编译，缓存命中时跳过编译段 ──
+  golib:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-        echo "Version Name: $VERSION_NAME"
-        echo "Version Code: $VERSION_CODE"
+      - name: Restore gomobile AAR cache
+        # 按 golib 内容哈希缓存交叉编译产物：命中时跳过 Go 环境与 gomobile bind（省 2-4 分钟）；
+        # main 分支作用域的缓存对所有 workflow（含 tag 触发）可读
+        uses: actions/cache@v4
+        id: aar_cache
+        with:
+          path: app/libs/xclient.aar
+          key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
 
-    - name: Detect prerelease
-      run: |
-        # 语义化版本预发布标记（如 v1.2.0-preview.1 / -beta.1 / -rc.1）→ GitHub prerelease 标记；非 tag 一律 false
-        if [[ "$GITHUB_REF_TYPE" == "tag" ]] && echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+-'; then
-          echo "IS_PRERELEASE=true" >> $GITHUB_ENV
-        else
-          echo "IS_PRERELEASE=false" >> $GITHUB_ENV
-        fi
+      - name: Restore Go build cache
+        # 未命中时的 bind 提速：模块缓存 + 构建缓存（key 随 golib 内容变化自动失效）
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-${{ hashFiles('golib/**/*.go', 'golib/go.mod') }}
+          restore-keys: |
+            gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        # 单行写法：多行块标量会被 action 拼接成单个包名；版本与 app/build.gradle 对齐（compileSdk 34）
-        packages: platform-tools build-tools;34.0.0 platforms;android-34
+      - name: Setup Go
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          # 不用 action 自带缓存（上方已显式管理 GOMODCACHE/GOCACHE）
 
-    - name: Restore gomobile AAR cache
-      # ③按 golib 内容哈希缓存交叉编译产物：命中时下方 Check 步骤直接跳过 gomobile（省 2-4 分钟）
-      uses: actions/cache@v4
-      with:
-        path: app/libs/xclient.aar
-        key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
+      - name: Build xclient.aar (gomobile bind, 4 ABI)
+        if: steps.aar_cache.outputs.cache-hit != 'true'
+        run: |
+          # x/mobile 2026-08-21 (b9947785) 起 go 指令要求 >= 1.26，setup-go 必须保持 >= 1.26
+          go install golang.org/x/mobile/cmd/gomobile@latest
+          gomobile init
+          cd golib
+          mkdir -p ../app/libs
+          go get golang.org/x/mobile/bind
+          gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
 
-    - name: Clone hev-socks5-tunnel
-      run: |
+      - name: Check aar presence
+        id: verify
+        run: |
+          test -f app/libs/xclient.aar || { echo "::error::xclient.aar 缺失"; exit 1; }
+          ls -la app/libs
+
+      - name: Upload aar artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xclient-aar
+          path: app/libs/xclient.aar
+          retention-days: 1
+
+  # ── 3. Android 构建环境（并行分支②）：预装 SDK packages 与 NDK，提前暴露环境问题 ──
+  android-env:
+    needs: meta
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          # 单行写法：多行块标量会被 action 拼接成单个包名；版本与 app/build.gradle 对齐（compileSdk 34）
+          packages: platform-tools build-tools;34.0.0 platforms;android-34
+
+      - name: Ensure NDK (externalNativeBuild)
+        run: |
+          sdkmanager --install "ndk;26.3.11579264" >/dev/null 2>&1 || true
+          ls /usr/local/lib/android/sdk/ndk/ | grep -q 26.3.11579264 && echo "NDK 26.3.11579264 ✓"
+
+  # ── 4. 编译（needs 三者齐备）：assembleRelease，产出 unsigned APK ──
+  compile:
+    needs: [meta, golib, android-env]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - name: Setup Android SDK packages
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools build-tools;34.0.0 platforms;android-34
+
+      - name: Download aar artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: xclient-aar
+          path: app/libs
+
+      - name: Clone hev-socks5-tunnel
+        run: |
           git clone --recursive https://github.com/heiher/hev-socks5-tunnel app/src/main/jni
 
+      - name: Gradle wrapper
+        run: |
+          # runner 预装 gradle；生成 wrapper 后的 dist 由 GRADLE_USER_HOME 缓存（setup-java cache: gradle）
+          gradle wrapper >/dev/null
+          chmod +x gradlew
 
-    # 条件编译xclient.aar
-    - name: Check for xclient.aar
-      id: check-xclient-aar
-      run: |
-        if [ -f "app/libs/xclient.aar" ]; then
-          echo "xclient_aar_exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "xclient_aar_exists=false" >> $GITHUB_OUTPUT
-        fi
+      - name: Download dependencies
+        run: ./gradlew dependencies --no-daemon >/dev/null
 
-    - name: Setup Go
-      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
-      uses: actions/setup-go@v6
-      with:
-        go-version: '1.26'
+      - name: Build release APK
+        run: |
+          ./gradlew assembleRelease \
+            -PVERSION_CODE=${{ needs.meta.outputs.version_code }} \
+            -PVERSION_NAME=${{ needs.meta.outputs.version_name }} \
+            --no-daemon
 
-    - name: Install gomobile and Build xclient.aar
-      if: steps.check-xclient-aar.outputs.xclient_aar_exists == 'false'
-      run: |
-        # 注意：x/mobile 2026-08-21 (b9947785) 起 go 指令要求 >= 1.26，
-        # gomobile init 内部还会 go install gobind@latest，故 setup-go 必须保持 >= 1.26
-        go install golang.org/x/mobile/cmd/gomobile@latest
-        gomobile init
-        cd golib
-        mkdir -p ../app/libs
-        go get golang.org/x/mobile/bind
-        gomobile bind -target=android -androidapi=24 -o ../app/libs/xclient.aar
-        cd ..
+      - name: Upload unsigned APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-unsigned
+          path: app/build/outputs/apk/release/*-unsigned.apk
+          retention-days: 1
 
-    # 条件生成 Gradle Wrapper
-    - name: Check for Gradle Wrapper
-      id: check-wrapper
-      run: |
-        if [ -f "gradlew" ]; then
-          echo "wrapper_exists=true" >> $GITHUB_OUTPUT
-        else
-          echo "wrapper_exists=false" >> $GITHUB_OUTPUT
-        fi
+  # ── 5. 签名（仅 tag）：zipalign + apksigner ──
+  sign:
+    needs: [meta, compile]
+    if: needs.meta.outputs.is_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download unsigned APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-unsigned
+          path: apk-unsigned
 
-    - name: Generate Gradle Wrapper and Settings
-      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
-      run: |
-        # 生成 Gradle Wrapper
-        gradle wrapper
-        chmod +x gradlew
-        # 输出提示，建议提交 wrapper 文件到仓库
-        echo "Gradle wrapper generated. Consider committing these files to your repository:"
-        echo "  gradlew, gradlew.bat, gradle/wrapper/gradle-wrapper.jar, gradle/wrapper/gradle-wrapper.properties"
-        echo "To commit automatically, uncomment the 'Commit Gradle Wrapper' step below."
+      - name: Setup build-tools for signing
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;34.0.0
 
-    #可选：提交 Gradle Wrapper 到仓库（默认禁用）
-    - name: Commit Gradle Wrapper
-      if: steps.check-wrapper.outputs.wrapper_exists == 'false'
-      run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add gradlew gradlew.bat gradle/wrapper/
-        git commit -m "chore: add gradle wrapper [skip ci]" || echo "No changes to commit"
-        git push origin HEAD:${{ github.ref_name }}
-
-    - name: Download dependencies
-      run: ./gradlew dependencies --no-daemon
-
-    - name: Build release APK
-      run: ./gradlew assembleRelease -PVERSION_CODE=$VERSION_CODE -PVERSION_NAME=$VERSION_NAME --no-daemon
-    
-    # r0adkll/sign-android-release 全系列硬编码 build-tools 29.0.3（无 buildToolsVersion 输入），
-    # 与 SDK 包列表（34.0.0）不匹配，改用 build-tools 34.0.0 自带 zipalign + apksigner 等价签名
-    - name: Sign APKs (zipalign + apksigner)
-      if: env.IS_TAG_RELEASE == 'true'
-      env:
-        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
-        ALIAS: ${{ secrets.ALIAS }}
-        KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        BT=/usr/local/lib/android/sdk/build-tools/34.0.0
-        cd app/build/outputs/apk/release
-        echo "$SIGNING_KEY" | base64 --decode > keystore.jks
-        EXTRA_KEY_ARGS=""
-        if [ -n "$KEY_PASSWORD" ]; then
-          EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
-        fi
-        for apk in *-unsigned.apk; do
-          [ -e "$apk" ] || continue
-          base="${apk%-unsigned.apk}"
-          "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
-          # shellcheck disable=SC2086
-          "$BT/apksigner" sign \
-            --ks keystore.jks --ks-key-alias "$ALIAS" \
-            --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
-            --out "x-client-${base#app-}.apk" "${base}-aligned.apk"
-          rm -f "$apk" "${base}-aligned.apk"
-          echo "Signed: x-client-${base#app-}.apk"
-        done
-        rm -f keystore.jks
-        ls -la
-
-    - name: Generate Release Notes
-      if: env.IS_TAG_RELEASE == 'true'
-      id: release_notes
-      run: |
-        # 设置应用名称
-        APP_NAME="X Client"
-        TAG_NAME=${{ github.ref_name }}
-
-        # 获取上一个 tag
-        PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-
-        # 生成 Release 标题
-        echo "RELEASE_TITLE=${APP_NAME} - ${TAG_NAME}" >> $GITHUB_ENV
-
-        # 生成 Release Notes
-        {
-          echo "RELEASE_BODY<<EOF"
-          echo "## 📦 更新内容"
-          echo ""
-
-          if [ -n "$PREV_TAG" ]; then
-            RANGE="${PREV_TAG}..${TAG_NAME}"
-            echo "### 📝 Commits since ${PREV_TAG}"
-          else
-            RANGE=""
-            echo "### 📝 All commits"
+      # r0adkll/sign-android-release 全系列硬编码 build-tools 29.0.3（无 buildToolsVersion 输入），
+      # 与 SDK 包列表（34.0.0）不匹配，改用 build-tools 34.0.0 自带 zipalign + apksigner 等价签名
+      - name: Sign APKs
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          ALIAS: ${{ secrets.ALIAS }}
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          BT=/usr/local/lib/android/sdk/build-tools/34.0.0
+          mkdir -p apk-signed
+          echo "$SIGNING_KEY" | base64 --decode > keystore.jks
+          EXTRA_KEY_ARGS=""
+          if [ -n "$KEY_PASSWORD" ]; then
+            EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
           fi
-          echo ""
+          for apk in apk-unsigned/*-unsigned.apk; do
+            [ -e "$apk" ] || continue
+            base="$(basename "${apk%-unsigned.apk}")"
+            "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
+            # shellcheck disable=SC2086
+            "$BT/apksigner" sign \
+              --ks keystore.jks --ks-key-alias "$ALIAS" \
+              --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
+              --out "apk-signed/x-client-${base#app-}.apk" "${base}-aligned.apk"
+            rm -f "${base}-aligned.apk"
+            echo "Signed: apk-signed/x-client-${base#app-}.apk"
+          done
+          rm -f keystore.jks
+          ls -la apk-signed
 
-          print_section () {
-            local type="$1"
-            local title="$2"
+      - name: Upload signed APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-signed
+          path: apk-signed/*.apk
+          retention-days: 1
 
-            # -E：git log --grep 默认 BRE，^fix(\([^)]*\))?: 会被解释成
-            # "fix + 字面( + 可选内容 + : "，导致 "fix: xxx" 永不匹配；
-            # 扩展正则下 \( \) 才是字面括号，分组 ( ... )? 可选。
-            COMMITS=$(git log $RANGE \
-              --pretty=format:"- \`%h\` %s" \
-              --grep="^${type}(\([^)]*\))?: " \
-              -i -E)
+  # ── 6. 发布（仅 tag，串行在签名后）：release notes + GitHub Release ──
+  publish:
+    needs: [meta, sign]
+    if: needs.meta.outputs.is_tag == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # notes 基于 git log/describe
 
-            if [ -n "$COMMITS" ]; then
-              echo "#### $title"
-              echo "$COMMITS"
-              echo ""
+      - name: Download signed APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-signed
+          path: apk-signed
+
+      - name: Generate Release Notes
+        run: |
+          APP_NAME="X Client"
+          TAG_NAME=${{ github.ref_name }}
+
+          # 获取上一个 tag
+          PREV_TAG=$(git describe --tags --abbrev=0 "${GITHUB_SHA}" 2>/dev/null | grep -v "^${TAG_NAME}$" || echo "")
+          if [ -z "$PREV_TAG" ] || [ "$PREV_TAG" = "$TAG_NAME" ]; then
+            PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG_NAME}$" | head -n 1 || echo "")
+          fi
+
+          echo "RELEASE_TITLE=${APP_NAME} - ${TAG_NAME}" >> $GITHUB_ENV
+
+          {
+            echo "RELEASE_BODY<<EOF"
+            echo "## 📦 更新内容"
+            echo ""
+
+            if [ -n "$PREV_TAG" ]; then
+              RANGE="${PREV_TAG}..${TAG_NAME}"
+              echo "### 📝 Commits since ${PREV_TAG}"
+            else
+              RANGE=""
+              echo "### 📝 All commits"
             fi
-          }
+            echo ""
 
-          # Conventional Commit 分类
-          print_section "feat"     "✨ 新功能（Features）"
-          print_section "fix"      "🛠 修复（Fixes）"
-          print_section "refactor" "♻️ 重构（Refactors）"
-          print_section "perf"     "⚡ 性能优化（Performance）"
-          print_section "docs"     "📚 文档（Docs）"
-          print_section "build"    "🏗 构建（Build）"
-          print_section "chore"    "🧹 其他（Chores）"
+            print_section () {
+              local type="$1"
+              local title="$2"
 
-          echo "### 📥 下载说明"
-          echo "请根据你的设备架构下载对应的 APK 文件："
-          echo "- **armeabi-v7a**: 32位 ARM 设备"
-          echo "- **arm64-v8a**: 64位 ARM 设备（大多数现代设备）"
-          echo "- **x86**: 32位 x86 设备"
-          echo "- **x86_64**: 64位 x86 设备"
+              # -E：git log --grep 默认 BRE，^fix(\([^)]*\))?: 会被解释成
+              # "fix + 字面( + 可选内容 + : "，导致 "fix: xxx" 永不匹配；
+              # 扩展正则下 \( \) 才是字面括号，分组 ( ... )? 可选。
+              COMMITS=$(git log $RANGE \
+                --pretty=format:"- \`%h\` %s" \
+                --grep="^${type}(\([^)]*\))?: " \
+                -i -E)
 
-          echo "EOF"
-        } >> $GITHUB_ENV
+              if [ -n "$COMMITS" ]; then
+                echo "#### $title"
+                echo "$COMMITS"
+                echo ""
+              fi
+            }
 
-    - name: Upload CI artifacts (manual dispatch, unsigned)
-      # 手动触发：仅构建验证 + 上传 unsigned 产物，不发版
-      if: env.IS_TAG_RELEASE != 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: x-client-release-ci-unsigned
-        path: app/build/outputs/apk/release/*.apk
+            # Conventional Commit 分类
+            print_section "feat"     "✨ 新功能（Features）"
+            print_section "fix"      "🛠 修复（Fixes）"
+            print_section "refactor" "♻️ 重构（Refactors）"
+            print_section "perf"     "⚡ 性能优化（Performance）"
+            print_section "docs"     "📚 文档（Docs）"
+            print_section "build"    "🏗 构建（Build）"
+            print_section "chore"    "🧹 其他（Chores）"
 
-    - name: Create Release
-      if: env.IS_TAG_RELEASE == 'true'
-      uses: softprops/action-gh-release@v1
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      with:
-        name: ${{ env.RELEASE_TITLE }}
-        body: ${{ env.RELEASE_BODY }}
-        draft: false
-        prerelease: ${{ env.IS_PRERELEASE }}
-        files: app/build/outputs/apk/release/*.apk
-                 
-    - name: Notify on failure
-      if: failure()
-      run: |
-        echo "发布失败，请检查日志"
+            echo "### 📥 下载说明"
+            echo "请根据你的设备架构下载对应的 APK 文件："
+            echo "- **armeabi-v7a**: 32位 ARM 设备"
+            echo "- **arm64-v8a**: 64位 ARM 设备（大多数现代设备）"
+            echo "- **x86**: 32位 x86 设备"
+            echo "- **x86_64**: 64位 x86 设备"
+
+            echo "EOF"
+          } >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          name: ${{ env.RELEASE_TITLE }}
+          body: ${{ env.RELEASE_BODY }}
+          draft: false
+          prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
+          files: apk-signed/*.apk
+
+  # ── 7. 手动触发的构建验证产物（非 tag）：unsigned APK 归档 ──
+  ci-artifacts:
+    needs: [meta, compile]
+    if: needs.meta.outputs.is_tag != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download unsigned APKs
+        uses: actions/download-artifact@v4
+        with:
+          name: apk-unsigned
+          path: apk-unsigned
+
+      - name: Upload CI artifacts (manual dispatch, unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: x-client-release-ci-unsigned
+          path: apk-unsigned/*.apk
