@@ -84,11 +84,14 @@ public class Preferences
         public static final int MAX_XT_HOT_PAIR_COUNT = 8;
         public static final int DEFAULT_XT_CONNECTIONS = 3;
         // IP 策略默认值（对应 CLI -ips 参数，default 表示跟随系统默认解析）
-        public static final String DEFAULT_XT_IP_STRATEGY = "default";
+        // v1.3.2 起默认改为 "4,6"（IPv4 优先）；存量 profile 中的 "default"（系统默认）
+        // 读入时由 UI 回落首选项，语义近似
+        public static final String DEFAULT_XT_IP_STRATEGY = "4,6";
 
-        // 校验 IP 策略取值（与 CLI -ips 参数及 Go 库 `protocol.ParseIPStrategy` 对齐）
+        // 校验 IP 策略取值（与 CLI -ips 参数及 Go 库 `protocol.ParseIPStrategy` 对齐；
+        // "default" 仅为 v1.3.1 存量兼容值）
         public static boolean isValidXtIpStrategy(String v) {
-                return DEFAULT_XT_IP_STRATEGY.equals(v) || "4".equals(v) || "6".equals(v)
+                return "default".equals(v) || "4".equals(v) || "6".equals(v)
                         || "4,6".equals(v) || "6,4".equals(v);
         }
         
