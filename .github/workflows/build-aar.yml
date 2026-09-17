@@ -41,10 +41,15 @@ jobs:
         packages: platform-tools build-tools;34.0.0 platforms;android-34
 
     - name: Setup Go
-      # gomobile@latest 要求 go >= 1.26（x/mobile 2026-08-21 起）
+      # gomobile@latest 要求 go >= 1.26（x/mobile 2026-08-21 起）；
+      # 本 job 的 Go 模块/构建缓存依赖 setup-go 内置缓存（未另用 actions/cache 管理），
+      # cache-dependency-path 必须指向 golib/（v6 默认在仓库根找 go.mod → 本仓结构触发告警）
       uses: actions/setup-go@v6
       with:
         go-version: '1.26'
+        cache-dependency-path: |
+          golib/go.mod
+          golib/go.sum
 
     - name: Restore gomobile AAR cache
       id: aar-cache
@@ -52,11 +57,8 @@ jobs:
       with:
         path: app/libs/xclient.aar
         key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
-        # cache@v6 默认在仓库根找 go.mod（本仓在 golib/ 下）→ "Dependencies file is not found" 告警；
-        # 显式指向依赖文件后该检查静默通过（key 本身用 hashFiles，不受此影响）
-        cache-dependency-path: |
-          golib/go.mod
-          golib/go.sum
+        # 注："Dependencies file is not found: go.mod" 告警来自下方 setup-go 的内置 Go 缓存
+        # （v6 默认在仓库根探测 go.mod），而非本 cache——已在 setup-go 传 cache-dependency-path 修复
 
     - name: Build xclient.aar
       if: steps.aar-cache.outputs.cache-hit != 'true'
