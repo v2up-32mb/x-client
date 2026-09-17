@@ -60,7 +60,10 @@ public class ProfileEditActivity extends AppCompatActivity {
     private EditText edittext_xt_connections;
     private CheckBox checkbox_xt_disable_ech;
     private CheckBox checkbox_xt_insecure;
-    private EditText edittext_xt_ip_strategy;
+    private Spinner spinner_xt_ip_strategy;
+
+    // IP 策略下拉选项对应的真实值（与 CLI -ips 及 Go 库 protocol.ParseIPStrategy 对齐；默认 4,6）
+    private static final String[] XT_IP_STRATEGY_VALUES = {"4,6", "6,4", "4", "6"};
     private CheckBox checkbox_xt_enable_hot_pair;
     private EditText edittext_xt_hot_pair_count;
     private TextView xt_advanced_header;
@@ -120,7 +123,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_connections = findViewById(R.id.xt_connections);
         checkbox_xt_disable_ech = findViewById(R.id.xt_disable_ech);
         checkbox_xt_insecure = findViewById(R.id.xt_insecure);
-        edittext_xt_ip_strategy = findViewById(R.id.xt_ip_strategy);
+        spinner_xt_ip_strategy = findViewById(R.id.xt_ip_strategy_spinner);
         checkbox_xt_enable_hot_pair = findViewById(R.id.xt_enable_hot_pair);
         edittext_xt_hot_pair_count = findViewById(R.id.xt_hot_pair_count);
         xt_advanced_header = findViewById(R.id.xt_advanced_header);
@@ -156,6 +159,38 @@ public class ProfileEditActivity extends AppCompatActivity {
                 new String[]{getString(R.string.protocol_gcm), getString(R.string.protocol_x_tunnel)});
         protocolAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner_protocol.setAdapter(protocolAdapter);
+
+        // IP 策略下拉：主文本为选项值，展开态附语义说明（折叠态只显示主文本保持紧凑）
+        String[] ipStrategyOptions = getResources().getStringArray(R.array.xt_ip_strategy_options);
+        String[] ipStrategyDescriptions = getResources().getStringArray(R.array.xt_ip_strategy_descriptions);
+        android.widget.ArrayAdapter<String> ipStrategyAdapter =
+                new android.widget.ArrayAdapter<String>(this, R.layout.item_spinner_ip_strategy, ipStrategyOptions) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                return bindIpStrategyEntry(position, convertView, parent, false);
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                return bindIpStrategyEntry(position, convertView, parent, true);
+            }
+
+            private View bindIpStrategyEntry(int position, View convertView, ViewGroup parent, boolean expanded) {
+                View v = convertView != null ? convertView
+                        : getLayoutInflater().inflate(R.layout.item_spinner_ip_strategy, parent, false);
+                ((TextView) v.findViewById(R.id.ip_strategy_title)).setText(ipStrategyOptions[position]);
+                TextView desc = v.findViewById(R.id.ip_strategy_desc);
+                if (expanded) {
+                    desc.setText(ipStrategyDescriptions[position]);
+                    desc.setVisibility(View.VISIBLE);
+                } else {
+                    desc.setVisibility(View.GONE);
+                }
+                return v;
+            }
+        };
+        ipStrategyAdapter.setDropDownViewResource(R.layout.item_spinner_ip_strategy);
+        spinner_xt_ip_strategy.setAdapter(ipStrategyAdapter);
         spinner_protocol.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
@@ -187,6 +222,14 @@ public class ProfileEditActivity extends AppCompatActivity {
         boolean isXtunnel = Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
         gcm_fields.setVisibility(isXtunnel ? View.GONE : View.VISIBLE);
         xtunnel_fields.setVisibility(isXtunnel ? View.VISIBLE : View.GONE);
+    }
+
+    // IP 策略真实值 → 下拉选项索引；未知值（含存量 "default"）回落首项（4,6，IPv4 优先）
+    private static int xtIpStrategyIndex(String value) {
+        for (int i = 0; i < XT_IP_STRATEGY_VALUES.length; i++) {
+            if (XT_IP_STRATEGY_VALUES[i].equals(value)) return i;
+        }
+        return 0;
     }
 
     private void setProtocolSelection(String protocol) {
@@ -231,7 +274,7 @@ public class ProfileEditActivity extends AppCompatActivity {
         edittext_xt_connections.setText(String.valueOf(prefs.getXtConnections()));
         checkbox_xt_disable_ech.setChecked(prefs.getXtDisableEch());
         checkbox_xt_insecure.setChecked(prefs.getXtInsecure());
-        edittext_xt_ip_strategy.setText(prefs.getXtIpStrategy());
+        spinner_xt_ip_strategy.setSelection(xtIpStrategyIndex(prefs.getXtIpStrategy()));
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
@@ -262,7 +305,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             setFieldEnabled(edittext_xt_connections, false);
             checkbox_xt_disable_ech.setEnabled(false);
             checkbox_xt_insecure.setEnabled(false);
-            setFieldEnabled(edittext_xt_ip_strategy, false);
+            spinner_xt_ip_strategy.setEnabled(false);
             checkbox_xt_enable_hot_pair.setEnabled(false);
             setFieldEnabled(edittext_xt_hot_pair_count, false);
             setFieldEnabled(edittext_xt_adv_backpressure, false);
@@ -388,17 +431,10 @@ public class ProfileEditActivity extends AppCompatActivity {
             }
         }
 
-        // 校验 IP 策略（仅 X-Tunnel 有效；非法值回落 default 并 Toast 提示，不阻断保存）
+        // IP 策略：下拉框选项天然合法，直接取真实值（无需校验；非 X-Tunnel 用默认）
         String xtIpStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
-            String ipStrategyText = edittext_xt_ip_strategy.getText().toString().trim();
-            if (!ipStrategyText.isEmpty()) {
-                if (Preferences.isValidXtIpStrategy(ipStrategyText)) {
-                    xtIpStrategy = ipStrategyText;
-                } else {
-                    Toast.makeText(this, getString(R.string.error_xt_ip_strategy_invalid), Toast.LENGTH_SHORT).show();
-                }
-            }
+            xtIpStrategy = XT_IP_STRATEGY_VALUES[spinner_xt_ip_strategy.getSelectedItemPosition()];
         }
 
         // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
@@ -487,7 +523,7 @@ public class ProfileEditActivity extends AppCompatActivity {
                 edittext_profile_name, edittext_worker_host, edittext_pref_ip, edittext_user_id,
                 edittext_fallback_ip, edittext_ws_conn, edittext_dynamic_pool_max,
                 edittext_xt_server_addr, edittext_xt_token, edittext_xt_relay_nodes,
-                edittext_xt_connections, edittext_xt_ip_strategy, edittext_xt_hot_pair_count,
+                edittext_xt_connections, edittext_xt_hot_pair_count,
                 edittext_xt_adv_backpressure, edittext_xt_adv_write_queue_wait,
                 edittext_xt_adv_dial_timeout, edittext_xt_adv_handshake_timeout,
                 edittext_xt_adv_read_timeout, edittext_xt_adv_write_timeout,
@@ -890,7 +926,7 @@ public class ProfileEditActivity extends AppCompatActivity {
                             }
                             break;
                         case "ips":
-                            // IP 策略（default/4/6/4,6/6,4）；缺失回落默认，非法值忽略
+                            // IP 策略（4,6/6,4/4/6；default 为 v1.3.1 存量兼容值）；缺失回落默认，非法值忽略
                             if (Preferences.isValidXtIpStrategy(value)) {
                                 ipStrategy = value;
                             }
@@ -919,7 +955,7 @@ public class ProfileEditActivity extends AppCompatActivity {
             edittext_xt_connections.setText(String.valueOf(connections));
             checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
-            edittext_xt_ip_strategy.setText(ipStrategy);
+            spinner_xt_ip_strategy.setSelection(xtIpStrategyIndex(ipStrategy));
             checkbox_xt_enable_hot_pair.setChecked(enableHotPair);
             edittext_xt_hot_pair_count.setText(String.valueOf(hotPairCount));
             setFieldEnabled(edittext_xt_hot_pair_count, enableHotPair);

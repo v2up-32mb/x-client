@@ -17,6 +17,19 @@
 	<string name="xt_relay_nodes">Relay-узлы (через запятую):</string>
 	<string name="xt_connections">Соединений:</string>
 	<string name="xt_insecure">Пропустить проверку сертификата</string>
+	<string name="xt_ip_strategy_label">Стратегия IP</string>
+	<string-array name="xt_ip_strategy_options">
+		<item>IPv4,IPv6</item>
+		<item>IPv6,IPv4</item>
+		<item>IPv4</item>
+		<item>IPv6</item>
+	</string-array>
+	<string-array name="xt_ip_strategy_descriptions">
+		<item>Сначала IPv4, при недоступности — IPv6 (по умолчанию)</item>
+		<item>Сначала IPv6, при недоступности — IPv4</item>
+		<item>Только IPv4</item>
+		<item>Только IPv6</item>
+	</string-array>
 	<string name="xt_enable_hot_pair">Hot Pair (тёплая пара каналов)</string>
 	<string name="xt_hot_pair_count">Hot Pair (пар каналов, 1-8):</string>
 	<string name="xt_advanced_params">Доп. параметры (нажмите, чтобы развернуть; пусто = по умолчанию)</string>
