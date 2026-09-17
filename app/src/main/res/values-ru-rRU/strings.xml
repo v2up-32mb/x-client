@@ -11,7 +11,7 @@
 	<string name="control_disable">Отключить</string>
 	<string name="protocol_label">Протокол:</string>
 	<string name="protocol_gcm">GCM</string>
-	<string name="protocol_x_tunnel">X-Tunnel</string>
+	<string name="protocol_x_tunnel">xtunnel</string>
 	<string name="xt_server_addr">Адрес сервера (wss://):</string>
 	<string name="xt_token">Токен:</string>
 	<string name="xt_relay_nodes">Relay-узлы (через запятую):</string>

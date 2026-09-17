@@ -661,6 +661,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         boolean xtDisableEch = prefs.getXtDisableEch();
         boolean xtInsecure = prefs.getXtInsecure();
         boolean xtEnableHotPair = prefs.getXtEnableHotPair();
+        int xtHotPairCount = prefs.getXtHotPairCount();
+        String xtIpStrategy = prefs.getXtIpStrategy();
         String xtServerAddr = prefs.getXtServerAddr();
         if (xtServerAddr.startsWith("wss://")) {
             xtServerAddr = xtServerAddr.substring(6);
@@ -696,7 +698,12 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
             }
             if (xtEnableHotPair) {
                 if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("hotpair=").append(prefs.getXtHotPairCount());
+                xtQuery.append("hotpair=").append(xtHotPairCount);
+            }
+            // IP 策略：仅非默认值时写入 ips= 参数
+            if (!Preferences.DEFAULT_XT_IP_STRATEGY.equals(xtIpStrategy)) {
+                if (xtQuery.length() > 0) xtQuery.append("&");
+                xtQuery.append("ips=").append(xtIpStrategy);
             }
             String xtProtocol = "xtunnel://" + xtServerAddr;
             if (xtQuery.length() > 0) {
@@ -926,6 +933,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         boolean xtInsecure = false;
         boolean xtEnableHotPair = false;
         int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
+        String xtIpStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
         if (!query.isEmpty()) {
             String[] pairs = query.split("&");
             for (String pair : pairs) {
@@ -1005,6 +1013,12 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                                 xtHotPairCount = 1;
                             }
                             break;
+                        case "ips":
+                            // IP 策略（default/4/6/4,6/6,4）；缺失回落默认，非法值忽略
+                            if (Preferences.isValidXtIpStrategy(value)) {
+                                xtIpStrategy = value;
+                            }
+                            break;
                     }
                 }
             }
@@ -1026,7 +1040,8 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
         showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
                 wssAddr, prefIp, fallbackIp, userId, disableEch,
                 wsConn, enableDynamicPool, dynamicPoolMax,
-                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair, xtHotPairCount);
+                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair, xtHotPairCount,
+                xtIpStrategy);
     }
 
     private void showImportNameDialog(final String id, final String defaultName,
@@ -1039,7 +1054,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                                       final String xtToken, final String xtRelayNodes,
                                       final int xtConnections, final boolean xtDisableEch,
                                       final boolean xtInsecure, final boolean xtEnableHotPair,
-                                      final int xtHotPairCount) {
+                                      final int xtHotPairCount, final String xtIpStrategy) {
         final EditText input = new EditText(this);
         input.setText(defaultName);
         new AlertDialog.Builder(this)
@@ -1068,6 +1083,7 @@ public class ProfileListActivity extends AppCompatActivity implements ProfileAda
                         prefs.setXtInsecure(xtInsecure);
                         prefs.setXtEnableHotPair(xtEnableHotPair);
                         prefs.setXtHotPairCount(xtHotPairCount);
+                        prefs.setXtIpStrategy(xtIpStrategy);
                     } else {
                         prefs.setWorkerHost(wssAddr);
                         prefs.setPrefIp(prefIp);

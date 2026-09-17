@@ -78,10 +78,19 @@ public class Preferences
         public static final String XT_INSECURE = "XtInsecure";
         public static final String XT_ENABLE_HOT_PAIR = "XtEnableHotPair";
         public static final String XT_HOT_PAIR_COUNT = "XtHotPairCount";
+        public static final String XT_IP_STRATEGY = "XtIpStrategy";
         public static final String XT_ADVANCED_PARAMS = "XtAdvancedParams";
         public static final int DEFAULT_XT_HOT_PAIR_COUNT = 1;
         public static final int MAX_XT_HOT_PAIR_COUNT = 8;
         public static final int DEFAULT_XT_CONNECTIONS = 3;
+        // IP 策略默认值（对应 CLI -ips 参数，default 表示跟随系统默认解析）
+        public static final String DEFAULT_XT_IP_STRATEGY = "default";
+
+        // 校验 IP 策略取值（与 CLI -ips 参数及 Go 库 `protocol.ParseIPStrategy` 对齐）
+        public static boolean isValidXtIpStrategy(String v) {
+                return DEFAULT_XT_IP_STRATEGY.equals(v) || "4".equals(v) || "6".equals(v)
+                        || "4,6".equals(v) || "6,4".equals(v);
+        }
         
         // Profile Management
         public static final String CURRENT_PROFILE_ID = "CurrentProfileId";
@@ -647,6 +656,17 @@ public class Preferences
         public void setXtHotPairCount(int n) {
                 prefs.edit().putInt(getKey(XT_HOT_PAIR_COUNT),
                         Math.max(1, Math.min(n, MAX_XT_HOT_PAIR_COUNT))).apply();
+        }
+
+        // IP 策略（default/4/6/4,6/6,4，对应 CLI -ips 参数；缺失/留空回落 default）
+        public String getXtIpStrategy() {
+                String v = prefs.getString(getKey(XT_IP_STRATEGY), DEFAULT_XT_IP_STRATEGY);
+                return (v == null || v.trim().isEmpty()) ? DEFAULT_XT_IP_STRATEGY : v.trim();
+        }
+
+        public void setXtIpStrategy(String v) {
+                prefs.edit().putString(getKey(XT_IP_STRATEGY),
+                        (v == null || v.trim().isEmpty()) ? DEFAULT_XT_IP_STRATEGY : v.trim()).apply();
         }
 
         // X-Tunnel 高级参数（JSON，可选；仅 per-profile 存储，不进入分享链接）

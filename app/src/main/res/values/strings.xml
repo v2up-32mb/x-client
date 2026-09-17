@@ -74,7 +74,7 @@
         <!-- Protocol selector -->
         <string name="protocol_label">代理协议：</string>
         <string name="protocol_gcm">GCM</string>
-        <string name="protocol_x_tunnel">X-Tunnel</string>
+        <string name="protocol_x_tunnel">xtunnel</string>
 
         <!-- X-Tunnel profile fields -->
         <string name="xt_server_addr">服务器地址（wss://）：</string>
@@ -132,6 +132,7 @@
         <string name="xt_relay_nodes_hint">中转节点（逗号分隔）</string>
         <string name="xt_connections_hint">连接数</string>
         <string name="xt_hot_pair_count_hint">热通道对数（1-8）</string>
+        <string name="xt_ip_strategy_hint">IP 策略（default/4/6/4,6/6,4）</string>
         <!-- 页面标题与提示 -->
         <string name="edit_profile_title">编辑配置: %1$s</string>
         <string name="toast_profile_saved">配置已保存</string>
@@ -152,6 +153,7 @@
         <string name="error_xt_connections_invalid">连接数必须是数字</string>
         <string name="error_hot_pair_invalid">热通道对数必须是数字</string>
         <string name="error_hot_pair_range">热通道对数必须在 1-%1$d 之间</string>
+        <string name="error_xt_ip_strategy_invalid">IP 策略无效，已使用默认值（可选 default/4/6/4,6/6,4）</string>
         <string name="error_xt_advanced_invalid">高级参数数值无效，请检查输入（留空表示使用默认值）</string>
         <!-- ===== C7 Settings 重构新增（仅限 Settings 代理插入） ===== -->
         <!-- 标题与分组头 -->

@@ -92,7 +92,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         }
 
         // 设置协议类型标签（右下角）
-        String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "X-Tunnel" : "GCM";
+        String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "xtunnel" : "GCM";
         holder.textProtocol.setText(protocolLabel);
 
         // 配置滑动行为（始终允许滑动，分享功能在 VPN 运行时也可用）
