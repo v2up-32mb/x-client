@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"xclient/shared/config"
+	"github.com/v2up-32mb/xshared/config"
 )
 
 func TestBuildConfigFullParams(t *testing.T) {

@@ -10,14 +10,15 @@ import (
 	"strings"
 	"sync"
 
-	"xclient/gcm/pool"
-	"xclient/gcm/relay"
-	"xclient/shared/config"
-	"xclient/shared/dns"
-	"xclient/shared/ech"
-	"xclient/shared/logger"
-	"xclient/shared/routing"
-	"xclient/shared/socks5"
+	gcmlib "github.com/v2up-32mb/gcm"
+	"github.com/v2up-32mb/gcm/pool"
+	"github.com/v2up-32mb/gcm/relay"
+	"github.com/v2up-32mb/xshared/config"
+	"github.com/v2up-32mb/xshared/dns"
+	"github.com/v2up-32mb/xshared/ech"
+	"github.com/v2up-32mb/xshared/logger"
+	"github.com/v2up-32mb/xshared/routing"
+	"github.com/v2up-32mb/xshared/socks5"
 )
 
 const (
@@ -149,8 +150,9 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 			dc.Warmup(c.DNSWarmupDomains)
 		}()
 	}
-	s := socks5.NewServer(c, p, dc)
-	s.SetBypassMatcher(bypassMatcher)
+	// 共享 SOCKS5 服务器：数据面经 StreamDialer 适配器（CONNECT 编舞下沉），
+	// bypass 与 DNS 缓存以 Option 注入；GCM 协议无 UDP，UDP ASSOCIATE 由服务器回复 0x07
+	s := socks5.NewServer(c, gcmlib.NewStreamDialer(p), socks5.WithBypassMatcher(bypassMatcher), socks5.WithDNSCache(dc))
 	if err := s.Start(); err != nil {
 		p.Close()
 		rm.Close()
