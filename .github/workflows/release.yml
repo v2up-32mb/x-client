@@ -19,7 +19,7 @@ jobs:
       is_tag: ${{ steps.version.outputs.is_tag }}
       is_prerelease: ${{ steps.prerelease.outputs.is_prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # 版本号基于提交次数、release notes 基于 git log
 
@@ -56,27 +56,27 @@ jobs:
     needs: [meta]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Restore gomobile AAR cache
         # 按 golib 内容哈希命中交叉编译产物：命中跳过整段 Go 环境/bind（省 2-4 分钟）；
         # 常态下该缓存由 build-aar.yml 在 main 预热（同 key），tag 触发可直接命中；
         # 未命中时本 job 结束会自动 save，下次命中
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: aar_cache
         with:
           path: app/libs/xclient.aar
           key: gomobile-aar-${{ hashFiles('golib/**/*.go', 'golib/go.mod', 'golib/go.sum') }}
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
           cache: gradle
 
       - name: Setup Android SDK packages
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           # 单行写法：多行块标量会被 action 拼接成单个包名；版本与 app/build.gradle 对齐（compileSdk 34）
           packages: platform-tools build-tools;34.0.0 platforms;android-34
@@ -97,7 +97,7 @@ jobs:
       - name: Restore Go build cache
         # bind 提速：模块缓存 + 构建缓存（key 随 golib 内容变化自动失效；job 结束时自动 save）
         if: steps.aar_cache.outputs.cache-hit != 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/go/pkg/mod
@@ -174,7 +174,7 @@ jobs:
             --no-daemon
 
       - name: Upload unsigned APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-unsigned
           path: app/build/outputs/apk/release/*-unsigned.apk
@@ -187,13 +187,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download unsigned APKs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: apk-unsigned
           path: apk-unsigned
 
       - name: Setup build-tools for signing
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: build-tools;34.0.0
 
@@ -229,7 +229,7 @@ jobs:
           ls -la apk-signed
 
       - name: Upload signed APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-signed
           path: apk-signed/*.apk
@@ -241,12 +241,12 @@ jobs:
     if: needs.meta.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0  # notes 基于 git log/describe
 
       - name: Download signed APKs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: apk-signed
           path: apk-signed
@@ -317,7 +317,7 @@ jobs:
           } >> $GITHUB_ENV
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -334,13 +334,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download unsigned APKs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: apk-unsigned
           path: apk-unsigned
 
       - name: Upload CI artifacts (manual dispatch, unsigned)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: x-client-release-ci-unsigned
           path: apk-unsigned/*.apk
