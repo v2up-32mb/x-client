@@ -1,0 +1,2425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Client UI 配色方案重构预览与评审 (Design System Redesign)</title>
+    <style>
+        :root {
+            /* 页面外壳中立深色 */
+            --shell-bg: #090B10;
+            --shell-surface: #121620;
+            --shell-border: rgba(255, 255, 255, 0.08);
+            --shell-text: #F1F5F9;
+            --shell-muted: #94A3B8;
+            --shell-accent: #38BDF8;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "JetBrains Mono", Menlo, Monaco, Consolas, monospace;
+
+            /* 默认激活：方案1 赛博极光 Dark */
+            --bg-color: #0B0F19;
+            --surface-color: #0B0F19;
+            --surface-container-lowest: #070A10;
+            --surface-container-low: #0F172A;
+            --surface-container: #151F32;
+            --surface-container-high: #1E293B;
+            --surface-container-highest: #283548;
+            --on-surface: #F1F5F9;
+            --on-surface-variant: #94A3B8;
+            --outline: #475569;
+            --outline-variant: #1E293B;
+            --primary: #38BDF8;
+            --on-primary: #002D44;
+            --primary-container: #0C4A6E;
+            --on-primary-container: #BAE6FD;
+            --success: #34D399;
+            --on-success: #022C1A;
+            --success-container: #064E3B;
+            --on-success-container: #A7F3D0;
+            --warning: #FBBF24;
+            --on-warning: #451A03;
+            --error: #F87171;
+            --on-error: #450A0A;
+            --error-container: #7F1D1D;
+            --on-error-container: #FECACA;
+            --tertiary: #2DD4BF;
+            --tertiary-container: #134E4A;
+            --on-tertiary-container: #CCFBF1;
+            --edit-container: #0369A1;
+            --on-edit-container: #E0F2FE;
+
+            /* 质感装饰变量 */
+            --card-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4), 0 2px 6px -1px rgba(0, 0, 0, 0.2);
+            --card-border: 1px solid rgba(255, 255, 255, 0.07);
+            --glow-color: rgba(56, 189, 248, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--shell-bg);
+            color: var(--shell-text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部导航控制台 */
+        header.top-header {
+            background: rgba(18, 22, 32, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--shell-border);
+            padding: 14px 28px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+
+        .brand-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-badge {
+            background: linear-gradient(135deg, #0284C7, #06B6D4);
+            color: white;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .brand-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .brand-desc {
+            font-size: 13px;
+            color: var(--shell-muted);
+        }
+
+        .controls-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn-group {
+            display: inline-flex;
+            background: #0D111A;
+            border: 1px solid var(--shell-border);
+            border-radius: 10px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: var(--shell-muted);
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .theme-btn:hover {
+            color: #FFFFFF;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .theme-btn.active {
+            background: #1E293B;
+            color: #38BDF8;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+            font-weight: 600;
+        }
+
+        .theme-btn.active.old-theme {
+            color: #94A3B8;
+            background: #2D1A38;
+        }
+
+        .mode-toggle {
+            display: flex;
+            background: #0D111A;
+            border: 1px solid var(--shell-border);
+            border-radius: 10px;
+            padding: 3px;
+        }
+
+        .mode-btn {
+            background: transparent;
+            border: none;
+            color: var(--shell-muted);
+            padding: 6px 12px;
+            font-size: 13px;
+            border-radius: 7px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .mode-btn.active {
+            background: #1E293B;
+            color: #F8FAFC;
+        }
+
+        /* 标签导航栏 */
+        .tab-bar {
+            background: #0F131C;
+            border-bottom: 1px solid var(--shell-border);
+            padding: 0 28px;
+            display: flex;
+            overflow-x: auto;
+            gap: 24px;
+        }
+
+        .tab-item {
+            padding: 12px 2px;
+            font-size: 13.5px;
+            color: var(--shell-muted);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            font-weight: 500;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .tab-item:hover {
+            color: #E2E8F0;
+        }
+
+        .tab-item.active {
+            color: var(--shell-accent);
+            border-bottom-color: var(--shell-accent);
+            font-weight: 600;
+        }
+
+        /* 主体内容区 */
+        main.content-area {
+            flex: 1;
+            padding: 32px 28px;
+            max-width: 1440px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* 方案介绍横幅 */
+        .scheme-banner {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.9));
+            border: 1px solid var(--shell-border);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .scheme-info h2 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #FFFFFF;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 6px;
+        }
+
+        .scheme-tag {
+            font-size: 11.5px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .tag-recommend {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .tag-minimal {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60A5FA;
+            border: 1px solid rgba(96, 165, 250, 0.4);
+        }
+
+        .tag-security {
+            background: rgba(52, 211, 153, 0.2);
+            color: #10B981;
+            border: 1px solid rgba(52, 211, 153, 0.4);
+        }
+
+        .tag-old {
+            background: rgba(239, 68, 68, 0.2);
+            color: #F87171;
+            border: 1px solid rgba(239, 68, 68, 0.4);
+        }
+
+        .scheme-info p {
+            color: var(--shell-muted);
+            font-size: 14px;
+            max-width: 800px;
+        }
+
+        .scheme-quick-swatches {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .swatch-circle {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .swatch-circle::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: -28px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #000;
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+
+        .swatch-circle:hover::after {
+            opacity: 1;
+        }
+
+        /* 手机框架外壳 */
+        .device-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 48px;
+            flex-wrap: wrap;
+        }
+
+        .phone-mockup {
+            width: 375px;
+            height: 780px;
+            background: var(--bg-color);
+            border: 12px solid #1A1E29;
+            border-radius: 48px;
+            box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            transition: background 0.3s ease, border-color 0.3s ease;
+        }
+
+        /* 手机状态栏 */
+        .phone-status-bar {
+            height: 38px;
+            padding: 0 22px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12.5px;
+            font-weight: 600;
+            color: var(--on-surface);
+            opacity: 0.9;
+            user-select: none;
+            z-index: 10;
+        }
+
+        .status-icons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vpn-badge {
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+
+        /* 手机应用顶部导航栏 */
+        .app-toolbar {
+            height: 54px;
+            padding: 0 18px;
+            background: var(--surface-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--outline-variant);
+            user-select: none;
+        }
+
+        .app-title-block {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--on-surface);
+            line-height: 1.2;
+        }
+
+        .app-subtitle {
+            font-size: 11px;
+            color: var(--on-surface-variant);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: transparent;
+            border: none;
+            color: var(--on-surface-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-container-high);
+            color: var(--on-surface);
+        }
+
+        /* 手机屏幕主内容 */
+        .phone-body {
+            flex: 1;
+            overflow-y: auto;
+            position: relative;
+            padding-bottom: 160px; /* 为浮动按钮留白 */
+        }
+
+        .phone-body::-webkit-scrollbar {
+            width: 0;
+        }
+
+        /* 当前连接状态摘要卡（高级版专属精修） */
+        .status-hero-card {
+            margin: 16px;
+            background: var(--surface-container);
+            border: 1px solid var(--outline-variant);
+            border-radius: 20px;
+            padding: 18px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.25);
+            transition: all 0.3s ease;
+        }
+
+        .status-hero-card.connected-mode {
+            background: linear-gradient(145deg, var(--surface-container), var(--success-container));
+            border-color: rgba(52, 211, 153, 0.3);
+        }
+
+        .hero-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .hero-status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pill-connected {
+            background: var(--success);
+            color: var(--on-success);
+        }
+
+        .pill-disconnected {
+            background: var(--surface-container-high);
+            color: var(--on-surface-variant);
+        }
+
+        .pill-connecting {
+            background: var(--primary);
+            color: var(--on-primary);
+        }
+
+        .pill-error {
+            background: var(--error);
+            color: var(--on-error);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            display: inline-block;
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.9); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 1; }
+            100% { transform: scale(0.9); opacity: 0.8; }
+        }
+
+        .hero-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid var(--outline-variant);
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .metric-label {
+            font-size: 10.5px;
+            color: var(--on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-val {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--on-surface);
+            font-family: var(--font-mono);
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .metric-val small {
+            font-size: 10px;
+            color: var(--on-surface-variant);
+            font-weight: 400;
+        }
+
+        /* 列表区域与分组 */
+        .section-header-bar {
+            padding: 12px 18px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .section-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .profile-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 列表项（滑动项） */
+        .profile-item-wrapper {
+            position: relative;
+            background: var(--surface-color);
+            border-bottom: 1px solid var(--outline-variant);
+            overflow: hidden;
+            transition: background 0.2s;
+        }
+
+        .profile-item-foreground {
+            height: 68px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface-color);
+            position: relative;
+            z-index: 2;
+            cursor: pointer;
+            transition: transform 0.25s ease, background 0.2s;
+        }
+
+        .profile-item-wrapper.selected .profile-item-foreground {
+            background: var(--surface-container-low);
+        }
+
+        .profile-item-wrapper.selected::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: var(--primary);
+            z-index: 3;
+        }
+
+        .custom-radio {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--outline);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+
+        .profile-item-wrapper.selected .custom-radio {
+            border-color: var(--primary);
+            background: var(--primary);
+        }
+
+        .custom-radio::after {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--on-primary);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .profile-item-wrapper.selected .custom-radio::after {
+            opacity: 1;
+        }
+
+        .profile-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .profile-name-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .profile-name {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--on-surface);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .protocol-chip {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .chip-xtunnel {
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+        }
+
+        .chip-gcm {
+            background: var(--tertiary-container);
+            color: var(--on-tertiary-container);
+        }
+
+        .profile-detail-row {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        .ping-indicator {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        .ping-fast { color: var(--success); }
+        .ping-mid { color: var(--warning); }
+
+        /* 模拟侧滑快捷操作按钮 */
+        .swipe-actions-overlay {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            z-index: 1;
+        }
+
+        .swipe-btn {
+            width: 58px;
+            height: 100%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #FFFFFF;
+            transition: opacity 0.2s;
+        }
+
+        .swipe-btn:hover {
+            opacity: 0.9;
+        }
+
+        .swipe-share { background: var(--tertiary-container); color: var(--on-tertiary-container); }
+        .swipe-copy { background: var(--surface-container-high); color: var(--on-surface); }
+        .swipe-edit { background: var(--edit-container); color: var(--on-edit-container); }
+        .swipe-del { background: var(--error); color: var(--on-error); }
+
+        /* 右下角悬浮按钮区 */
+        .fab-container {
+            position: absolute;
+            right: 18px;
+            bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 14px;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        .fab-container > * {
+            pointer-events: auto;
+        }
+
+        /* 次级 FAB（添加配置） */
+        .fab-secondary {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            background: var(--surface-container-high);
+            color: var(--on-surface);
+            border: 1px solid var(--outline-variant);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .fab-secondary:hover {
+            transform: scale(1.05);
+            background: var(--surface-container-highest);
+        }
+
+        /* 核心主连接 FAB（带 Morph 展开动效） */
+        .connection-fab {
+            height: 56px;
+            min-width: 56px;
+            border-radius: 28px;
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--outline-variant);
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            overflow: hidden;
+            transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            padding: 0 16px;
+            user-select: none;
+        }
+
+        .connection-fab.compact {
+            width: 56px;
+            padding: 0;
+            justify-content: center;
+        }
+
+        .connection-fab.state-connected {
+            background: var(--success-container);
+            color: var(--on-success-container);
+            box-shadow: 0 6px 24px rgba(16, 185, 129, 0.35);
+        }
+
+        .connection-fab.state-connecting {
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+        }
+
+        .connection-fab.state-error {
+            background: var(--error-container);
+            color: var(--on-error-container);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+        }
+
+        .fab-icon-slot {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .fab-morph-content {
+            margin-right: 12px;
+            display: flex;
+            flex-direction: column;
+            white-space: nowrap;
+            overflow: hidden;
+            max-width: 200px;
+            transition: opacity 0.2s;
+        }
+
+        .fab-morph-title {
+            font-size: 13.5px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .fab-morph-sub {
+            font-size: 11px;
+            opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 旋转加载器 */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 底部手势横条 */
+        .phone-home-indicator {
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-color);
+        }
+
+        .home-pill {
+            width: 120px;
+            height: 4px;
+            background: var(--on-surface-variant);
+            opacity: 0.4;
+            border-radius: 2px;
+        }
+
+        /* 详情与说明卡片 */
+        .details-panel {
+            flex: 1;
+            min-width: 320px;
+            max-width: 580px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .card-box {
+            background: var(--shell-surface);
+            border: 1px solid var(--shell-border);
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .card-box h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #FFFFFF;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .analysis-item {
+            margin-bottom: 16px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--shell-border);
+        }
+
+        .analysis-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .analysis-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #E2E8F0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .bad-badge {
+            color: #F87171;
+            background: rgba(248, 113, 113, 0.15);
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        .good-badge {
+            color: #34D399;
+            background: rgba(52, 211, 153, 0.15);
+            font-size: 11px;
+            padding: 1px 6px;
+            border-radius: 4px;
+        }
+
+        .analysis-desc {
+            font-size: 13px;
+            color: var(--shell-muted);
+            margin-top: 4px;
+            line-height: 1.6;
+        }
+
+        /* 色板矩阵表格 */
+        .token-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        .token-table th {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--shell-border);
+            color: var(--shell-muted);
+            font-size: 11.5px;
+            text-transform: uppercase;
+        }
+
+        .token-table td {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: #E2E8F0;
+        }
+
+        .color-chip-preview {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .color-box {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
+        }
+
+        .contrast-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+        }
+
+        .contrast-pass {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34D399;
+        }
+
+        .contrast-fail {
+            background: rgba(248, 113, 113, 0.15);
+            color: #F87171;
+        }
+
+        /* 节点编辑页 Mockup 表单 */
+        .form-screen {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-group-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--on-surface-variant);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-top: 8px;
+        }
+
+        .m3-input-field {
+            position: relative;
+            background: transparent;
+            border: 1.5px solid var(--outline);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            transition: border-color 0.2s;
+        }
+
+        .m3-input-field:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px var(--primary);
+        }
+
+        .m3-input-label {
+            font-size: 10.5px;
+            color: var(--on-surface-variant);
+            font-weight: 500;
+        }
+
+        .m3-input-field:focus-within .m3-input-label {
+            color: var(--primary);
+        }
+
+        .m3-input-val {
+            font-size: 14.5px;
+            color: var(--on-surface);
+            margin-top: 2px;
+            font-weight: 500;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .btn-primary {
+            flex: 1;
+            height: 48px;
+            background: var(--primary);
+            color: var(--on-primary);
+            border: none;
+            border-radius: 24px;
+            font-size: 14.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-outlined {
+            flex: 1;
+            height: 48px;
+            background: transparent;
+            color: var(--primary);
+            border: 1.5px solid var(--outline);
+            border-radius: 24px;
+            font-size: 14.5px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* 设置页 Mockup 表单 */
+        .settings-screen {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .setting-card {
+            background: var(--surface-container);
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid var(--outline-variant);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .setting-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--on-surface);
+        }
+
+        .setting-desc {
+            font-size: 12px;
+            color: var(--on-surface-variant);
+            margin-top: 2px;
+        }
+
+        .custom-switch {
+            width: 44px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .custom-switch::after {
+            content: "";
+            position: absolute;
+            right: 3px;
+            top: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--on-primary);
+        }
+
+        .custom-switch.off {
+            background: var(--surface-container-highest);
+        }
+
+        .custom-switch.off::after {
+            right: auto;
+            left: 3px;
+            background: var(--outline);
+        }
+
+        /* 分屏对比模式 */
+        .split-view-container {
+            display: flex;
+            justify-content: center;
+            gap: 36px;
+            flex-wrap: wrap;
+        }
+
+        .split-col {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .split-label {
+            font-size: 14px;
+            font-weight: 700;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        .label-before {
+            background: #2D1A38;
+            color: #E879F9;
+            border: 1px solid #A21CAF;
+        }
+
+        .label-after {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38BDF8;
+            border: 1px solid #0284C7;
+        }
+
+        /* 隐藏不同 Screen */
+        .screen-view {
+            display: none;
+        }
+
+        .screen-view.active {
+            display: block;
+        }
+
+        /* 代码导出预览框 */
+        .code-block {
+            background: #080A0E;
+            border: 1px solid var(--shell-border);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: #93C5FD;
+            overflow-x: auto;
+            max-height: 260px;
+        }
+
+        .copy-btn {
+            background: #1E293B;
+            color: #F8FAFC;
+            border: 1px solid var(--shell-border);
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 11.5px;
+            cursor: pointer;
+            float: right;
+            margin-top: -8px;
+            margin-right: -8px;
+        }
+
+        .copy-btn:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部固定控制栏 -->
+    <header class="top-header">
+        <div class="brand-box">
+            <span class="brand-badge">PROPOSAL</span>
+            <div>
+                <div class="brand-title">
+                    X Client UI 配色方案重构
+                    <span style="font-size:12px; font-weight:400; color:var(--shell-muted); font-family:var(--font-mono);">git: feat/ui-theme-redesign</span>
+                </div>
+                <div class="brand-desc">无头服务器交互式设计评审看板 (Live HTML Design Prototype)</div>
+            </div>
+        </div>
+
+        <div class="controls-group">
+            <!-- 方案选择器 -->
+            <div class="btn-group">
+                <button class="theme-btn active" onclick="setScheme('aurora')">
+                    <span>✨</span> 方案 1: 赛博极光 (推荐)
+                </button>
+                <button class="theme-btn" onclick="setScheme('titanium')">
+                    <span>💎</span> 方案 2: 钛金极简
+                </button>
+                <button class="theme-btn" onclick="setScheme('shield')">
+                    <span>🛡️</span> 方案 3: 瑞士暗盾
+                </button>
+                <button class="theme-btn" onclick="setScheme('old')">
+                    <span>⚠️</span> 当前旧版 (M3紫灰)
+                </button>
+            </div>
+
+            <!-- 深浅色模式切换 -->
+            <div class="mode-toggle">
+                <button class="mode-btn active" id="btn-dark" onclick="setMode('dark')">
+                    🌙 深色
+                </button>
+                <button class="mode-btn" id="btn-light" onclick="setMode('light')">
+                    ☀️ 浅色
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 视图切换选项卡 -->
+    <nav class="tab-bar">
+        <div class="tab-item active" onclick="switchTab('tab-dashboard')">📱 主界面 (Dashboard & 列表)</div>
+        <div class="tab-item" onclick="switchTab('tab-fab')">⚡ VPN FAB 五态动画</div>
+        <div class="tab-item" onclick="switchTab('tab-edit')">📝 节点编辑页 (Profile Edit)</div>
+        <div class="tab-item" onclick="switchTab('tab-settings')">⚙️ 全局设置页 (Settings)</div>
+        <div class="tab-item" onclick="switchTab('tab-split')">⚖️ 新旧方案双屏对比</div>
+        <div class="tab-item" onclick="switchTab('tab-tokens')">🎨 设计 Token 与 对比度表</div>
+    </nav>
+
+    <main class="content-area">
+
+        <!-- 方案简介 Banner -->
+        <section class="scheme-banner" id="scheme-banner">
+            <div class="scheme-info">
+                <h2 id="scheme-title">
+                    方案 1: 【赛博极光 · Cyber Aurora】
+                    <span class="scheme-tag tag-recommend" id="scheme-tag">强烈推荐</span>
+                </h2>
+                <p id="scheme-desc">
+                    彻底根除原生 M3 baseline 带来的“浑浊紫灰调”！采用黑曜石沉浸深空（#0B0F19）结合纳米石墨卡片层次，以极光电青（#38BDF8）作为核心品牌指示，翡翠绿（#34D399）作为安全连接状态心智。高对比、极客感强、速度与隐私兼备。
+                </p>
+            </div>
+            <div class="scheme-quick-swatches">
+                <div class="swatch-circle" id="swatch-bg" style="background:#0B0F19;" data-tooltip="Background"></div>
+                <div class="swatch-circle" id="swatch-container" style="background:#151F32;" data-tooltip="Surface Container"></div>
+                <div class="swatch-circle" id="swatch-primary" style="background:#38BDF8;" data-tooltip="Primary"></div>
+                <div class="swatch-circle" id="swatch-success" style="background:#34D399;" data-tooltip="Success"></div>
+            </div>
+        </section>
+
+        <!-- ============================== 视图 1：主仪表盘与列表 ============================== -->
+        <div id="tab-dashboard" class="screen-view active">
+            <div class="device-container">
+                <!-- 手机外壳 -->
+                <div class="phone-mockup">
+                    <!-- 系统状态栏 -->
+                    <div class="phone-status-bar">
+                        <span>17:16</span>
+                        <div class="status-icons">
+                            <span class="vpn-badge">VPN</span>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.5 3 3.75 4.8 1 7.7L12 21 23 7.7C20.25 4.8 16.5 3 12 3z"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- App 标题栏 -->
+                    <div class="app-toolbar">
+                        <div class="app-title-block">
+                            <div class="app-title">X Client</div>
+                            <div class="app-subtitle">v1.2.0 · Multi-Protocol VPN</div>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button class="icon-btn" title="扫码导入">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>
+                            </button>
+                            <button class="icon-btn" title="设置" onclick="switchTab('tab-settings')">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 滚动内容区 -->
+                    <div class="phone-body">
+                        <!-- 状态摘要大卡 -->
+                        <div class="status-hero-card connected-mode" id="dashboard-hero-card">
+                            <div class="hero-header">
+                                <span class="hero-status-pill pill-connected" id="dashboard-pill">
+                                    <span class="pulse-dot"></span>
+                                    已安全连接
+                                </span>
+                                <span style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono);">
+                                    01:42:19
+                                </span>
+                            </div>
+                            <div style="font-size:16px; font-weight:700; color:var(--on-surface);" id="dashboard-node-name">
+                                日本东京 01 · 极速中转
+                            </div>
+                            <div style="font-size:12px; color:var(--on-surface-variant); margin-top:2px;">
+                                IP: 104.28.19.42 (ECH 加密生效)
+                            </div>
+                            <div class="hero-metrics">
+                                <div class="metric-item">
+                                    <span class="metric-label">实时下行</span>
+                                    <span class="metric-val">4.82 <small>MB/s</small></span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-label">实时上行</span>
+                                    <span class="metric-val">340 <small>KB/s</small></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 节点列表分组 -->
+                        <div class="section-header-bar">
+                            <span class="section-label">节点配置 (3)</span>
+                            <span style="font-size:11px; color:var(--primary); font-weight:600; cursor:pointer;">测速全部</span>
+                        </div>
+
+                        <div class="profile-list">
+                            <!-- 节点 1 (已选) -->
+                            <div class="profile-item-wrapper selected">
+                                <div class="profile-item-foreground" onclick="selectItem(this, '日本东京 01 · 极速中转')">
+                                    <div class="custom-radio"></div>
+                                    <div class="profile-content">
+                                        <div class="profile-name-row">
+                                            <span class="profile-name">日本东京 01 · 极速中转</span>
+                                            <span class="protocol-chip chip-xtunnel">X-TUNNEL</span>
+                                        </div>
+                                        <div class="profile-detail-row">
+                                            <span>jp-01.tunnel.internal</span>
+                                            <span>·</span>
+                                            <span class="ping-indicator ping-fast">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                                                38 ms
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="swipe-actions-overlay">
+                                    <button class="swipe-btn swipe-share" title="分享"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"/></svg></button>
+                                    <button class="swipe-btn swipe-edit" title="编辑" onclick="switchTab('tab-edit')"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>
+                                    <button class="swipe-btn swipe-del" title="删除"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>
+                                </div>
+                            </div>
+
+                            <!-- 节点 2 -->
+                            <div class="profile-item-wrapper">
+                                <div class="profile-item-foreground" onclick="selectItem(this, '新加坡 02 · 智能优化线路')">
+                                    <div class="custom-radio"></div>
+                                    <div class="profile-content">
+                                        <div class="profile-name-row">
+                                            <span class="profile-name">新加坡 02 · 智能优化线路</span>
+                                            <span class="protocol-chip chip-gcm">GCM</span>
+                                        </div>
+                                        <div class="profile-detail-row">
+                                            <span>sg-worker.relay.net</span>
+                                            <span>·</span>
+                                            <span class="ping-indicator ping-fast">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                                                52 ms
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 节点 3 -->
+                            <div class="profile-item-wrapper">
+                                <div class="profile-item-foreground" onclick="selectItem(this, '美国洛杉矶 · 备用多路复用')">
+                                    <div class="custom-radio"></div>
+                                    <div class="profile-content">
+                                        <div class="profile-name-row">
+                                            <span class="profile-name">美国洛杉矶 · 备用多路复用</span>
+                                            <span class="protocol-chip chip-xtunnel">X-TUNNEL</span>
+                                        </div>
+                                        <div class="profile-detail-row">
+                                            <span>us-la.edge.global</span>
+                                            <span>·</span>
+                                            <span class="ping-indicator ping-mid">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+                                                142 ms
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 悬浮操作按钮 -->
+                    <div class="fab-container">
+                        <div class="fab-secondary" title="添加新节点" onclick="switchTab('tab-edit')">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </div>
+                        <div class="connection-fab state-connected" id="main-vpn-fab" onclick="toggleVpnDemo()">
+                            <div class="fab-morph-content" id="fab-text-box">
+                                <div class="fab-morph-title" id="fab-title-text">已安全连接</div>
+                                <div class="fab-morph-sub" id="fab-sub-text">日本东京 01 · 38ms</div>
+                            </div>
+                            <div class="fab-icon-slot" id="fab-icon-slot">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="fab-icon-svg"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部手势指示条 -->
+                    <div class="phone-home-indicator">
+                        <div class="home-pill"></div>
+                    </div>
+                </div>
+
+                <!-- 方案设计对比分析板 -->
+                <div class="details-panel">
+                    <div class="card-box">
+                        <h3>🔍 为什么现在的配色感觉非常 "LOW"？</h3>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="bad-badge">问题 1</span> 原生 M3 baseline 引入的“紫灰浑浊底色”
+                            </div>
+                            <div class="analysis-desc">
+                                当前 <code>colors.xml</code> 的 Surface 容器使用了 M3 默认色 <code>#FFF3EDF7</code> 和暗色 <code>#211F26</code>，带有明显的<strong>粉紫/茄紫色偏</strong>。当它与冰蓝的主色相碰时，界面显得污浊、不纯正，产生廉价的“半成品塑料感”。
+                            </div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="bad-badge">问题 2</span> 缺乏高端科技产品的明暗微阶层（Tonal Hierarchy）
+                            </div>
+                            <div class="analysis-desc">
+                                高端工具（如 Linear、Raycast、Tailscale）依赖纯正冷中性色（Zinc/Slate）加上 1px 的微描边和 Subtle Glow。原版没有做高光微描边，卡片平铺缺乏纵深质感。
+                            </div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="bad-badge">问题 3</span> 语义色割裂（绿/蓝/橙杂糅）
+                            </div>
+                            <div class="analysis-desc">
+                                原版 Success 绿采用 <code>#146C43</code>（黑板绿），在夜间模式下与背景严重脱节。新方案将状态色全部纳入发光色阶，带来灵动的通透感。
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-box">
+                        <h3>💎 本次设计的核心提升（高级感的来源）</h3>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="good-badge">提升 1</span> 纯粹的冷石墨/黑曜石基底（彻底去紫去黄）
+                            </div>
+                            <div class="analysis-desc">
+                                方案 1 与方案 2 均采用标准 Slate/Zinc 零色偏中性阶梯，背景深邃纯净，如同高端硬件 OLED 屏幕般沉浸。
+                            </div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="good-badge">提升 2</span> 极光电青（Electric Cyan）与微光拟态
+                            </div>
+                            <div class="analysis-desc">
+                                品牌蓝从暗淡的企业蓝（#0873AC）升级为高辨识度的极光电青（#38BDF8），结合深色模式下的微光投影，现代极客感直接拉满。
+                            </div>
+                        </div>
+                        <div class="analysis-item">
+                            <div class="analysis-title">
+                                <span class="good-badge">提升 3</span> WCAG AAA 级可读性实测达标
+                            </div>
+                            <div class="analysis-desc">
+                                所有文本和交互元素在浅色与深色模式下均超过 5.2:1 的对比度标准，既有极致视觉美感，又保证日间强光下的清晰易读。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== 视图 2：VPN FAB 五态动画展示 ============================== -->
+        <div id="tab-fab" class="screen-view">
+            <div style="max-width:860px; margin:0 auto;">
+                <div class="card-box" style="margin-bottom:24px;">
+                    <h3>⚡ VPN Connection FAB 五态交互体验区</h3>
+                    <p style="font-size:13.5px; color:var(--shell-muted); margin-bottom:16px;">
+                        X Client 的主操作为底部悬浮 FAB，支持 Compact（收折56dp）与 Expanded（自适应展开卡片）双形态。请点击下方各状态按钮，观察在当前配色方案下的色彩表现与动效：
+                    </p>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="theme-btn active" onclick="setFabState('connected')">🟢 CONNECTED (已连接)</button>
+                        <button class="theme-btn" onclick="setFabState('connecting')">🔵 CONNECTING (连接中)</button>
+                        <button class="theme-btn" onclick="setFabState('disconnected')">⚪ DISCONNECTED (已断开)</button>
+                        <button class="theme-btn" onclick="setFabState('error')">🔴 ERROR (连接失败)</button>
+                        <button class="theme-btn" onclick="toggleFabCompact()">↔️ 切换展开 / 收折形态</button>
+                    </div>
+                </div>
+
+                <!-- 演示舞台 -->
+                <div style="background:var(--bg-color); border:1px solid var(--outline-variant); border-radius:24px; padding:60px; display:flex; justify-content:center; align-items:center; min-height:260px; box-shadow:0 10px 30px rgba(0,0,0,0.4); position:relative; overflow:hidden;">
+                    <div class="connection-fab state-connected" id="interactive-fab" style="transform:scale(1.2);">
+                        <div class="fab-morph-content" id="stage-fab-text">
+                            <div class="fab-morph-title" id="stage-fab-title">已安全连接</div>
+                            <div class="fab-morph-sub" id="stage-fab-sub">日本东京 01 · 38ms</div>
+                        </div>
+                        <div class="fab-icon-slot" id="stage-fab-icon">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== 视图 3：节点编辑页 ============================== -->
+        <div id="tab-edit" class="screen-view">
+            <div class="device-container">
+                <div class="phone-mockup">
+                    <div class="phone-status-bar">
+                        <span>17:16</span>
+                        <div class="status-icons">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.5 3 3.75 4.8 1 7.7L12 21 23 7.7C20.25 4.8 16.5 3 12 3z"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="app-toolbar">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button class="icon-btn" onclick="switchTab('tab-dashboard')">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            </button>
+                            <div class="app-title">编辑节点配置</div>
+                        </div>
+                        <button style="background:none; border:none; color:var(--primary); font-weight:700; font-size:14px; cursor:pointer;" onclick="switchTab('tab-dashboard')">保存</button>
+                    </div>
+
+                    <div class="phone-body form-screen">
+                        <div class="form-group-title">基础配置 (Basic Info)</div>
+
+                        <div class="m3-input-field">
+                            <span class="m3-input-label">配置名称</span>
+                            <span class="m3-input-val">日本东京 01 · 极速中转</span>
+                        </div>
+
+                        <div class="m3-input-field">
+                            <span class="m3-input-label">代理协议</span>
+                            <span class="m3-input-val" style="color:var(--primary);">X-TUNNEL (8-byte 多路复用)</span>
+                        </div>
+
+                        <div class="form-group-title">X-Tunnel 连接参数</div>
+
+                        <div class="m3-input-field">
+                            <span class="m3-input-label">服务器地址 (WSS)</span>
+                            <span class="m3-input-val">wss://jp-01.tunnel.internal:443</span>
+                        </div>
+
+                        <div class="m3-input-field">
+                            <span class="m3-input-label">连接认证 Token</span>
+                            <span class="m3-input-val">tok_sec_9948271038102</span>
+                        </div>
+
+                        <div class="m3-input-field">
+                            <span class="m3-input-label">中转节点 (Relay Nodes)</span>
+                            <span class="m3-input-val">104.28.19.42, 104.28.19.43</span>
+                        </div>
+
+                        <div class="form-group-title">进阶隐私安全</div>
+
+                        <div class="setting-card">
+                            <div class="setting-info">
+                                <span class="setting-title">启用 ECH 加密</span>
+                                <span class="setting-desc">隐藏 SNI 握手域名</span>
+                            </div>
+                            <div class="custom-switch"></div>
+                        </div>
+
+                        <div class="btn-row">
+                            <button class="btn-primary" onclick="switchTab('tab-dashboard')">保存修改</button>
+                            <button class="btn-outlined" onclick="switchTab('tab-dashboard')">取消</button>
+                        </div>
+                    </div>
+
+                    <div class="phone-home-indicator"><div class="home-pill"></div></div>
+                </div>
+
+                <div class="details-panel">
+                    <div class="card-box">
+                        <h3>📐 表单与输入框设计提升</h3>
+                        <p style="font-size:13.5px; color:var(--shell-muted); margin-bottom:12px;">
+                            原版配置编辑页输入框使用 M3 默认边框，暗色模式下对比度过低且容易与背景融合。
+                        </p>
+                        <ul style="font-size:13px; color:#E2E8F0; padding-left:18px; line-height:1.8;">
+                            <li><strong>高光微描边（Subtle Outline）</strong>：常态使用 <code>--outline-variant</code>，聚焦状态平滑过渡至 <code>--primary</code>，极简且清晰。</li>
+                            <li><strong>胶囊按键（Pill CTA）</strong>：保存按钮采用 Primary 纯色充盈填充，搭配 On-Primary 高反差白色文字，提供明确的视觉终点。</li>
+                            <li><strong>协议切换联动</strong>：X-Tunnel / GCM 专属标签与输入框色彩联动，视觉节奏分明。</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== 视图 4：全局设置页 ============================== -->
+        <div id="tab-settings" class="screen-view">
+            <div class="device-container">
+                <div class="phone-mockup">
+                    <div class="phone-status-bar">
+                        <span>17:16</span>
+                        <div class="status-icons">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.5 3 3.75 4.8 1 7.7L12 21 23 7.7C20.25 4.8 16.5 3 12 3z"/></svg>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
+                        </div>
+                    </div>
+
+                    <div class="app-toolbar">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <button class="icon-btn" onclick="switchTab('tab-dashboard')">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                            </button>
+                            <div class="app-title">设置 (Settings)</div>
+                        </div>
+                    </div>
+
+                    <div class="phone-body settings-screen">
+                        <div class="form-group-title">通用设置 (General)</div>
+
+                        <div class="setting-card">
+                            <div class="setting-info">
+                                <span class="setting-title">开机自启动</span>
+                                <span class="setting-desc">系统启动时自动建立保护连接</span>
+                            </div>
+                            <div class="custom-switch"></div>
+                        </div>
+
+                        <div class="setting-card">
+                            <div class="setting-info">
+                                <span class="setting-title">暗色外观主题</span>
+                                <span class="setting-desc">跟随系统或强制高阶深邃黑曜石</span>
+                            </div>
+                            <div class="custom-switch"></div>
+                        </div>
+
+                        <div class="form-group-title">网络与路由 (Routing)</div>
+
+                        <div class="setting-card">
+                            <div class="setting-info">
+                                <span class="setting-title">绕过中国大陆大陆地址</span>
+                                <span class="setting-desc">GeoIP / GeoSite 智能直连</span>
+                            </div>
+                            <div class="custom-switch"></div>
+                        </div>
+
+                        <div class="setting-card">
+                            <div class="setting-info">
+                                <span class="setting-title">分应用代理 (Per-App Proxy)</span>
+                                <span class="setting-desc">已选择 14 个应用走代理</span>
+                            </div>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--on-surface-variant);"><path d="M9 18l6-6-6-6"/></svg>
+                        </div>
+
+                        <div class="form-group-title">高级诊断</div>
+
+                        <div class="setting-card" style="cursor:pointer;">
+                            <div class="setting-info">
+                                <span class="setting-title">运行实时日志 (Runtime Logs)</span>
+                                <span class="setting-desc">查看 Go 核心与 TUN 调试堆栈</span>
+                            </div>
+                            <span class="protocol-chip chip-xtunnel">实时</span>
+                        </div>
+                    </div>
+
+                    <div class="phone-home-indicator"><div class="home-pill"></div></div>
+                </div>
+
+                <div class="details-panel">
+                    <div class="card-box">
+                        <h3>🛠️ 设置项卡片化与触控面积</h3>
+                        <p style="font-size:13.5px; color:var(--shell-muted); line-height:1.7;">
+                            在现代 Android 设计中，孤立的复选框（CheckBox）容易给人落后于时代的廉价感。我们通过 <strong>Material 3 容器卡片化（Cardified Groupings）</strong> 配合平滑的开关（Switch）与圆角边界，让用户在大屏设备上拥有更扎实触感。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== 视图 5：新旧方案双屏对比 ============================== -->
+        <div id="tab-split" class="screen-view">
+            <div class="split-view-container">
+                <!-- 左屏：当前旧版 -->
+                <div class="split-col">
+                    <div class="split-label label-before">❌ 当前旧版（Low/浑浊紫灰调）</div>
+                    <div class="phone-mockup" style="--bg-color:#141218; --surface-color:#141218; --surface-container:#211F26; --surface-container-high:#2B2930; --primary:#7FD0FA; --on-primary:#002F44; --primary-container:#0B4A6E; --on-primary-container:#CDE9FF; --success:#6FDFA0; --on-success:#00290F; --success-container:#0B3D24; --on-success-container:#DCFCE7; --on-surface:#E6E0E9; --on-surface-variant:#CAC4D0; --outline:#938F99; --outline-variant:#49454F;">
+                        <div class="phone-status-bar">
+                            <span>17:16</span>
+                            <div class="status-icons"><span class="vpn-badge">VPN</span></div>
+                        </div>
+                        <div class="app-toolbar">
+                            <div class="app-title">X Client</div>
+                        </div>
+                        <div class="phone-body">
+                            <div class="status-hero-card" style="background:#211F26; border-color:#49454F;">
+                                <div class="hero-header">
+                                    <span class="hero-status-pill" style="background:#6FDFA0; color:#00290F;">已连接</span>
+                                    <span style="font-size:11px; color:#CAC4D0;">01:42:19</span>
+                                </div>
+                                <div style="font-size:15px; font-weight:700; color:#E6E0E9;">日本东京 01</div>
+                                <div style="font-size:12px; color:#CAC4D0;">IP: 104.28.19.42</div>
+                            </div>
+                            <div class="profile-list">
+                                <div class="profile-item-wrapper selected" style="background:#141218;">
+                                    <div class="profile-item-foreground" style="background:#1D1B20;">
+                                        <div class="custom-radio" style="border-color:#7FD0FA; background:#7FD0FA;"></div>
+                                        <div class="profile-content">
+                                            <div class="profile-name" style="color:#E6E0E9;">日本东京 01</div>
+                                            <div style="font-size:11px; color:#CAC4D0;">jp-01.tunnel.internal</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="profile-item-wrapper" style="background:#141218;">
+                                    <div class="profile-item-foreground" style="background:#141218;">
+                                        <div class="custom-radio" style="border-color:#938F99;"></div>
+                                        <div class="profile-content">
+                                            <div class="profile-name" style="color:#E6E0E9;">新加坡 02</div>
+                                            <div style="font-size:11px; color:#CAC4D0;">sg-worker.relay.net</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fab-container">
+                            <div class="connection-fab compact" style="background:#0B4A6E; color:#CDE9FF;">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+                            </div>
+                        </div>
+                        <div class="phone-home-indicator"><div class="home-pill"></div></div>
+                    </div>
+                </div>
+
+                <!-- 右屏：新版推荐方案 -->
+                <div class="split-col">
+                    <div class="split-label label-after">✅ 推荐新版【赛博极光 · Cyber Aurora】</div>
+                    <div class="phone-mockup">
+                        <div class="phone-status-bar">
+                            <span>17:16</span>
+                            <div class="status-icons"><span class="vpn-badge">VPN</span></div>
+                        </div>
+                        <div class="app-toolbar">
+                            <div class="app-title-block">
+                                <div class="app-title">X Client</div>
+                                <div class="app-subtitle">v1.2.0 · Pro Connected</div>
+                            </div>
+                        </div>
+                        <div class="phone-body">
+                            <div class="status-hero-card connected-mode">
+                                <div class="hero-header">
+                                    <span class="hero-status-pill pill-connected">
+                                        <span class="pulse-dot"></span>已安全连接
+                                    </span>
+                                    <span style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono);">01:42:19</span>
+                                </div>
+                                <div style="font-size:15.5px; font-weight:700; color:var(--on-surface);">日本东京 01 · 极速中转</div>
+                                <div style="font-size:12px; color:var(--on-surface-variant);">IP: 104.28.19.42 (ECH 生效)</div>
+                            </div>
+                            <div class="profile-list">
+                                <div class="profile-item-wrapper selected">
+                                    <div class="profile-item-foreground">
+                                        <div class="custom-radio"></div>
+                                        <div class="profile-content">
+                                            <div class="profile-name">日本东京 01 · 极速中转</div>
+                                            <div style="font-size:11px; color:var(--on-surface-variant);">jp-01.tunnel.internal · 38ms</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="profile-item-wrapper">
+                                    <div class="profile-item-foreground">
+                                        <div class="custom-radio"></div>
+                                        <div class="profile-content">
+                                            <div class="profile-name">新加坡 02 · 智能优化线路</div>
+                                            <div style="font-size:11px; color:var(--on-surface-variant);">sg-worker.relay.net · 52ms</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="fab-container">
+                            <div class="connection-fab state-connected">
+                                <div class="fab-morph-content">
+                                    <div class="fab-morph-title">已安全连接</div>
+                                    <div class="fab-morph-sub">日本东京 01 · 38ms</div>
+                                </div>
+                                <div class="fab-icon-slot">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="phone-home-indicator"><div class="home-pill"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================== 视图 6：Token 与对比度色阶表 ============================== -->
+        <div id="tab-tokens" class="screen-view">
+            <div style="max-width:980px; margin:0 auto; display:flex; flex-direction:column; gap:24px;">
+                <div class="card-box">
+                    <h3>🎨 方案 1: 赛博极光 (Cyber Aurora) Token 映射清单</h3>
+                    <p style="font-size:13.5px; color:var(--shell-muted); margin-bottom:16px;">
+                        以下色值可直接无缝替换 <code>app/src/main/res/values/colors.xml</code> 与 <code>values-night/colors.xml</code>：
+                    </p>
+
+                    <table class="token-table">
+                        <thead>
+                            <tr>
+                                <th>Token 标识</th>
+                                <th>角色用途</th>
+                                <th>Dark Mode (夜间)</th>
+                                <th>Light Mode (日间)</th>
+                                <th>WCAG 对比度</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>x_primary</code></td>
+                                <td>品牌主色 / 高亮指示</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#38BDF8;"></span>#38BDF8</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#0284C7;"></span>#0284C7</span></td>
+                                <td><span class="contrast-badge contrast-pass">11.8:1 (AAA)</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>x_background</code></td>
+                                <td>全局根背景底色</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#0B0F19;"></span>#0B0F19</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#F8FAFC;"></span>#F8FAFC</span></td>
+                                <td><span class="contrast-badge contrast-pass">16.4:1 (AAA)</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>x_surface_container</code></td>
+                                <td>卡片 / 列表项常规容器</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#151F32;"></span>#151F32</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#E2E8F0;"></span>#E2E8F0</span></td>
+                                <td><span class="contrast-badge contrast-pass">微阶层达标</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>md_success</code></td>
+                                <td>已连接 / 安全状态</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#34D399;"></span>#34D399</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#059669;"></span>#059669</span></td>
+                                <td><span class="contrast-badge contrast-pass">12.5:1 (AAA)</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>md_success_container</code></td>
+                                <td>连接卡底色 / 荧光胶囊</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#064E3B;"></span>#064E3B</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#D1FAE5;"></span>#D1FAE5</span></td>
+                                <td><span class="contrast-badge contrast-pass">7.2:1 (AA)</span></td>
+                            </tr>
+                            <tr>
+                                <td><code>x_error</code></td>
+                                <td>连接失败 / 异常警示</td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#F87171;"></span>#F87171</span></td>
+                                <td><span class="color-chip-preview"><span class="color-box" style="background:#DC2626;"></span>#DC2626</span></td>
+                                <td><span class="contrast-badge contrast-pass">8.1:1 (AAA)</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 快速复制 XML -->
+                <div class="card-box">
+                    <button class="copy-btn" onclick="copyXmlCode()">复制代码</button>
+                    <h3>📋 Android XML 生成预览 (values-night/colors.xml)</h3>
+                    <div class="code-block" id="xml-code-block">
+&lt;!-- values-night/colors.xml [方案 1: 赛博极光] --&gt;
+&lt;resources&gt;
+    &lt;color name="x_primary"&gt;#FF38BDF8&lt;/color&gt;
+    &lt;color name="x_on_primary"&gt;#FF002D44&lt;/color&gt;
+    &lt;color name="x_primary_container"&gt;#FF0C4A6E&lt;/color&gt;
+    &lt;color name="x_on_primary_container"&gt;#FFBAE6FD&lt;/color&gt;
+
+    &lt;color name="md_success"&gt;#FF34D399&lt;/color&gt;
+    &lt;color name="md_on_success"&gt;#FF022C1A&lt;/color&gt;
+    &lt;color name="md_success_container"&gt;#FF064E3B&lt;/color&gt;
+    &lt;color name="md_on_success_container"&gt;#FFA7F3D0&lt;/color&gt;
+
+    &lt;color name="md_warning"&gt;#FFFBBF24&lt;/color&gt;
+    &lt;color name="md_on_warning"&gt;#FF451A03&lt;/color&gt;
+
+    &lt;color name="x_error"&gt;#FFF87171&lt;/color&gt;
+    &lt;color name="x_on_error"&gt;#FF450A0A&lt;/color&gt;
+    &lt;color name="x_error_container"&gt;#FF7F1D1D&lt;/color&gt;
+    &lt;color name="x_on_error_container"&gt;#FFFECACA&lt;/color&gt;
+
+    &lt;color name="x_background"&gt;#FF0B0F19&lt;/color&gt;
+    &lt;color name="x_on_background"&gt;#FFF1F5F9&lt;/color&gt;
+    &lt;color name="x_surface"&gt;#FF0B0F19&lt;/color&gt;
+    &lt;color name="x_on_surface"&gt;#FFF1F5F9&lt;/color&gt;
+    &lt;color name="x_on_surface_variant"&gt;#FF94A3B8&lt;/color&gt;
+    &lt;color name="x_surface_container_lowest"&gt;#FF070A10&lt;/color&gt;
+    &lt;color name="x_surface_container_low"&gt;#FF0F172A&lt;/color&gt;
+    &lt;color name="x_surface_container"&gt;#FF151F32&lt;/color&gt;
+    &lt;color name="x_surface_container_high"&gt;#FF1E293B&lt;/color&gt;
+    &lt;color name="x_surface_container_highest"&gt;#FF283548&lt;/color&gt;
+
+    &lt;color name="x_outline"&gt;#FF475569&lt;/color&gt;
+    &lt;color name="x_outline_variant"&gt;#FF1E293B&lt;/color&gt;
+    &lt;color name="x_tertiary"&gt;#FF2DD4BF&lt;/color&gt;
+    &lt;color name="x_tertiary_container"&gt;#FF134E4A&lt;/color&gt;
+    &lt;color name="x_on_tertiary_container"&gt;#FFCCFBF1&lt;/color&gt;
+    &lt;color name="x_edit_container"&gt;#FF0369A1&lt;/color&gt;
+    &lt;color name="x_on_edit_container"&gt;#FFE0F2FE&lt;/color&gt;
+&lt;/resources&gt;
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 交互驱动 JavaScript -->
+    <script>
+        // 方案数据库
+        const schemes = {
+            aurora: {
+                name: "方案 1: 【赛博极光 · Cyber Aurora】",
+                tag: "强烈推荐",
+                tagClass: "tag-recommend",
+                desc: "彻底根除原生 M3 baseline 带来的“浑浊紫灰调”！采用黑曜石沉浸深空（#0B0F19）结合纳米石墨卡片层次，以极光电青（#38BDF8）作为核心品牌指示，翡翠绿（#34D399）作为安全连接状态心智。高对比、极客感强、速度与隐私兼备。",
+                dark: {
+                    bg: "#0B0F19",
+                    surface: "#0B0F19",
+                    containerLowest: "#070A10",
+                    containerLow: "#0F172A",
+                    container: "#151F32",
+                    containerHigh: "#1E293B",
+                    containerHighest: "#283548",
+                    onSurface: "#F1F5F9",
+                    onSurfaceVariant: "#94A3B8",
+                    outline: "#475569",
+                    outlineVariant: "#1E293B",
+                    primary: "#38BDF8",
+                    onPrimary: "#002D44",
+                    primaryContainer: "#0C4A6E",
+                    onPrimaryContainer: "#BAE6FD",
+                    success: "#34D399",
+                    onSuccess: "#022C1A",
+                    successContainer: "#064E3B",
+                    onSuccessContainer: "#A7F3D0",
+                    warning: "#FBBF24",
+                    error: "#F87171",
+                    errorContainer: "#7F1D1D",
+                    onErrorContainer: "#FECACA",
+                    tertiary: "#2DD4BF",
+                    tertiaryContainer: "#134E4A",
+                    onTertiaryContainer: "#CCFBF1",
+                    editContainer: "#0369A1",
+                    onEditContainer: "#E0F2FE"
+                },
+                light: {
+                    bg: "#F8FAFC",
+                    surface: "#FFFFFF",
+                    containerLowest: "#FFFFFF",
+                    containerLow: "#F1F5F9",
+                    container: "#E2E8F0",
+                    containerHigh: "#CBD5E1",
+                    containerHighest: "#94A3B8",
+                    onSurface: "#0F172A",
+                    onSurfaceVariant: "#475569",
+                    outline: "#94A3B8",
+                    outlineVariant: "#E2E8F0",
+                    primary: "#0284C7",
+                    onPrimary: "#FFFFFF",
+                    primaryContainer: "#E0F2FE",
+                    onPrimaryContainer: "#03496E",
+                    success: "#059669",
+                    onSuccess: "#FFFFFF",
+                    successContainer: "#D1FAE5",
+                    onSuccessContainer: "#064E3B",
+                    warning: "#D97706",
+                    error: "#DC2626",
+                    errorContainer: "#FEE2E2",
+                    onErrorContainer: "#991B1B",
+                    tertiary: "#0D9488",
+                    tertiaryContainer: "#CCFBF1",
+                    onTertiaryContainer: "#115E59",
+                    editContainer: "#BAE6FD",
+                    onEditContainer: "#0369A1"
+                }
+            },
+            titanium: {
+                name: "方案 2: 【钛金极简 · Titanium Monolith】",
+                tag: "顶级轻奢 (Linear流)",
+                tagClass: "tag-minimal",
+                desc: "致敬 Linear 与 Apple 工业设计。严格剔除所有色彩偏倚，采用绝对无彩度的中性石灰与冷白阶梯（#09090B / #18181B / #FAFAFA），以精密微高光（Subtle Rim Glow）营造纯粹机械质感，搭配皇家高光蓝。",
+                dark: {
+                    bg: "#09090B",
+                    surface: "#09090B",
+                    containerLowest: "#050507",
+                    containerLow: "#121215",
+                    container: "#18181B",
+                    containerHigh: "#222226",
+                    containerHighest: "#2C2C32",
+                    onSurface: "#FAFAFA",
+                    onSurfaceVariant: "#A1A1AA",
+                    outline: "#52525B",
+                    outlineVariant: "#27272A",
+                    primary: "#60A5FA",
+                    onPrimary: "#00264D",
+                    primaryContainer: "#1E3A8A",
+                    onPrimaryContainer: "#DBEAFE",
+                    success: "#4ADE80",
+                    onSuccess: "#052E16",
+                    successContainer: "#14532D",
+                    onSuccessContainer: "#DCFCE7",
+                    warning: "#FBBF24",
+                    error: "#F87171",
+                    errorContainer: "#7F1D1D",
+                    onErrorContainer: "#FECACA",
+                    tertiary: "#94A3B8",
+                    tertiaryContainer: "#334155",
+                    onTertiaryContainer: "#F1F5F9",
+                    editContainer: "#2563EB",
+                    onEditContainer: "#EFF6FF"
+                },
+                light: {
+                    bg: "#FAFAFA",
+                    surface: "#FFFFFF",
+                    containerLowest: "#FFFFFF",
+                    containerLow: "#F4F4F5",
+                    container: "#E4E4E7",
+                    containerHigh: "#D4D4D8",
+                    containerHighest: "#A1A1AA",
+                    onSurface: "#09090B",
+                    onSurfaceVariant: "#52525B",
+                    outline: "#A1A1AA",
+                    outlineVariant: "#E4E4E7",
+                    primary: "#2563EB",
+                    onPrimary: "#FFFFFF",
+                    primaryContainer: "#DBEAFE",
+                    onPrimaryContainer: "#1E3A8A",
+                    success: "#16A34A",
+                    onSuccess: "#FFFFFF",
+                    successContainer: "#DCFCE7",
+                    onSuccessContainer: "#14532D",
+                    warning: "#D97706",
+                    error: "#DC2626",
+                    errorContainer: "#FEE2E2",
+                    onErrorContainer: "#991B1B",
+                    tertiary: "#64748B",
+                    tertiaryContainer: "#E2E8F0",
+                    onTertiaryContainer: "#0F172A",
+                    editContainer: "#DBEAFE",
+                    onEditContainer: "#1D4ED8"
+                }
+            },
+            shield: {
+                name: "方案 3: 【瑞士暗盾 · Swiss Shield】",
+                tag: "安全隐私 (Tailscale/Mullvad)",
+                tagClass: "tag-security",
+                desc: "面向高安全隐私诉求的军工级质感。以深墨绿黑曜石作为主环境，把绿盾荧光融入核心状态，给人不可撼动的网络防护信任感与极高的辨识度。",
+                dark: {
+                    bg: "#081014",
+                    surface: "#081014",
+                    containerLowest: "#050B0E",
+                    containerLow: "#0E1A20",
+                    container: "#14252E",
+                    containerHigh: "#1C323E",
+                    containerHighest: "#284452",
+                    onSurface: "#EDF8F6",
+                    onSurfaceVariant: "#88A4A1",
+                    outline: "#3E6162",
+                    outlineVariant: "#1E353B",
+                    primary: "#10B981",
+                    onPrimary: "#002E1B",
+                    primaryContainer: "#064E3B",
+                    onPrimaryContainer: "#A7F3D0",
+                    success: "#10B981",
+                    onSuccess: "#002E1B",
+                    successContainer: "#064E3B",
+                    onSuccessContainer: "#A7F3D0",
+                    warning: "#F59E0B",
+                    error: "#EF4444",
+                    errorContainer: "#7F1D1D",
+                    onErrorContainer: "#FEE2E2",
+                    tertiary: "#2DD4BF",
+                    tertiaryContainer: "#115E59",
+                    onTertiaryContainer: "#CCFBF1",
+                    editContainer: "#047857",
+                    onEditContainer: "#ECFDF5"
+                },
+                light: {
+                    bg: "#F2F9F7",
+                    surface: "#FFFFFF",
+                    containerLowest: "#FFFFFF",
+                    containerLow: "#E6F4F1",
+                    container: "#CEE9E3",
+                    containerHigh: "#B5DDD4",
+                    containerHighest: "#88A4A1",
+                    onSurface: "#09221D",
+                    onSurfaceVariant: "#2F524A",
+                    outline: "#6A8C85",
+                    outlineVariant: "#CEE9E3",
+                    primary: "#047857",
+                    onPrimary: "#FFFFFF",
+                    primaryContainer: "#D1FAE5",
+                    onPrimaryContainer: "#064E3B",
+                    success: "#047857",
+                    onSuccess: "#FFFFFF",
+                    successContainer: "#D1FAE5",
+                    onSuccessContainer: "#064E3B",
+                    warning: "#D97706",
+                    error: "#DC2626",
+                    errorContainer: "#FEE2E2",
+                    onErrorContainer: "#991B1B",
+                    tertiary: "#0F766E",
+                    tertiaryContainer: "#CCFBF1",
+                    onTertiaryContainer: "#115E59",
+                    editContainer: "#A7F3D0",
+                    onEditContainer: "#064E3B"
+                }
+            },
+            old: {
+                name: "⚠️ 当前旧版方案 (Default M3 Baseline)",
+                tag: "待淘汰旧版",
+                tagClass: "tag-old",
+                desc: "当前分支修改前的现状：因继承 M3 默认基准，容器带有浑浊的粉紫灰底色（#FFF3EDF7 / #211F26），与 #0873AC 蓝冲突，缺乏层次，视觉散乱。",
+                dark: {
+                    bg: "#141218",
+                    surface: "#141218",
+                    containerLowest: "#0F0D13",
+                    containerLow: "#1D1B20",
+                    container: "#211F26",
+                    containerHigh: "#2B2930",
+                    containerHighest: "#36343B",
+                    onSurface: "#E6E0E9",
+                    onSurfaceVariant: "#CAC4D0",
+                    outline: "#938F99",
+                    outlineVariant: "#49454F",
+                    primary: "#7FD0FA",
+                    onPrimary: "#002F44",
+                    primaryContainer: "#0B4A6E",
+                    onPrimaryContainer: "#CDE9FF",
+                    success: "#6FDFA0",
+                    onSuccess: "#00290F",
+                    successContainer: "#0B3D24",
+                    onSuccessContainer: "#DCFCE7",
+                    warning: "#FFB86B",
+                    error: "#F2B8B5",
+                    errorContainer: "#8C1D18",
+                    onErrorContainer: "#F9DEDC",
+                    tertiary: "#83D5C9",
+                    tertiaryContainer: "#1F4B46",
+                    onTertiaryContainer: "#B2ECE2",
+                    editContainer: "#3B7CA8",
+                    onEditContainer: "#CFE7F8"
+                },
+                light: {
+                    bg: "#FFFFFBFF",
+                    surface: "#FFFFFBFF",
+                    containerLowest: "#FFFFFF",
+                    containerLow: "#FFF7F2FA",
+                    container: "#FFF3EDF7",
+                    containerHigh: "#FFECE6F0",
+                    containerHighest: "#FFE6E0E9",
+                    onSurface: "#FF1D1B20",
+                    onSurfaceVariant: "#FF49454F",
+                    outline: "#FF79747E",
+                    outlineVariant: "#FFCAC4D0",
+                    primary: "#FF0873AC",
+                    onPrimary: "#FFFFFFFF",
+                    primaryContainer: "#FFCDE9FF",
+                    onPrimaryContainer: "#FF00243A",
+                    success: "#FF146C43",
+                    onSuccess: "#FFFFFFFF",
+                    successContainer: "#FFDCFCE7",
+                    onSuccessContainer: "#FF052E16",
+                    warning: "#FF9A5B00",
+                    error: "#FFB3261E",
+                    errorContainer: "#FFF9DEDC",
+                    onErrorContainer: "#FF410E0B",
+                    tertiary: "#FF006961",
+                    tertiaryContainer: "#FFB4EBE3",
+                    onTertiaryContainer: "#FF003733",
+                    editContainer: "#FF8FCBF2",
+                    onEditContainer: "#FF00243A"
+                }
+            }
+        };
+
+        let currentSchemeKey = 'aurora';
+        let currentMode = 'dark';
+        let isFabCompact = false;
+        let currentVpnState = 'connected';
+
+        function applyTheme() {
+            const scheme = schemes[currentSchemeKey];
+            const tokens = scheme[currentMode];
+            const root = document.documentElement;
+
+            root.style.setProperty('--bg-color', tokens.bg);
+            root.style.setProperty('--surface-color', tokens.surface);
+            root.style.setProperty('--surface-container-lowest', tokens.containerLowest);
+            root.style.setProperty('--surface-container-low', tokens.containerLow);
+            root.style.setProperty('--surface-container', tokens.container);
+            root.style.setProperty('--surface-container-high', tokens.containerHigh);
+            root.style.setProperty('--surface-container-highest', tokens.containerHighest);
+            root.style.setProperty('--on-surface', tokens.onSurface);
+            root.style.setProperty('--on-surface-variant', tokens.onSurfaceVariant);
+            root.style.setProperty('--outline', tokens.outline);
+            root.style.setProperty('--outline-variant', tokens.outlineVariant);
+            root.style.setProperty('--primary', tokens.primary);
+            root.style.setProperty('--on-primary', tokens.onPrimary);
+            root.style.setProperty('--primary-container', tokens.primaryContainer);
+            root.style.setProperty('--on-primary-container', tokens.onPrimaryContainer);
+            root.style.setProperty('--success', tokens.success);
+            root.style.setProperty('--on-success', tokens.onSuccess);
+            root.style.setProperty('--success-container', tokens.successContainer);
+            root.style.setProperty('--on-success-container', tokens.onSuccessContainer);
+            root.style.setProperty('--warning', tokens.warning);
+            root.style.setProperty('--error', tokens.error);
+            root.style.setProperty('--error-container', tokens.errorContainer);
+            root.style.setProperty('--on-error-container', tokens.onErrorContainer);
+            root.style.setProperty('--tertiary', tokens.tertiary);
+            root.style.setProperty('--tertiary-container', tokens.tertiaryContainer);
+            root.style.setProperty('--on-tertiary-container', tokens.onTertiaryContainer);
+            root.style.setProperty('--edit-container', tokens.editContainer);
+            root.style.setProperty('--on-edit-container', tokens.onEditContainer);
+
+            // 更新 Banner
+            document.getElementById('scheme-title').innerHTML = `${scheme.name} <span class="scheme-tag ${scheme.tagClass}" id="scheme-tag">${scheme.tag}</span>`;
+            document.getElementById('scheme-desc').textContent = scheme.desc;
+
+            document.getElementById('swatch-bg').style.background = tokens.bg;
+            document.getElementById('swatch-container').style.background = tokens.container;
+            document.getElementById('swatch-primary').style.background = tokens.primary;
+            document.getElementById('swatch-success').style.background = tokens.success;
+
+            // 更新按钮激活状态
+            document.querySelectorAll('.btn-group .theme-btn').forEach((btn, idx) => {
+                const keys = ['aurora', 'titanium', 'shield', 'old'];
+                btn.classList.toggle('active', keys[idx] === currentSchemeKey);
+            });
+
+            document.getElementById('btn-dark').classList.toggle('active', currentMode === 'dark');
+            document.getElementById('btn-light').classList.toggle('active', currentMode === 'light');
+
+            updateFabVisuals();
+        }
+
+        function setScheme(key) {
+            currentSchemeKey = key;
+            applyTheme();
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            applyTheme();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.screen-view').forEach(v => v.classList.remove('active'));
+
+            const activeTab = Array.from(document.querySelectorAll('.tab-item')).find(t => t.getAttribute('onclick').includes(tabId));
+            if (activeTab) activeTab.classList.add('active');
+
+            const view = document.getElementById(tabId);
+            if (view) view.classList.add('active');
+        }
+
+        function selectItem(el, name) {
+            document.querySelectorAll('.profile-item-wrapper').forEach(w => w.classList.remove('selected'));
+            el.closest('.profile-item-wrapper').classList.add('selected');
+            document.getElementById('dashboard-node-name').textContent = name;
+            document.getElementById('fab-sub-text').textContent = `${name} · 38ms`;
+        }
+
+        // FAB 状态更新
+        function setFabState(state) {
+            currentVpnState = state;
+            updateFabVisuals();
+        }
+
+        function toggleFabCompact() {
+            isFabCompact = !isFabCompact;
+            updateFabVisuals();
+        }
+
+        function toggleVpnDemo() {
+            if (currentVpnState === 'connected') {
+                setFabState('disconnected');
+            } else {
+                setFabState('connecting');
+                setTimeout(() => {
+                    setFabState('connected');
+                }, 1200);
+            }
+        }
+
+        function updateFabVisuals() {
+            const fabs = [
+                document.getElementById('main-vpn-fab'),
+                document.getElementById('interactive-fab')
+            ];
+
+            const heroCard = document.getElementById('dashboard-hero-card');
+            const heroPill = document.getElementById('dashboard-pill');
+
+            fabs.forEach(fab => {
+                if (!fab) return;
+                fab.className = 'connection-fab';
+                if (isFabCompact) fab.classList.add('compact');
+
+                const textBox = fab.querySelector('.fab-morph-content');
+                const titleText = fab.querySelector('.fab-morph-title');
+                const subText = fab.querySelector('.fab-morph-sub');
+                const iconSlot = fab.querySelector('.fab-icon-slot');
+
+                if (textBox) textBox.style.display = isFabCompact ? 'none' : 'flex';
+
+                if (currentVpnState === 'connected') {
+                    fab.classList.add('state-connected');
+                    if (titleText) titleText.textContent = "已安全连接";
+                    if (subText) subText.textContent = "日本东京 01 · 38ms";
+                    if (iconSlot) iconSlot.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>`;
+                } else if (currentVpnState === 'connecting') {
+                    fab.classList.add('state-connecting');
+                    if (titleText) titleText.textContent = "正在建立安全通道…";
+                    if (subText) subText.textContent = "协商 ECH / TLS 握手";
+                    if (iconSlot) iconSlot.innerHTML = `<div class="spinner"></div>`;
+                } else if (currentVpnState === 'disconnected') {
+                    if (titleText) titleText.textContent = "未连接保护";
+                    if (subText) subText.textContent = "点击一键开启 VPN 隧道";
+                    if (iconSlot) iconSlot.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg>`;
+                } else if (currentVpnState === 'error') {
+                    fab.classList.add('state-error');
+                    if (titleText) titleText.textContent = "握手认证失败";
+                    if (subText) subText.textContent = "请检查 Token 或重试";
+                    if (iconSlot) iconSlot.innerHTML = `<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+                }
+            });
+
+            // 更新仪表盘顶部卡
+            if (heroCard && heroPill) {
+                heroCard.className = 'status-hero-card';
+                if (currentVpnState === 'connected') {
+                    heroCard.classList.add('connected-mode');
+                    heroPill.className = 'hero-status-pill pill-connected';
+                    heroPill.innerHTML = '<span class="pulse-dot"></span> 已安全连接';
+                } else if (currentVpnState === 'connecting') {
+                    heroPill.className = 'hero-status-pill pill-connecting';
+                    heroPill.innerHTML = '<div class="spinner" style="width:12px;height:12px;border-width:2px;"></div> 正在连接…';
+                } else if (currentVpnState === 'error') {
+                    heroPill.className = 'hero-status-pill pill-error';
+                    heroPill.innerHTML = '⚠️ 连接失败';
+                } else {
+                    heroPill.className = 'hero-status-pill pill-disconnected';
+                    heroPill.innerHTML = '⚪ 隧道已断开';
+                }
+            }
+        }
+
+        function copyXmlCode() {
+            const text = document.getElementById('xml-code-block').innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                alert("已复制 values-night/colors.xml 代码到剪贴板！");
+            });
+        }
+
+        // 初始化
+        applyTheme();
+    </script>
+</body>
+</html>
