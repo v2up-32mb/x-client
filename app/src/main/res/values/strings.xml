@@ -54,14 +54,16 @@
         <string name="close">关闭</string>
         <string name="disable_ipv6_route">禁用 IPv6 路由</string>
 
-        <!-- Theme -->
-        <string name="theme_toggle">切换主题</string>
+        <!-- Theme（明暗模式文案，设置页「外观」分组使用） -->
         <string name="theme_system">跟随系统</string>
         <string name="theme_light">亮色</string>
         <string name="theme_dark">暗色</string>
         <string name="theme_palette_aurora">赛博极光</string>
         <string name="theme_palette_titanium">钛金极简</string>
         <string name="theme_palette_shield">瑞士暗盾</string>
+        <string name="theme_palette_aurora_desc">冷 Slate 底 · 极光青 + 翡翠绿</string>
+        <string name="theme_palette_titanium_desc">无彩度锌灰 · 皇家蓝，工业精密</string>
+        <string name="theme_palette_shield_desc">深青墨绿 · 护盾绿，安全守护</string>
         <string name="search_apps">搜索应用</string>
         <string name="view_runtime_logs">查看本次运行日志</string>
         <string name="runtime_logs_title">运行日志</string>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    色彩方案对话框列表项（SettingsActivity 外观分组专属）：
+    - 左侧 4 圆角色卡（Primary / PrimaryContainer / Success / SurfaceContainer，adapter 动态填充）
+    - 中间 标题（TitleMedium）+ 副标题描述（BodyMedium）
+    - 右侧 勾选标记（选中显示，?attr/xPrimary tint）
+    选中行背景高亮 colorSurfaceContainerHigh，取消勾可选透明。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:paddingStart="@dimen/spacing_lg"
+    android:paddingTop="@dimen/spacing_sm"
+    android:paddingEnd="@dimen/spacing_lg"
+    android:paddingBottom="@dimen/spacing_sm">
+
+    <!-- 色卡预览：4 个圆角色块（adapter 按目标配色资源填充） -->
+    <LinearLayout
+        android:id="@+id/palette_swatches"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/palette_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface" />
+
+        <TextView
+            android:id="@+id/palette_desc"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="?attr/colorOnSurfaceVariant" />
+    </LinearLayout>
+
+    <!-- 勾选标记（选中时显示） -->
+    <ImageView
+        android:id="@+id/palette_checked"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="@dimen/spacing_sm"
+        android:importantForAccessibility="no"
+        android:src="@drawable/ic_check"
+        android:visibility="invisible"
+        app:tint="?attr/xPrimary" />
+</LinearLayout>

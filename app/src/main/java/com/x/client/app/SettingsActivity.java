@@ -11,17 +11,24 @@ package com.x.client.app;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.core.content.ContextCompat;
+
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputLayout;
 
 import xclient.Xclient;
@@ -50,7 +57,8 @@ public class SettingsActivity extends BaseActivity {
     private TextView text_log_level_summary;
     private Spinner spinner_theme_mode;
     private TextView text_theme_mode_summary;
-    private Spinner spinner_palette;
+    private View button_palette;
+    private LinearLayout palette_preview_swatches;
     private TextView text_palette_summary;
     private Button btn_save;
 
@@ -88,6 +96,18 @@ public class SettingsActivity extends BaseActivity {
             R.string.theme_palette_aurora,
             R.string.theme_palette_titanium,
             R.string.theme_palette_shield
+    };
+    private static final int[] PALETTE_DESC_RES = {
+            R.string.theme_palette_aurora_desc,
+            R.string.theme_palette_titanium_desc,
+            R.string.theme_palette_shield_desc
+    };
+
+    // 对话框色卡预览的资源（目标配色真实色值：Primary/Container/Success/SurfaceContainer）
+    private static final int[][] PALETTE_SWATCH_RES = {
+            { R.color.x_primary, R.color.x_primary_container, R.color.md_success, R.color.x_surface_container },
+            { R.color.ti_primary, R.color.ti_primary_container, R.color.ti_md_success, R.color.ti_x_surface_container },
+            { R.color.sh_primary, R.color.sh_primary_container, R.color.sh_md_success, R.color.sh_x_surface_container }
     };
 
     // 日志等级下拉框显示的本地化文案资源，与 LOG_LEVEL_VALUES 一一对应
@@ -131,7 +151,8 @@ public class SettingsActivity extends BaseActivity {
         text_log_level_summary = findViewById(R.id.text_log_level_summary);
         spinner_theme_mode = findViewById(R.id.spinner_theme_mode);
         text_theme_mode_summary = findViewById(R.id.text_theme_mode_summary);
-        spinner_palette = findViewById(R.id.spinner_palette);
+        button_palette = findViewById(R.id.button_palette);
+        palette_preview_swatches = findViewById(R.id.palette_preview_swatches);
         text_palette_summary = findViewById(R.id.text_palette_summary);
         btn_save = findViewById(R.id.btn_save);
         group_network = findViewById(R.id.group_network);
@@ -150,10 +171,8 @@ public class SettingsActivity extends BaseActivity {
         themeModeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner_theme_mode.setAdapter(themeModeAdapter);
 
-        ArrayAdapter<String> paletteAdapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, paletteLabels());
-        paletteAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner_palette.setAdapter(paletteAdapter);
+        // 色彩方案入口行：点击弹出带色卡预览的对话框（选择即实时应用）
+        button_palette.setOnClickListener(v -> showPaletteDialog());
 
         spinner_theme_mode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -167,24 +186,6 @@ public class SettingsActivity extends BaseActivity {
                 text_theme_mode_summary.setText(getString(R.string.settings_theme_mode_summary,
                         getString(THEME_MODE_LABEL_RES[position])));
                 // 明暗切换由 AppCompatDelegate 自动重建全部 Activity，无需手动 recreate
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-            }
-        });
-
-        spinner_palette.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                int palette = PALETTE_VALUES[position];
-                if (palette == prefs.getPalette()) {
-                    return;
-                }
-                ThemeManager.setPalette(SettingsActivity.this, palette);
-                text_palette_summary.setText(getString(R.string.settings_theme_palette_summary,
-                        getString(PALETTE_LABEL_RES[position])));
-                recreate(); // 立即以新配色重建当前页面
             }
 
             @Override
@@ -217,10 +218,6 @@ public class SettingsActivity extends BaseActivity {
         return labelRes(THEME_MODE_LABEL_RES);
     }
 
-    private String[] paletteLabels() {
-        return labelRes(PALETTE_LABEL_RES);
-    }
-
     private String[] labelRes(int[] resIds) {
         String[] labels = new String[resIds.length];
         for (int i = 0; i < labels.length; i++) {
@@ -236,6 +233,92 @@ public class SettingsActivity extends BaseActivity {
             }
         }
         return 0;
+    }
+
+    // ======================== 色彩方案选择（色卡预览对话框） ========================
+
+    private void showPaletteDialog() {
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.theme_palette_label)
+                .setAdapter(new PaletteAdapter(), (dialog, which) -> {
+                    int palette = PALETTE_VALUES[which];
+                    if (palette != prefs.getPalette()) {
+                        ThemeManager.setPalette(SettingsActivity.this, palette);
+                        recreate(); // 立即以新配色重建当前页面
+                    } else {
+                        dialog.dismiss();
+                    }
+                })
+                .show();
+    }
+
+    /** 色彩方案对话框列表项：色卡预览 + 名称/描述 + 选中勾选（背景高亮）。 */
+    private class PaletteAdapter extends BaseAdapter {
+        @Override
+        public int getCount() {
+            return PALETTE_VALUES.length;
+        }
+
+        @Override
+        public Object getItem(int position) {
+            return PALETTE_VALUES[position];
+        }
+
+        @Override
+        public long getItemId(int position) {
+            return position;
+        }
+
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) {
+                convertView = getLayoutInflater().inflate(R.layout.item_palette_dialog, parent, false);
+            }
+            boolean selected = PALETTE_VALUES[position] == prefs.getPalette();
+            TextView name = convertView.findViewById(R.id.palette_name);
+            TextView desc = convertView.findViewById(R.id.palette_desc);
+            ImageView checked = convertView.findViewById(R.id.palette_checked);
+            LinearLayout swatches = convertView.findViewById(R.id.palette_swatches);
+
+            name.setText(PALETTE_LABEL_RES[position]);
+            desc.setText(PALETTE_DESC_RES[position]);
+            swatches.removeAllViews();
+            for (int colorRes : PALETTE_SWATCH_RES[position]) {
+                swatches.addView(createSwatch(ContextCompat.getColor(SettingsActivity.this, colorRes)));
+            }
+            convertView.setBackgroundColor(selected
+                    ? MaterialColors.getColor(convertView, R.attr.xSurfaceContainerHigh)
+                    : 0);
+            checked.setVisibility(selected ? View.VISIBLE : View.INVISIBLE);
+            return convertView;
+        }
+    }
+
+    /** 设置页入口行的当前配色实时色卡（按当前主题属性解析）。 */
+    private void fillPalettePreview() {
+        palette_preview_swatches.removeAllViews();
+        // 2 参 MaterialColors.getColor 按 View 解析当前主题，走活动的调色板主题
+        palette_preview_swatches.addView(createSwatch(MaterialColors.getColor(palette_preview_swatches, R.attr.xPrimary)));
+        palette_preview_swatches.addView(createSwatch(MaterialColors.getColor(palette_preview_swatches, R.attr.xPrimaryContainer)));
+        palette_preview_swatches.addView(createSwatch(MaterialColors.getColor(palette_preview_swatches, R.attr.mdSuccess)));
+        palette_preview_swatches.addView(createSwatch(MaterialColors.getColor(palette_preview_swatches, R.attr.xSurfaceContainer)));
+    }
+
+    private View createSwatch(int color) {
+        View swatch = new View(this);
+        int size = dp(22);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(size, size);
+        lp.setMarginEnd(dp(6));
+        swatch.setLayoutParams(lp);
+        android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+        d.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        d.setColor(color);
+        swatch.setBackground(d);
+        return swatch;
+    }
+
+    private int dp(int value) {
+        return (int) (value * getResources().getDisplayMetrics().density);
     }
 
     private void loadSettings() {
@@ -283,12 +366,12 @@ public class SettingsActivity extends BaseActivity {
         // 明暗模式与色彩方案：定位当前值（初始 onItemSelected 回调因值与 prefs 一致被跳过）
         int themeModePosition = indexOf(THEME_MODE_VALUES, prefs.getThemeMode());
         spinner_theme_mode.setSelection(themeModePosition);
-        int palettePosition = indexOf(PALETTE_VALUES, prefs.getPalette());
-        spinner_palette.setSelection(palettePosition);
         text_theme_mode_summary.setText(getString(R.string.settings_theme_mode_summary,
                 getString(THEME_MODE_LABEL_RES[themeModePosition])));
+        int palettePosition = indexOf(PALETTE_VALUES, prefs.getPalette());
         text_palette_summary.setText(getString(R.string.settings_theme_palette_summary,
                 getString(PALETTE_LABEL_RES[palettePosition])));
+        fillPalettePreview(); // 当前配色实时色卡
 
         // 检查 VPN 是否正在运行
         boolean isVpnRunning = prefs.getEnable();
