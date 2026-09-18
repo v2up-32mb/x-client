@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        调色板「钛金极简 · Titanium Monolith」（Light，ti_*），
+        数据源：docs/ui-ux/palette-redesign-plan.md §4 / preview/index.html。
+        由 Theme.XClient.Titanium 覆写语义属性引用；未列出的推导 token
+        （onBackground/onTertiary/onWarning/onError）取方案设计意图的相邻中性色。
+    -->
+    <color name="ti_primary">#FF2563EB</color>
+    <color name="ti_on_primary">#FFFFFFFF</color>
+    <color name="ti_primary_container">#FFDBEAFE</color>
+    <color name="ti_on_primary_container">#FF1E3A8A</color>
+
+    <color name="ti_md_success">#FF16A34A</color>
+    <color name="ti_md_on_success">#FFFFFFFF</color>
+    <color name="ti_md_success_container">#FFDCFCE7</color>
+    <color name="ti_md_on_success_container">#FF14532D</color>
+
+    <color name="ti_md_warning">#FFD97706</color>
+    <color name="ti_md_on_warning">#FFFFFFFF</color>
+
+    <color name="ti_x_error">#FFDC2626</color>
+    <color name="ti_x_on_error">#FFFFFFFF</color>
+    <color name="ti_x_error_container">#FFFEE2E2</color>
+    <color name="ti_x_on_error_container">#FF991B1B</color>
+
+    <color name="ti_x_background">#FFFAFAFA</color>
+    <color name="ti_x_on_background">#FF09090B</color>
+    <color name="ti_x_surface">#FFFFFFFF</color>
+    <color name="ti_x_on_surface">#FF09090B</color>
+    <color name="ti_x_on_surface_variant">#FF52525B</color>
+    <color name="ti_x_surface_container_lowest">#FFFFFFFF</color>
+    <color name="ti_x_surface_container_low">#FFF4F4F5</color>
+    <color name="ti_x_surface_container">#FFE4E4E7</color>
+    <color name="ti_x_surface_container_high">#FFD4D4D8</color>
+    <color name="ti_x_surface_container_highest">#FFA1A1AA</color>
+
+    <color name="ti_x_outline">#FFA1A1AA</color>
+    <color name="ti_x_outline_variant">#FFE4E4E7</color>
+
+    <color name="ti_x_tertiary">#FF64748B</color>
+    <color name="ti_x_on_tertiary">#FFFFFFFF</color>
+    <color name="ti_x_tertiary_container">#FFE2E8F0</color>
+    <color name="ti_x_on_tertiary_container">#FF0F172A</color>
+
+    <color name="ti_x_edit_container">#FFDBEAFE</color>
+    <color name="ti_x_on_edit_container">#FF1D4ED8</color>
+</resources>

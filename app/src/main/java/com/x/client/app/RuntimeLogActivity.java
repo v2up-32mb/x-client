@@ -15,10 +15,9 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
-public class RuntimeLogActivity extends AppCompatActivity {
+public class RuntimeLogActivity extends BaseActivity {
     private static final long REQUEST_TIMEOUT_MS = 2_000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -129,9 +128,10 @@ public class RuntimeLogActivity extends AppCompatActivity {
     private CharSequence colorize(String logs) {
         String[] lines = logs.split("\n");
         android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
-        int errorColor = androidx.core.content.ContextCompat.getColor(this, R.color.x_error);
-        int warnColor = androidx.core.content.ContextCompat.getColor(this, R.color.md_warning);
-        int normalColor = androidx.core.content.ContextCompat.getColor(this, R.color.x_on_surface);
+        // 多调色板下经 R.attr 走当前主题，实时跟随配色方案
+        int errorColor = com.google.android.material.color.MaterialColors.getColor(this, R.attr.xError, 0xFFDC2626);
+        int warnColor = com.google.android.material.color.MaterialColors.getColor(this, R.attr.mdWarning, 0xFFD97706);
+        int normalColor = com.google.android.material.color.MaterialColors.getColor(this, R.attr.xOnSurface, 0xFF0F172A);
         for (String line : lines) {
             int start = sb.length();
             sb.append(line).append('\n');

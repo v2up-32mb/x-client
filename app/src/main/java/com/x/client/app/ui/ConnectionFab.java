@@ -16,7 +16,6 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.core.content.ContextCompat;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import com.google.android.material.button.MaterialButton;
@@ -446,7 +445,7 @@ public class ConnectionFab extends MaterialCardView {
         }
         switch (s) {
             case CONNECTED:
-                return color(R.color.md_success_container);
+                return attr(R.attr.mdSuccessContainer);
             case ERROR:
                 return attr(com.google.android.material.R.attr.colorErrorContainer);
             case DISCONNECTED:
@@ -461,7 +460,7 @@ public class ConnectionFab extends MaterialCardView {
         if (!isExpanded) {
             switch (s) {
                 case CONNECTED:
-                    return color(R.color.md_success);
+                    return attr(R.attr.mdSuccess);
                 case ERROR:
                     return attr(com.google.android.material.R.attr.colorError);
                 case CONNECTING:
@@ -473,7 +472,7 @@ public class ConnectionFab extends MaterialCardView {
         }
         switch (s) {
             case CONNECTED:
-                return color(R.color.md_success);
+                return attr(R.attr.mdSuccess);
             case ERROR:
                 return attr(com.google.android.material.R.attr.colorOnErrorContainer);
             case DISCONNECTED:
@@ -490,7 +489,7 @@ public class ConnectionFab extends MaterialCardView {
         }
         switch (s) {
             case CONNECTED:
-                return color(R.color.md_on_success_container);
+                return attr(R.attr.mdOnSuccessContainer);
             case ERROR:
                 return attr(com.google.android.material.R.attr.colorOnErrorContainer);
             case DISCONNECTED:
@@ -579,10 +578,6 @@ public class ConnectionFab extends MaterialCardView {
 
     private int attr(int attrResId) {
         return MaterialColors.getColor(this, attrResId);
-    }
-
-    private int color(int colorResId) {
-        return ContextCompat.getColor(getContext(), colorResId);
     }
 
     private int dp(int value) {

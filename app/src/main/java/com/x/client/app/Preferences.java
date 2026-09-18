@@ -35,6 +35,11 @@ public class Preferences
         public static final int THEME_SYSTEM = 0;
         public static final int THEME_LIGHT = 1;
         public static final int THEME_DARK = 2;
+        // 色彩方案（调色板）：赛博极光 / 钛金极简 / 瑞士暗盾，默认赛博极光
+        public static final String THEME_PALETTE = "ThemePalette";
+        public static final int PALETTE_AURORA = 0;
+        public static final int PALETTE_TITANIUM = 1;
+        public static final int PALETTE_SHIELD = 2;
         public static final String BYPASS_PRIVATE = "BypassPrivate";
         public static final String BYPASS_GEOIP_CN = "BypassGeoIpCn";
         public static final String BYPASS_GEOSITE_CN = "BypassGeoSiteCn";
@@ -367,6 +372,21 @@ public class Preferences
 			mode = THEME_SYSTEM;
 		}
 		prefs.edit().putInt(THEME_MODE, mode).apply();
+	}
+
+	public int getPalette() {
+		int palette = prefs.getInt(THEME_PALETTE, PALETTE_AURORA);
+		if (palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
+			return PALETTE_AURORA;
+		}
+		return palette;
+	}
+
+	public void setPalette(int palette) {
+		if (palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
+			palette = PALETTE_AURORA;
+		}
+		prefs.edit().putInt(THEME_PALETTE, palette).apply();
 	}
 
 	public boolean getBypassPrivate() {

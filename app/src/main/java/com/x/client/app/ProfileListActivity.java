@@ -32,7 +32,6 @@ import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -51,7 +50,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-public class ProfileListActivity extends AppCompatActivity implements ProfileAdapter.OnProfileActionListener {
+public class ProfileListActivity extends BaseActivity implements ProfileAdapter.OnProfileActionListener {
     private static final int REQUEST_VPN = 0;
     private static final int REQUEST_SCAN_QR = 1001;
 

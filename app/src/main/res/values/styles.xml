@@ -3,50 +3,159 @@
 
     <!--
         X Client 应用主题（Material 3）。
-        颜色全部来自 values[-night]/colors.xml 的语义 token；
-        状态栏/导航栏跟随 surface，禁止硬编码。
-        主题切换（light/dark/system）由 ThemeManager 经 AppCompatDelegate 承接。
+        颜色全部来自语义 token；多调色板经 attrs.xml 的自定义属性间接绑定：
+        Theme.XClient 为默认「赛博极光」调色板（绑定 @color/x_*），
+        Theme.XClient.Titanium / Theme.XClient.Shield 只覆写属性值即可整体换肤。
+        状态栏/导航栏跟随 surface，禁止硬编码；
+        明暗模式（light/dark/system）由 ThemeManager 经 AppCompatDelegate 承接。
     -->
     <style name="Theme.XClient" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Primary -->
-        <item name="colorPrimary">@color/x_primary</item>
-        <item name="colorOnPrimary">@color/x_on_primary</item>
-        <item name="colorPrimaryContainer">@color/x_primary_container</item>
-        <item name="colorOnPrimaryContainer">@color/x_on_primary_container</item>
+        <!-- 语义色属性绑定（各调色板变体覆写；x_* = 赛博极光默认） -->
+        <item name="xPrimary">@color/x_primary</item>
+        <item name="xOnPrimary">@color/x_on_primary</item>
+        <item name="xPrimaryContainer">@color/x_primary_container</item>
+        <item name="xOnPrimaryContainer">@color/x_on_primary_container</item>
+        <item name="mdSuccess">@color/md_success</item>
+        <item name="mdOnSuccess">@color/md_on_success</item>
+        <item name="mdSuccessContainer">@color/md_success_container</item>
+        <item name="mdOnSuccessContainer">@color/md_on_success_container</item>
+        <item name="mdWarning">@color/md_warning</item>
+        <item name="mdOnWarning">@color/md_on_warning</item>
+        <item name="xError">@color/x_error</item>
+        <item name="xOnError">@color/x_on_error</item>
+        <item name="xErrorContainer">@color/x_error_container</item>
+        <item name="xOnErrorContainer">@color/x_on_error_container</item>
+        <item name="xBackground">@color/x_background</item>
+        <item name="xOnBackground">@color/x_on_background</item>
+        <item name="xSurface">@color/x_surface</item>
+        <item name="xOnSurface">@color/x_on_surface</item>
+        <item name="xOnSurfaceVariant">@color/x_on_surface_variant</item>
+        <item name="xSurfaceContainerLowest">@color/x_surface_container_lowest</item>
+        <item name="xSurfaceContainerLow">@color/x_surface_container_low</item>
+        <item name="xSurfaceContainer">@color/x_surface_container</item>
+        <item name="xSurfaceContainerHigh">@color/x_surface_container_high</item>
+        <item name="xSurfaceContainerHighest">@color/x_surface_container_highest</item>
+        <item name="xOutline">@color/x_outline</item>
+        <item name="xOutlineVariant">@color/x_outline_variant</item>
+        <item name="xTertiary">@color/x_tertiary</item>
+        <item name="xOnTertiary">@color/x_on_tertiary</item>
+        <item name="xTertiaryContainer">@color/x_tertiary_container</item>
+        <item name="xOnTertiaryContainer">@color/x_on_tertiary_container</item>
+        <item name="xEditContainer">@color/x_edit_container</item>
+        <item name="xOnEditContainer">@color/x_on_edit_container</item>
 
-        <!-- Secondary/Tertiary 未定制品牌色，继承 M3 默认；显式绑定 primary 保持界面收敛 -->
-        <item name="colorSecondary">@color/x_primary</item>
-        <item name="colorOnSecondary">@color/x_on_primary</item>
-        <item name="colorTertiary">@color/x_tertiary</item>
-        <item name="colorOnTertiary">@color/x_on_tertiary</item>
-        <item name="colorTertiaryContainer">@color/x_tertiary_container</item>
-        <item name="colorOnTertiaryContainer">@color/x_on_tertiary_container</item>
+        <!-- M3 角色统一走语义属性（换肤只改属性，不动角色绑定） -->
+        <item name="colorPrimary">?attr/xPrimary</item>
+        <item name="colorOnPrimary">?attr/xOnPrimary</item>
+        <item name="colorPrimaryContainer">?attr/xPrimaryContainer</item>
+        <item name="colorOnPrimaryContainer">?attr/xOnPrimaryContainer</item>
+
+        <!-- Secondary/Tertiary：Secondary 沿用 primary 收敛界面 -->
+        <item name="colorSecondary">?attr/xPrimary</item>
+        <item name="colorOnSecondary">?attr/xOnPrimary</item>
+        <item name="colorTertiary">?attr/xTertiary</item>
+        <item name="colorOnTertiary">?attr/xOnTertiary</item>
+        <item name="colorTertiaryContainer">?attr/xTertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">?attr/xOnTertiaryContainer</item>
 
         <!-- Surface / Background -->
-        <item name="android:colorBackground">@color/x_background</item>
-        <item name="colorSurface">@color/x_surface</item>
-        <item name="colorOnSurface">@color/x_on_surface</item>
-        <item name="colorOnSurfaceVariant">@color/x_on_surface_variant</item>
-        <item name="colorSurfaceContainer">@color/x_surface_container</item>
-        <item name="colorSurfaceContainerLow">@color/x_surface_container_low</item>
-        <item name="colorSurfaceContainerHigh">@color/x_surface_container_high</item>
-        <item name="colorSurfaceContainerLowest">@color/x_surface_container_lowest</item>
+        <item name="android:colorBackground">?attr/xBackground</item>
+        <item name="colorSurface">?attr/xSurface</item>
+        <item name="colorOnSurface">?attr/xOnSurface</item>
+        <item name="colorOnSurfaceVariant">?attr/xOnSurfaceVariant</item>
+        <item name="colorSurfaceContainer">?attr/xSurfaceContainer</item>
+        <item name="colorSurfaceContainerLow">?attr/xSurfaceContainerLow</item>
+        <item name="colorSurfaceContainerHigh">?attr/xSurfaceContainerHigh</item>
+        <item name="colorSurfaceContainerLowest">?attr/xSurfaceContainerLowest</item>
+        <item name="colorSurfaceContainerHighest">?attr/xSurfaceContainerHighest</item>
 
         <!-- Outline -->
-        <item name="colorOutline">@color/x_outline</item>
-        <item name="colorOutlineVariant">@color/x_outline_variant</item>
+        <item name="colorOutline">?attr/xOutline</item>
+        <item name="colorOutlineVariant">?attr/xOutlineVariant</item>
 
         <!-- Error -->
-        <item name="colorError">@color/x_error</item>
-        <item name="colorOnError">@color/x_on_error</item>
-        <item name="colorErrorContainer">@color/x_error_container</item>
-        <item name="colorOnErrorContainer">@color/x_on_error_container</item>
+        <item name="colorError">?attr/xError</item>
+        <item name="colorOnError">?attr/xOnError</item>
+        <item name="colorErrorContainer">?attr/xErrorContainer</item>
+        <item name="colorOnErrorContainer">?attr/xOnErrorContainer</item>
 
         <!-- 系统栏：跟随 surface 角色（night 下自动切换），windowLight* 在 values-night 覆写 -->
-        <item name="android:statusBarColor">@color/x_surface</item>
-        <item name="android:navigationBarColor">@color/x_surface</item>
+        <item name="android:statusBarColor">?attr/xSurface</item>
+        <item name="android:navigationBarColor">?attr/xSurface</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+    </style>
+
+    <!-- ===== 调色板变体（仅覆写语义属性；明/暗由 parent Theme.XClient 联动） ===== -->
+
+    <style name="Theme.XClient.Titanium" parent="Theme.XClient">
+        <item name="xPrimary">@color/ti_primary</item>
+        <item name="xOnPrimary">@color/ti_on_primary</item>
+        <item name="xPrimaryContainer">@color/ti_primary_container</item>
+        <item name="xOnPrimaryContainer">@color/ti_on_primary_container</item>
+        <item name="mdSuccess">@color/ti_md_success</item>
+        <item name="mdOnSuccess">@color/ti_md_on_success</item>
+        <item name="mdSuccessContainer">@color/ti_md_success_container</item>
+        <item name="mdOnSuccessContainer">@color/ti_md_on_success_container</item>
+        <item name="mdWarning">@color/ti_md_warning</item>
+        <item name="mdOnWarning">@color/ti_md_on_warning</item>
+        <item name="xError">@color/ti_x_error</item>
+        <item name="xOnError">@color/ti_x_on_error</item>
+        <item name="xErrorContainer">@color/ti_x_error_container</item>
+        <item name="xOnErrorContainer">@color/ti_x_on_error_container</item>
+        <item name="xBackground">@color/ti_x_background</item>
+        <item name="xOnBackground">@color/ti_x_on_background</item>
+        <item name="xSurface">@color/ti_x_surface</item>
+        <item name="xOnSurface">@color/ti_x_on_surface</item>
+        <item name="xOnSurfaceVariant">@color/ti_x_on_surface_variant</item>
+        <item name="xSurfaceContainerLowest">@color/ti_x_surface_container_lowest</item>
+        <item name="xSurfaceContainerLow">@color/ti_x_surface_container_low</item>
+        <item name="xSurfaceContainer">@color/ti_x_surface_container</item>
+        <item name="xSurfaceContainerHigh">@color/ti_x_surface_container_high</item>
+        <item name="xSurfaceContainerHighest">@color/ti_x_surface_container_highest</item>
+        <item name="xOutline">@color/ti_x_outline</item>
+        <item name="xOutlineVariant">@color/ti_x_outline_variant</item>
+        <item name="xTertiary">@color/ti_x_tertiary</item>
+        <item name="xOnTertiary">@color/ti_x_on_tertiary</item>
+        <item name="xTertiaryContainer">@color/ti_x_tertiary_container</item>
+        <item name="xOnTertiaryContainer">@color/ti_x_on_tertiary_container</item>
+        <item name="xEditContainer">@color/ti_x_edit_container</item>
+        <item name="xOnEditContainer">@color/ti_x_on_edit_container</item>
+    </style>
+
+    <style name="Theme.XClient.Shield" parent="Theme.XClient">
+        <item name="xPrimary">@color/sh_primary</item>
+        <item name="xOnPrimary">@color/sh_on_primary</item>
+        <item name="xPrimaryContainer">@color/sh_primary_container</item>
+        <item name="xOnPrimaryContainer">@color/sh_on_primary_container</item>
+        <item name="mdSuccess">@color/sh_md_success</item>
+        <item name="mdOnSuccess">@color/sh_md_on_success</item>
+        <item name="mdSuccessContainer">@color/sh_md_success_container</item>
+        <item name="mdOnSuccessContainer">@color/sh_md_on_success_container</item>
+        <item name="mdWarning">@color/sh_md_warning</item>
+        <item name="mdOnWarning">@color/sh_md_on_warning</item>
+        <item name="xError">@color/sh_x_error</item>
+        <item name="xOnError">@color/sh_x_on_error</item>
+        <item name="xErrorContainer">@color/sh_x_error_container</item>
+        <item name="xOnErrorContainer">@color/sh_x_on_error_container</item>
+        <item name="xBackground">@color/sh_x_background</item>
+        <item name="xOnBackground">@color/sh_x_on_background</item>
+        <item name="xSurface">@color/sh_x_surface</item>
+        <item name="xOnSurface">@color/sh_x_on_surface</item>
+        <item name="xOnSurfaceVariant">@color/sh_x_on_surface_variant</item>
+        <item name="xSurfaceContainerLowest">@color/sh_x_surface_container_lowest</item>
+        <item name="xSurfaceContainerLow">@color/sh_x_surface_container_low</item>
+        <item name="xSurfaceContainer">@color/sh_x_surface_container</item>
+        <item name="xSurfaceContainerHigh">@color/sh_x_surface_container_high</item>
+        <item name="xSurfaceContainerHighest">@color/sh_x_surface_container_highest</item>
+        <item name="xOutline">@color/sh_x_outline</item>
+        <item name="xOutlineVariant">@color/sh_x_outline_variant</item>
+        <item name="xTertiary">@color/sh_x_tertiary</item>
+        <item name="xOnTertiary">@color/sh_x_on_tertiary</item>
+        <item name="xTertiaryContainer">@color/sh_x_tertiary_container</item>
+        <item name="xOnTertiaryContainer">@color/sh_x_on_tertiary_container</item>
+        <item name="xEditContainer">@color/sh_x_edit_container</item>
+        <item name="xOnEditContainer">@color/sh_x_on_edit_container</item>
     </style>
 
     <!-- Toolbar 溢出菜单弹层 -->

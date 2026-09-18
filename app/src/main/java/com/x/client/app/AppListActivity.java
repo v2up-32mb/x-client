@@ -35,13 +35,12 @@ import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.x.client.app.ui.EmptyStateView;
 
-public class AppListActivity extends AppCompatActivity {
+public class AppListActivity extends BaseActivity {
 	private Preferences prefs;
 	private AppArrayAdapter adapter;
 	private ListView listView;
