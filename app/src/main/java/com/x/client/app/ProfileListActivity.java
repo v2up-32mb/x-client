@@ -25,7 +25,6 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -36,7 +35,6 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
-import com.google.android.material.color.MaterialColors;
 import com.x.client.app.ui.ConnectionFab;
 import com.x.client.app.ui.EmptyStateView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -1118,42 +1116,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             // 降级处理：只显示 APP 名称
             toolbar.setTitle(getString(R.string.app_name));
         }
-
-        toolbar.inflateMenu(R.menu.menu_main);
-        updateThemeIcon();
-        toolbar.setOnMenuItemClickListener(item -> {
-            int mode;
-            if (item.getItemId() == R.id.theme_system) {
-                mode = Preferences.THEME_SYSTEM;
-            } else if (item.getItemId() == R.id.theme_light) {
-                mode = Preferences.THEME_LIGHT;
-            } else if (item.getItemId() == R.id.theme_dark) {
-                mode = Preferences.THEME_DARK;
-            } else {
-                return false;
-            }
-            ThemeManager.setMode(this, mode);
-            return true;
-        });
-    }
-
-    private void updateThemeIcon() {
-        int mode = prefs.getThemeMode();
-        MenuItem themeItem = toolbar.getMenu().findItem(R.id.action_theme);
-        if (mode == Preferences.THEME_LIGHT) {
-            themeItem.setIcon(R.drawable.ic_light_mode);
-        } else if (mode == Preferences.THEME_DARK) {
-            themeItem.setIcon(R.drawable.ic_dark_mode);
-        } else {
-            themeItem.setIcon(R.drawable.ic_system_mode);
-        }
-        // 图标 drawable 原为蓝底工具栏设计（硬编码白色填充），顶栏改为中性 surface 后
-        // 统一按 onSurface 着色，保证 light/dark 两种主题下的对比度
-        android.graphics.drawable.Drawable icon = themeItem.getIcon();
-        if (icon != null) {
-            icon.mutate();
-            icon.setColorFilter(MaterialColors.getColor(toolbar, com.google.android.material.R.attr.colorOnSurface),
-                    android.graphics.PorterDuff.Mode.SRC_IN);
-        }
+        // 明暗模式已收敛到全局设置「外观」分组，Toolbar 不再提供快捷菜单
     }
 }
