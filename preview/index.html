@@ -1342,40 +1342,11 @@
                         </div>
                     </div>
 
-                    <!-- 滚动内容区 -->
+                    <!-- 滚动内容区（真实 Android 结构：紧接 Toolbar，无冗余顶部状态卡） -->
                     <div class="phone-body">
-                        <!-- 状态摘要大卡 -->
-                        <div class="status-hero-card connected-mode" id="dashboard-hero-card">
-                            <div class="hero-header">
-                                <span class="hero-status-pill pill-connected" id="dashboard-pill">
-                                    <span class="pulse-dot"></span>
-                                    已安全连接
-                                </span>
-                                <span style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono);">
-                                    01:42:19
-                                </span>
-                            </div>
-                            <div style="font-size:16px; font-weight:700; color:var(--on-surface);" id="dashboard-node-name">
-                                日本东京 01 · 极速中转
-                            </div>
-                            <div style="font-size:12px; color:var(--on-surface-variant); margin-top:2px;">
-                                IP: 104.28.19.42 (ECH 加密生效)
-                            </div>
-                            <div class="hero-metrics">
-                                <div class="metric-item">
-                                    <span class="metric-label">实时下行</span>
-                                    <span class="metric-val">4.82 <small>MB/s</small></span>
-                                </div>
-                                <div class="metric-item">
-                                    <span class="metric-label">实时上行</span>
-                                    <span class="metric-val">340 <small>KB/s</small></span>
-                                </div>
-                            </div>
-                        </div>
-
                         <!-- 节点列表分组 -->
                         <div class="section-header-bar">
-                            <span class="section-label">节点配置 (3)</span>
+                            <span class="section-label">节点配置 (4)</span>
                             <span style="font-size:11px; color:var(--primary); font-weight:600; cursor:pointer;">测速全部</span>
                         </div>
 
@@ -1750,14 +1721,6 @@
                             <div class="app-title">X Client</div>
                         </div>
                         <div class="phone-body">
-                            <div class="status-hero-card" style="background:#211F26; border-color:#49454F;">
-                                <div class="hero-header">
-                                    <span class="hero-status-pill" style="background:#6FDFA0; color:#00290F;">已连接</span>
-                                    <span style="font-size:11px; color:#CAC4D0;">01:42:19</span>
-                                </div>
-                                <div style="font-size:15px; font-weight:700; color:#E6E0E9;">日本东京 01</div>
-                                <div style="font-size:12px; color:#CAC4D0;">IP: 104.28.19.42</div>
-                            </div>
                             <div class="profile-list">
                                 <div class="profile-item-wrapper selected" style="background:#141218;">
                                     <div class="profile-item-foreground" style="background:#1D1B20;">
@@ -1803,16 +1766,6 @@
                             </div>
                         </div>
                         <div class="phone-body">
-                            <div class="status-hero-card connected-mode">
-                                <div class="hero-header">
-                                    <span class="hero-status-pill pill-connected">
-                                        <span class="pulse-dot"></span>已安全连接
-                                    </span>
-                                    <span style="font-size:11px; color:var(--on-surface-variant); font-family:var(--font-mono);">01:42:19</span>
-                                </div>
-                                <div style="font-size:15.5px; font-weight:700; color:var(--on-surface);">日本东京 01 · 极速中转</div>
-                                <div style="font-size:12px; color:var(--on-surface-variant);">IP: 104.28.19.42 (ECH 生效)</div>
-                            </div>
                             <div class="profile-list">
                                 <div class="profile-item-wrapper selected">
                                     <div class="profile-item-foreground">
@@ -2322,8 +2275,10 @@
         function selectItem(el, name) {
             document.querySelectorAll('.profile-item-wrapper').forEach(w => w.classList.remove('selected'));
             el.closest('.profile-item-wrapper').classList.add('selected');
-            document.getElementById('dashboard-node-name').textContent = name;
-            document.getElementById('fab-sub-text').textContent = `${name} · 38ms`;
+            const nodeNameEl = document.getElementById('dashboard-node-name');
+            if (nodeNameEl) nodeNameEl.textContent = name;
+            const fabSubText = document.getElementById('fab-sub-text');
+            if (fabSubText) fabSubText.textContent = `${name} · 38ms`;
         }
 
         // FAB 状态更新
