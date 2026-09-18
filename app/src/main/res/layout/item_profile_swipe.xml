@@ -119,8 +119,8 @@
             android:layout_width="64dp"
             android:layout_height="64dp"
             android:src="@android:drawable/ic_menu_edit"
-            android:background="@color/x_edit_container"
-            app:tint="@color/x_on_edit_container"
+            android:background="?attr/xEditContainer"
+            app:tint="?attr/xOnEditContainer"
             android:scaleType="centerInside"
             android:padding="@dimen/spacing_lg"
             android:contentDescription="@string/acc_edit"/>

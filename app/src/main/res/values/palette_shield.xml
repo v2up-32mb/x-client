@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        调色板「瑞士暗盾 · Swiss Shield」（Light，sh_*），
+        数据源：docs/ui-ux/palette-redesign-plan.md §4 / preview/index.html。
+    -->
+    <color name="sh_primary">#FF047857</color>
+    <color name="sh_on_primary">#FFFFFFFF</color>
+    <color name="sh_primary_container">#FFD1FAE5</color>
+    <color name="sh_on_primary_container">#FF064E3B</color>
+
+    <color name="sh_md_success">#FF047857</color>
+    <color name="sh_md_on_success">#FFFFFFFF</color>
+    <color name="sh_md_success_container">#FFD1FAE5</color>
+    <color name="sh_md_on_success_container">#FF064E3B</color>
+
+    <color name="sh_md_warning">#FFD97706</color>
+    <color name="sh_md_on_warning">#FFFFFFFF</color>
+
+    <color name="sh_x_error">#FFDC2626</color>
+    <color name="sh_x_on_error">#FFFFFFFF</color>
+    <color name="sh_x_error_container">#FFFEE2E2</color>
+    <color name="sh_x_on_error_container">#FF991B1B</color>
+
+    <color name="sh_x_background">#FFF2F9F7</color>
+    <color name="sh_x_on_background">#FF09221D</color>
+    <color name="sh_x_surface">#FFFFFFFF</color>
+    <color name="sh_x_on_surface">#FF09221D</color>
+    <color name="sh_x_on_surface_variant">#FF2F524A</color>
+    <color name="sh_x_surface_container_lowest">#FFFFFFFF</color>
+    <color name="sh_x_surface_container_low">#FFE6F4F1</color>
+    <color name="sh_x_surface_container">#FFCEE9E3</color>
+    <color name="sh_x_surface_container_high">#FFB5DDD4</color>
+    <color name="sh_x_surface_container_highest">#FF88A4A1</color>
+
+    <color name="sh_x_outline">#FF6A8C85</color>
+    <color name="sh_x_outline_variant">#FFCEE9E3</color>
+
+    <color name="sh_x_tertiary">#FF0F766E</color>
+    <color name="sh_x_on_tertiary">#FFFFFFFF</color>
+    <color name="sh_x_tertiary_container">#FFCCFBF1</color>
+    <color name="sh_x_on_tertiary_container">#FF115E59</color>
+
+    <color name="sh_x_edit_container">#FFA7F3D0</color>
+    <color name="sh_x_on_edit_container">#FF064E3B</color>
+</resources>

@@ -76,10 +76,10 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         boolean isSelected = profile.id.equals(selectedProfileId);
         holder.radioSelected.setChecked(isSelected);
 
-        // 当前配置高亮（primaryContainer 底色，redesign-plan §8.1；主题切换由 color 资源限定符承接）
-        holder.foregroundLayout.setBackgroundColor(androidx.core.content.ContextCompat.getColor(
-                holder.foregroundLayout.getContext(),
-                isSelected ? R.color.x_primary_container : R.color.x_surface));
+        // 当前配置高亮（primaryContainer 底色；多调色板下经 R.attr 走主题，redesign-plan §8.1）
+        holder.foregroundLayout.setBackgroundColor(
+                com.google.android.material.color.MaterialColors.getColor(holder.foregroundLayout,
+                        isSelected ? R.attr.xPrimaryContainer : R.attr.xSurface));
 
         // 设置配置名称
         holder.textProfileName.setText(profile.name);

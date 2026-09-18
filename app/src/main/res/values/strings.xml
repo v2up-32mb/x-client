@@ -59,6 +59,9 @@
         <string name="theme_system">跟随系统</string>
         <string name="theme_light">亮色</string>
         <string name="theme_dark">暗色</string>
+        <string name="theme_palette_aurora">赛博极光</string>
+        <string name="theme_palette_titanium">钛金极简</string>
+        <string name="theme_palette_shield">瑞士暗盾</string>
         <string name="search_apps">搜索应用</string>
         <string name="view_runtime_logs">查看本次运行日志</string>
         <string name="runtime_logs_title">运行日志</string>
@@ -170,6 +173,7 @@
         <!-- 标题与分组头 -->
         <string name="settings_title">全局设置</string>
         <string name="settings_section_general">通用</string>
+        <string name="settings_section_appearance">外观</string>
         <string name="settings_section_network">网络</string>
         <string name="settings_section_bypass">代理绕过</string>
         <string name="settings_section_ech_dns">ECH 与 DNS</string>
@@ -187,6 +191,12 @@
         <string name="settings_log_level_summary">当前等级：%1$s</string>
         <string name="settings_restart_required">修改后需重启 VPN 生效</string>
         <string name="settings_global_hint">勾选为全局代理，不勾选为分应用代理</string>
+        <!-- 外观：明暗模式与色彩方案（实时生效） -->
+        <string name="settings_appearance_hint">主题与配色即时生效，无需重启</string>
+        <string name="theme_mode_label">明暗模式</string>
+        <string name="theme_palette_label">色彩方案</string>
+        <string name="settings_theme_mode_summary">当前模式：%1$s</string>
+        <string name="settings_theme_palette_summary">当前方案：%1$s</string>
         <!-- Toast 与 inline 校验错误 -->
         <string name="settings_saved">设置已保存</string>
         <string name="settings_vpn_running_toast">VPN 正在运行，无法修改全局设置</string>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        调色板「钛金极简 · Titanium Monolith」（Dark，ti_*），
+        数据源：docs/ui-ux/palette-redesign-plan.md §4 / preview/index.html。
+    -->
+    <color name="ti_primary">#FF60A5FA</color>
+    <color name="ti_on_primary">#FF00264D</color>
+    <color name="ti_primary_container">#FF1E3A8A</color>
+    <color name="ti_on_primary_container">#FFDBEAFE</color>
+
+    <color name="ti_md_success">#FF4ADE80</color>
+    <color name="ti_md_on_success">#FF052E16</color>
+    <color name="ti_md_success_container">#FF14532D</color>
+    <color name="ti_md_on_success_container">#FFDCFCE7</color>
+
+    <color name="ti_md_warning">#FFFBBF24</color>
+    <color name="ti_md_on_warning">#FF451A03</color>
+
+    <color name="ti_x_error">#FFF87171</color>
+    <color name="ti_x_on_error">#FF450A0A</color>
+    <color name="ti_x_error_container">#FF7F1D1D</color>
+    <color name="ti_x_on_error_container">#FFFECACA</color>
+
+    <color name="ti_x_background">#FF09090B</color>
+    <color name="ti_x_on_background">#FFFAFAFA</color>
+    <color name="ti_x_surface">#FF09090B</color>
+    <color name="ti_x_on_surface">#FFFAFAFA</color>
+    <color name="ti_x_on_surface_variant">#FFA1A1AA</color>
+    <color name="ti_x_surface_container_lowest">#FF050507</color>
+    <color name="ti_x_surface_container_low">#FF121215</color>
+    <color name="ti_x_surface_container">#FF18181B</color>
+    <color name="ti_x_surface_container_high">#FF222226</color>
+    <color name="ti_x_surface_container_highest">#FF2C2C32</color>
+
+    <color name="ti_x_outline">#FF52525B</color>
+    <color name="ti_x_outline_variant">#FF27272A</color>
+
+    <color name="ti_x_tertiary">#FF94A3B8</color>
+    <color name="ti_x_on_tertiary">#FF09090B</color>
+    <color name="ti_x_tertiary_container">#FF334155</color>
+    <color name="ti_x_on_tertiary_container">#FFF1F5F9</color>
+
+    <color name="ti_x_edit_container">#FF2563EB</color>
+    <color name="ti_x_on_edit_container">#FFEFF6FF</color>
+</resources>

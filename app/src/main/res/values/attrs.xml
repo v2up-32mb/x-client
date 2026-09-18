@@ -7,4 +7,50 @@
         <attr name="scannerCornerColor" format="color" />
         <attr name="scannerLineColor" format="color" />
     </declare-styleable>
+
+    <!--
+        语义色属性（多调色板运行时切换的枢纽）。
+        Theme.XClient 将 M3 角色（colorPrimary 等）绑定到这些属性；
+        各调色板主题变体（Theme.XClient.Titanium / Shield）仅覆写属性值即可整体换肤，
+        布局与 Java 一律通过 ?attr/x* / ?attr/md* 引用，禁止直接引用 @color/x_*。
+    -->
+    <attr name="xPrimary" format="color"/>
+    <attr name="xOnPrimary" format="color"/>
+    <attr name="xPrimaryContainer" format="color"/>
+    <attr name="xOnPrimaryContainer" format="color"/>
+
+    <attr name="mdSuccess" format="color"/>
+    <attr name="mdOnSuccess" format="color"/>
+    <attr name="mdSuccessContainer" format="color"/>
+    <attr name="mdOnSuccessContainer" format="color"/>
+
+    <attr name="mdWarning" format="color"/>
+    <attr name="mdOnWarning" format="color"/>
+
+    <attr name="xError" format="color"/>
+    <attr name="xOnError" format="color"/>
+    <attr name="xErrorContainer" format="color"/>
+    <attr name="xOnErrorContainer" format="color"/>
+
+    <attr name="xBackground" format="color"/>
+    <attr name="xOnBackground" format="color"/>
+    <attr name="xSurface" format="color"/>
+    <attr name="xOnSurface" format="color"/>
+    <attr name="xOnSurfaceVariant" format="color"/>
+    <attr name="xSurfaceContainerLowest" format="color"/>
+    <attr name="xSurfaceContainerLow" format="color"/>
+    <attr name="xSurfaceContainer" format="color"/>
+    <attr name="xSurfaceContainerHigh" format="color"/>
+    <attr name="xSurfaceContainerHighest" format="color"/>
+
+    <attr name="xOutline" format="color"/>
+    <attr name="xOutlineVariant" format="color"/>
+
+    <attr name="xTertiary" format="color"/>
+    <attr name="xOnTertiary" format="color"/>
+    <attr name="xTertiaryContainer" format="color"/>
+    <attr name="xOnTertiaryContainer" format="color"/>
+
+    <attr name="xEditContainer" format="color"/>
+    <attr name="xOnEditContainer" format="color"/>
 </resources>

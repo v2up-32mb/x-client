@@ -21,13 +21,12 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.textfield.TextInputLayout;
 import com.journeyapps.barcodescanner.ScanOptions;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class ProfileEditActivity extends AppCompatActivity {
+public class ProfileEditActivity extends BaseActivity {
     public static final String EXTRA_PROFILE_ID = "EXTRA_PROFILE_ID";
     public static final String EXTRA_IS_NEW_PROFILE = "EXTRA_IS_NEW_PROFILE";
     private static final int REQUEST_SCAN_QR = 1001;
