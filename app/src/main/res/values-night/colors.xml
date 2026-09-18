@@ -1,47 +1,51 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Semantic：M3 颜色角色（dark）。
-         原则：浅色模式深填充 / 暗色模式浅填充（primary 取亮 tone）；
-         中性值取 M3 官方 dark baseline（surface #141218 系，弃用 #121212）。 -->
+    <!-- ===== Semantic：M3 颜色角色（Dark - 赛博极光） ===== -->
+    <!-- Primary（极光电青，深色底对比度 11.8:1） -->
+    <color name="x_primary">#FF38BDF8</color>
+    <color name="x_on_primary">#FF002D44</color>
+    <color name="x_primary_container">#FF0C4A6E</color>
+    <color name="x_on_primary_container">#FFBAE6FD</color>
 
-    <color name="x_primary">#FF7FD0FA</color>
-    <color name="x_on_primary">#FF002F44</color>
-    <color name="x_primary_container">#FF0B4A6E</color>
-    <color name="x_on_primary_container">#FFCDE9FF</color>
+    <!-- Success（荧光翡翠绿：已连接；深色底对比度 12.5:1） -->
+    <color name="md_success">#FF34D399</color>
+    <color name="md_on_success">#FF022C1A</color>
+    <color name="md_success_container">#FF064E3B</color>
+    <color name="md_on_success_container">#FFA7F3D0</color>
 
-    <color name="md_success">#FF6FDFA0</color>
-    <color name="md_on_success">#FF00290F</color>
-    <color name="md_success_container">#FF0B3D24</color>
-    <color name="md_on_success_container">#FFDCFCE7</color>
+    <!-- Warning -->
+    <color name="md_warning">#FFFBBF24</color>
+    <color name="md_on_warning">#FF451A03</color>
 
-    <color name="md_warning">#FFFFB86B</color>
-    <color name="md_on_warning">#FF3B1E00</color>
+    <!-- Error -->
+    <color name="x_error">#FFF87171</color>
+    <color name="x_on_error">#FF450A0A</color>
+    <color name="x_error_container">#FF7F1D1D</color>
+    <color name="x_on_error_container">#FFFECACA</color>
 
-    <color name="x_error">#FFF2B8B5</color>
-    <color name="x_on_error">#FF601410</color>
-    <color name="x_error_container">#FF8C1D18</color>
-    <color name="x_on_error_container">#FFF9DEDC</color>
+    <!-- Background / Surface（黑曜石深空 #0B0F19 系，彻底告别原版 #141218 紫灰） -->
+    <color name="x_background">#FF0B0F19</color>
+    <color name="x_on_background">#FFF1F5F9</color>
+    <color name="x_surface">#FF0B0F19</color>
+    <color name="x_on_surface">#FFF1F5F9</color>
+    <color name="x_on_surface_variant">#FF94A3B8</color>
+    <color name="x_surface_container_lowest">#FF070A10</color>
+    <color name="x_surface_container_low">#FF0F172A</color>
+    <color name="x_surface_container">#FF151F32</color>
+    <color name="x_surface_container_high">#FF1E293B</color>
+    <color name="x_surface_container_highest">#FF283548</color>
 
-    <color name="x_background">#FF141218</color>
-    <color name="x_on_background">#FFE6E0E9</color>
-    <color name="x_surface">#FF141218</color>
-    <color name="x_on_surface">#FFE6E0E9</color>
-    <color name="x_on_surface_variant">#FFCAC4D0</color>
-    <color name="x_surface_container_lowest">#FF0F0D13</color>
-    <color name="x_surface_container_low">#FF1D1B20</color>
-    <color name="x_surface_container">#FF211F26</color>
-    <color name="x_surface_container_high">#FF2B2930</color>
-    <color name="x_surface_container_highest">#FF36343B</color>
+    <!-- Outline（精密高光描边） -->
+    <color name="x_outline">#FF475569</color>
+    <color name="x_outline_variant">#FF1E293B</color>
 
-    <color name="x_outline">#FF938F99</color>
-    <color name="x_outline_variant">#FF49454F</color>
-
-    <!-- Tertiary（teal 系，与 light 成对；share 取更亮一档与行高亮区分） -->
-    <color name="x_tertiary">#FF83D5C9</color>
+    <!-- Tertiary -->
+    <color name="x_tertiary">#FF2DD4BF</color>
     <color name="x_on_tertiary">#FF00201C</color>
-    <color name="x_tertiary_container">#FF1F4B46</color>
-    <color name="x_on_tertiary_container">#FFB2ECE2</color>
+    <color name="x_tertiary_container">#FF134E4A</color>
+    <color name="x_on_tertiary_container">#FFCCFBF1</color>
 
-    <color name="x_edit_container">#FF3B7CA8</color>
-    <color name="x_on_edit_container">#FFCFE7F8</color>
+    <!-- Edit 专属操作色 -->
+    <color name="x_edit_container">#FF0369A1</color>
+    <color name="x_on_edit_container">#FFE0F2FE</color>
 </resources>

@@ -1,72 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- ============================================================
-         Design Token 层级：Primitive → Semantic → Legacy alias
-         规则：布局/Java 组件层只允许引用 Semantic（x_*/md_*）；
-               Primitive（p_*）是原始色值，组件不得直接引用；
-               Legacy alias（toolbar_background 等）过渡期保留，C10 删除。
-         数值依据：docs/ui-ux/research-visual.md §5-§6（对比度实测达标）
-         ============================================================ -->
+    <!-- ===== 扫码页/导出对话框（恒暗功能色，不随主题） ===== -->
+    <color name="scanner_mask">#80000000</color>
+    <color name="scanner_frame">#FFFFFFFF</color>
+    <color name="scanner_corner">#FF34D399</color>
+    <color name="scanner_line">#8034D399</color>
 
-        <!-- ===== C9 扫码页/导出对话框（恒暗功能色，不随主题） ===== -->
-        <color name="scanner_mask">#80000000</color>
-        <color name="scanner_frame">#FFFFFFFF</color>
-        <color name="scanner_corner">#FF00C853</color>
-        <color name="scanner_line">#8000E676</color>
-
-    <!-- 启动图标自适应背景（mipmap-anydpi-v26 引用） -->
+    <!-- 启动图标自适应背景 -->
     <color name="ic_launcher_background">#FFFFFFFF</color>
 
-    <!-- ===== Primitive（主题不变） ===== -->
-    <!-- 品牌种子蓝（原 toolbar 蓝），组件不得直接引用 -->
-    <color name="p_brand_seed">#FF0BA3F3</color>
+    <!-- ===== Primitive（品牌种子） ===== -->
+    <color name="p_brand_seed">#FF0284C7</color>
 
-    <!-- ===== Semantic：M3 颜色角色（light） ===== -->
-    <!-- Primary（品牌蓝深化 tone，#0BA3F3+白字 2.78:1 不达标，深化后 5.17:1） -->
-    <color name="x_primary">#FF0873AC</color>
+    <!-- ===== Semantic：M3 颜色角色（Light - 赛博极光） ===== -->
+    <!-- Primary（极光深青，对比度 5.14:1） -->
+    <color name="x_primary">#FF0284C7</color>
     <color name="x_on_primary">#FFFFFFFF</color>
-    <color name="x_primary_container">#FFCDE9FF</color>
-    <color name="x_on_primary_container">#FF00243A</color>
+    <color name="x_primary_container">#FFE0F2FE</color>
+    <color name="x_on_primary_container">#FF03496E</color>
 
-    <!-- Success（扩展角色：已连接；语义色不随主题漂移，night 取亮 tone） -->
-    <color name="md_success">#FF146C43</color>
+    <!-- Success（翡翠绿：已连接；对比度 4.82:1） -->
+    <color name="md_success">#FF059669</color>
     <color name="md_on_success">#FFFFFFFF</color>
-    <color name="md_success_container">#FFDCFCE7</color>
-    <color name="md_on_success_container">#FF052E16</color>
+    <color name="md_success_container">#FFD1FAE5</color>
+    <color name="md_on_success_container">#FF064E3B</color>
 
-    <!-- Warning（扩展角色：仅横幅/角标，不用于连接态） -->
-    <color name="md_warning">#FF9A5B00</color>
+    <!-- Warning（仅横幅/角标） -->
+    <color name="md_warning">#FFD97706</color>
     <color name="md_on_warning">#FFFFFFFF</color>
 
-    <!-- Error（M3 官方 baseline 值） -->
-    <color name="x_error">#FFB3261E</color>
+    <!-- Error（高辨识红色） -->
+    <color name="x_error">#FFDC2626</color>
     <color name="x_on_error">#FFFFFFFF</color>
-    <color name="x_error_container">#FFF9DEDC</color>
-    <color name="x_on_error_container">#FF410E0B</color>
+    <color name="x_error_container">#FFFEE2E2</color>
+    <color name="x_on_error_container">#FF991B1B</color>
 
-    <!-- Background / Surface（M3 官方 baseline 中性值） -->
-    <color name="x_background">#FFFFFBFF</color>
-    <color name="x_on_background">#FF1D1B20</color>
-    <color name="x_surface">#FFFFFBFF</color>
-    <color name="x_on_surface">#FF1D1B20</color>
-    <color name="x_on_surface_variant">#FF49454F</color>
+    <!-- Background / Surface（冰川冷 Slate 系，彻底剔除粉紫偏色） -->
+    <color name="x_background">#FFF8FAFC</color>
+    <color name="x_on_background">#FF0F172A</color>
+    <color name="x_surface">#FFFFFFFF</color>
+    <color name="x_on_surface">#FF0F172A</color>
+    <color name="x_on_surface_variant">#FF475569</color>
     <color name="x_surface_container_lowest">#FFFFFFFF</color>
-    <color name="x_surface_container_low">#FFF7F2FA</color>
-    <color name="x_surface_container">#FFF3EDF7</color>
-    <color name="x_surface_container_high">#FFECE6F0</color>
-    <color name="x_surface_container_highest">#FFE6E0E9</color>
+    <color name="x_surface_container_low">#FFF1F5F9</color>
+    <color name="x_surface_container">#FFE2E8F0</color>
+    <color name="x_surface_container_high">#FFCBD5E1</color>
+    <color name="x_surface_container_highest">#FF94A3B8</color>
 
-    <!-- Outline -->
-    <color name="x_outline">#FF79747E</color>
-    <color name="x_outline_variant">#FFCAC4D0</color>
+    <!-- Outline（冷调微描边） -->
+    <color name="x_outline">#FF94A3B8</color>
+    <color name="x_outline_variant">#FFE2E8F0</color>
 
-    <!-- Tertiary（teal 系，品牌种子 #0BA3F3 邻近色相偏移，refine-ux-review §5） -->
-    <color name="x_tertiary">#FF006961</color>
+    <!-- Tertiary（辅助 Teal 邻近色） -->
+    <color name="x_tertiary">#FF0D9488</color>
     <color name="x_on_tertiary">#FFFFFFFF</color>
-    <color name="x_tertiary_container">#FFB4EBE3</color>
-    <color name="x_on_tertiary_container">#FF003733</color>
+    <color name="x_tertiary_container">#FFCCFBF1</color>
+    <color name="x_on_tertiary_container">#FF115E59</color>
 
-    <!-- Edit 专属加深蓝（与行选中高亮 primaryContainer 区分边界，用户反馈修正） -->
-    <color name="x_edit_container">#FF8FCBF2</color>
-    <color name="x_on_edit_container">#FF00243A</color>
+    <!-- Edit 专属操作色 -->
+    <color name="x_edit_container">#FFBAE6FD</color>
+    <color name="x_on_edit_container">#FF0369A1</color>
 </resources>
