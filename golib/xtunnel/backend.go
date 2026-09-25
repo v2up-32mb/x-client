@@ -120,7 +120,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 
 	// 本地 SOCKS5：共享服务器承接（xshared/socks5）。
 	// bypass/并发上限/UDP 端口拦截以 Option 注入；数据面 ProxyDialer()（TCP + UDP ASSOCIATE）。
-	host, user, pass, err := xtlib.ParseSocks5Auth(listenAddr)
+	host, user, pass, err := socks5.ParseSocks5Auth(listenAddr)
 	if err != nil {
 		_ = c.Shutdown()
 		logger.Close()
@@ -135,7 +135,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	}
 	if user != "" || pass != "" {
 		opts = append(opts, socks5.WithUserPassAuth(func(u, p string) bool {
-			return xtlib.AuthEqual(u, user) && xtlib.AuthEqual(p, pass)
+			return socks5.AuthEqual(u, user) && socks5.AuthEqual(p, pass)
 		}))
 	}
 	srv := socks5.NewServer(&config.Config{ListenAddress: host}, c.ProxyDialer(), opts...)

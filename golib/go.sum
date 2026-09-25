@@ -4,8 +4,8 @@ github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aN
 github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
 github.com/v2up-32mb/gcm v0.1.0 h1:cuILBoC8xXwXFB5WKwtsITsOsCWuYWQwobMpEINX6sI=
 github.com/v2up-32mb/gcm v0.1.0/go.mod h1:ze0GeXOJMm5jvSas+0bfQorchpZAK3540INeK0oYXRU=
-github.com/v2up-32mb/xshared v0.1.0 h1:rFAIoXM7Ly9xi+JLf7KdiPa6DMrPDVv9456Oo0a8l0U=
-github.com/v2up-32mb/xshared v0.1.0/go.mod h1:vBbVeDpe9hQJ7X7Q3LalI2OmbOSFso1t+qv6+MeQFNI=
+github.com/v2up-32mb/xshared v0.1.1 h1:A1Ne55UpD2U8S/vYI/iq6zcYZJCROo3p/isklQ3eN+E=
+github.com/v2up-32mb/xshared v0.1.1/go.mod h1:vBbVeDpe9hQJ7X7Q3LalI2OmbOSFso1t+qv6+MeQFNI=
 github.com/v2up-32mb/xtunnel v0.2.0 h1:8/gACM4Br0+9PGkMuoqGb3aw6FzAm2x+XTgXbbTU6rE=
 github.com/v2up-32mb/xtunnel v0.2.0/go.mod h1:7JDkLhYr5RZD8Kj/0yXjglPNqMF3wyxyxb+t3OcTcfM=
 golang.org/x/net v0.17.0 h1:pVaXccu2ozPjCXewfr1S7xza/zcXTity9cCdXQYSjIM=
