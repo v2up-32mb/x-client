@@ -166,3 +166,7 @@ VPN TUN ──► hev-socks5-tunnel ──► 本地 SOCKS5 ──► Go 协议�
 - 网络直连 GitHub 可能被 SNI 阻断，可配置 git 仓库级 `http.proxy`
 - `golib/go.mod` 中 `golang.org/x/mobile/bind` 由 CI 自行 `go get`，不提交依赖改动
 - 集成设计与两项目架构交叉分析原文见本地 `INTEGRATION_PLAN.md`（已本地化，不推送）
+
+## 版本与发版
+
+- 逐版本变更与升级指引见 `CHANGELOG.md`;协作约束（含**发版铁律：不得未经人工批准自行打 tag 并推送**）见 `AGENTS.md`。
