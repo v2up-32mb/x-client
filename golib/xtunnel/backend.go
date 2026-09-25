@@ -104,6 +104,8 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	sharedCfg := newSharedConfigView(cfg)
 	sharedCfg.LogLevel = logLevelFromParams(params, verbose)
 	logger.InitGlobalLogger(sharedCfg)
+	// 核心库默认静默：注入日志钩子（含结构化领域事件适配），Android 侧经 xshared/logger 可见
+	installCoreLogHook()
 	systemLog := logger.GetLogger("System")
 	systemLog.Info("启动 X-Tunnel: Server=%s, 连接数=%d, ECH=%v, RelayNodes=%d, HotPair=%v",
 		cfg.ServerAddr, cfg.Connections, cfg.EnableECH, len(cfg.RelayNodes), cfg.EnableHotPair)
@@ -173,6 +175,7 @@ func (b *Backend) Stop() error {
 		b.socks5Server = nil
 	}
 	err := b.client.Shutdown()
+	restoreCoreLogSilent()
 	logger.Close()
 	b.client = nil
 	return err
