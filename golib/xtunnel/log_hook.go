@@ -3,7 +3,6 @@ package xtunnel
 import (
 	"fmt"
 
-	"github.com/v2up-32mb/xshared/logger"
 	xtlib "github.com/v2up-32mb/xtunnel"
 )
 
@@ -14,21 +13,22 @@ import (
 // Android 侧可检索/按模块路由/按事件统计，无需解析字符串。
 // 钩子并发安全（logger 内部加锁，核心库多 goroutine 同时触发无竞争）。
 func installCoreLogHook() {
+	// 与 xtunnel 后端既有日志统一 scope（"XTunnel"，见 log.go 的 sysLog），
+	// 与 GCM 后端（"System"）、Android 层（"AndroidVPN"）共享同一运行时日志缓冲。
 	xtlib.SetLogf(func(ev xtlib.LogEvent) {
-		l := logger.GetLogger("Xtunnel")
 		msg := fmt.Sprintf(ev.Format, ev.Args...)
 		if suf := domainSuffix(ev.Domain); suf != "" {
 			msg += suf
 		}
 		switch ev.Level {
 		case xtlib.LevelDebug:
-			l.Debug("[%s] %s", ev.Module, msg)
+			sysLog.Debug("[%s] %s", ev.Module, msg)
 		case xtlib.LevelWarn:
-			l.Warn("[%s] %s", ev.Module, msg)
+			sysLog.Warn("[%s] %s", ev.Module, msg)
 		case xtlib.LevelError:
-			l.Error("[%s] %s", ev.Module, msg)
+			sysLog.Error("[%s] %s", ev.Module, msg)
 		default: // LevelInfo
-			l.Info("[%s] %s", ev.Module, msg)
+			sysLog.Info("[%s] %s", ev.Module, msg)
 		}
 	})
 }
