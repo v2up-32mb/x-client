@@ -36,7 +36,8 @@ xshared（无内部依赖）
 | 仓库 | tag | 发布物 |
 |---|---|---|
 | xshared | v0.1.0 | Go 库（被引用；无二进制发布） |
-| gcm | v0.1.0 | Go 库 + **Worker 服务端**（`worker/worker.js` + `DEPLOY.md`，随 release） |
+| gcm | v0.1.0 | Go 库（无二进制发布；协议规范以 `protocol/` 为准） |
+| gcm-worker | （待发版） | **Worker 服务端**（`worker.js` + `DEPLOY.md`，随其 release；已从 gcm 库仓独立） |
 | xtunnel | v0.1.0 | Go 库（被引用） |
 | gcm-cli | v1.0.0 | `gcm` 二进制 ×5 平台 |
 | xtunnel-cli | v1.3.0 | `x-tunnel-client`/`x-tunnel-server` ×5 平台 |
