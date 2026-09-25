@@ -1,5 +1,9 @@
 # X Client (Android)
 
+> 🚨 **发版铁律（最高优先级）**：**绝不未经人工确认就自行打 tag 并推送**。
+> 任何发版动作（打 tag、`push --tags`、触发 CI 发布流水线、创建 GitHub Release）必须先向用户
+> 明确汇报版本号、变更内容与发布意图并获得批准；日常分支提交/推送、普通 CI 验证不在此限。
+
 Android 多协议 VPN 客户端，支持每个 Profile 配置一个代理协议。
 
 基于 [gcm-client](https://github.com/v2up-32mb/gcm-client) 改造，复用其 Profile 管理、VPN 隧道框架、路由绕过、全局设置等功能，扩展为多协议架构。
