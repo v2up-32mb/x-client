@@ -266,4 +266,14 @@
         <string name="export_qr_label">二维码：</string>
         <string name="acc_export_qr">配置二维码</string>
         <string name="scanner_hint">将二维码对准扫描框</string>
+
+    <!-- Latency test -->
+    <string name="pref_latency_title">代理延迟测试</string>
+    <string name="pref_latency_url">测速目标</string>
+    <string name="pref_latency_url_hint">https://www.gstatic.com/generate_204</string>
+    <string name="pref_latency_interval">测速间隔</string>
+    <string name="pref_latency_timeout">测速超时</string>
+    <string name="latency_ms">延迟 %dms</string>
+    <string name="latency_timeout">测速超时</string>
+    <string name="latency_error">测速失败</string>
 </resources>

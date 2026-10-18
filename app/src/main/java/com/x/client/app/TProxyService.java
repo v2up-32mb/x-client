@@ -81,6 +81,9 @@ public class TProxyService extends VpnService {
     private BroadcastReceiver timeZoneReceiver;
     private long screenOffElapsedRealtime = -1L;
     private boolean logRequestOnly;
+    private android.os.Handler latencyHandler;
+    private Runnable latencyTask;
+    private volatile int currentLatency = -1;
 
     @Override
     public void onCreate() {
@@ -179,6 +182,7 @@ public class TProxyService extends VpnService {
             registerScreenReceiver();
             registerNetworkCallback();
             updateNotification("VPN 已连接");
+            startLatencyMeasurement();
             sendStatus(STATUS_STARTED, null);
             monitorNativeTunnel(prefs);
         } catch (Throwable error) {
@@ -455,6 +459,10 @@ public class TProxyService extends VpnService {
     private void cleanupRuntime() {
         appendRuntimeLog("正在清理 VPN runtime");
         runtimeRunning = false;
+        if (latencyHandler != null) {
+            latencyHandler.removeCallbacks(latencyTask);
+        }
+        currentLatency = -1;
         unregisterScreenReceiver();
         unregisterNetworkCallback();
         try {
@@ -728,5 +736,46 @@ public class TProxyService extends VpnService {
             );
             manager.createNotificationChannel(channel);
         }
+    }
+
+    private void startLatencyMeasurement() {
+        latencyHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        latencyTask = new Runnable() {
+            @Override
+            public void run() {
+                new Thread(() -> {
+                    Preferences prefs = new Preferences(TProxyService.this);
+                    int port = prefs.getSocksPort();
+                    String proxyAddr = "127.0.0.1:" + port;
+                    String testURL = prefs.getLatencyTestUrl();
+                    int timeout = prefs.getLatencyTestTimeout();
+                    int interval = prefs.getLatencyTestInterval();
+
+                    try {
+                        int latency = (int) Xclient.measureLatency(proxyAddr, testURL, timeout);
+                        currentLatency = latency;
+                    } catch (Throwable error) {
+                        currentLatency = -1;
+                        Log.w(TAG, "Latency measurement failed", error);
+                    }
+
+                    if (latencyHandler != null) {
+                        latencyHandler.post(() -> updateNotificationWithLatency());
+                        latencyHandler.postDelayed(latencyTask, interval * 1000L);
+                    }
+                }, "latency-measure").start();
+            }
+        };
+        latencyHandler.postDelayed(latencyTask, 5000);
+    }
+
+    private void updateNotificationWithLatency() {
+        String statusText = "VPN 已连接";
+        if (currentLatency > 0) {
+            statusText += " | 延迟 " + currentLatency + "ms";
+        } else {
+            statusText += " | " + getString(R.string.latency_error);
+        }
+        updateNotification(statusText);
     }
 }

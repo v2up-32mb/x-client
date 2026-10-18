@@ -99,6 +99,14 @@ public class Preferences
                 return "default".equals(v) || "4".equals(v) || "6".equals(v)
                         || "4,6".equals(v) || "6,4".equals(v);
         }
+
+        // Latency test settings
+        public static final String LATENCY_TEST_URL = "LatencyTestUrl";
+        public static final String LATENCY_TEST_INTERVAL = "LatencyTestInterval";
+        public static final String LATENCY_TEST_TIMEOUT = "LatencyTestTimeout";
+        public static final String DEFAULT_LATENCY_TEST_URL = "https://www.gstatic.com/generate_204";
+        public static final int DEFAULT_LATENCY_TEST_INTERVAL = 10;
+        public static final int DEFAULT_LATENCY_TEST_TIMEOUT = 5;
         
         // Profile Management
         public static final String CURRENT_PROFILE_ID = "CurrentProfileId";
@@ -734,6 +742,38 @@ public class Preferences
                         }
                 });
                 return profiles;
+        }
+
+        // ======================== 延迟测试 ========================
+
+        public String getLatencyTestUrl() {
+                return prefs.getString(LATENCY_TEST_URL, DEFAULT_LATENCY_TEST_URL);
+        }
+
+        public void setLatencyTestUrl(String url) {
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putString(LATENCY_TEST_URL, url);
+                editor.commit();
+        }
+
+        public int getLatencyTestInterval() {
+                return prefs.getInt(LATENCY_TEST_INTERVAL, DEFAULT_LATENCY_TEST_INTERVAL);
+        }
+
+        public void setLatencyTestInterval(int interval) {
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putInt(LATENCY_TEST_INTERVAL, interval);
+                editor.commit();
+        }
+
+        public int getLatencyTestTimeout() {
+                return prefs.getInt(LATENCY_TEST_TIMEOUT, DEFAULT_LATENCY_TEST_TIMEOUT);
+        }
+
+        public void setLatencyTestTimeout(int timeout) {
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.putInt(LATENCY_TEST_TIMEOUT, timeout);
+                editor.commit();
         }
 
         // 配置信息类（用于列表展示）

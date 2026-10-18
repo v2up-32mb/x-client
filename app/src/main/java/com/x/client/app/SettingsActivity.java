@@ -60,9 +60,13 @@ public class SettingsActivity extends BaseActivity {
     private View button_palette;
     private LinearLayout palette_preview_swatches;
     private TextView text_palette_summary;
+    private TextInputLayout til_latency_url;
+    private EditText edit_latency_url;
+    private Spinner spinner_latency_interval;
+    private Spinner spinner_latency_timeout;
     private Button btn_save;
 
-    // 分组内容容器：VPN 运行中整体置灰（alpha）；"通用"组为实时生效项，不受限
+    // 分组内容容器：VPN 运行中整体置灰（alpha）；“通用”组为实时生效项，不受限
     private View group_network;
     private View group_bypass;
     private View group_ech;
@@ -73,6 +77,12 @@ public class SettingsActivity extends BaseActivity {
             Preferences.LOG_LEVEL_WARN,
             Preferences.LOG_LEVEL_ERROR
     };
+
+    private static final int[] LATENCY_INTERVAL_VALUES = {5, 10, 30, 60};
+    private static final String[] LATENCY_INTERVAL_LABELS = {"5 秒", "10 秒", "30 秒", "60 秒"};
+
+    private static final int[] LATENCY_TIMEOUT_VALUES = {3, 5, 10, 15};
+    private static final String[] LATENCY_TIMEOUT_LABELS = {"3 秒", "5 秒", "10 秒", "15 秒"};
 
     // 明暗模式下拉框顺序：跟随系统/亮色/暗色 → Preferences.THEME_*
     private static final int[] THEME_MODE_VALUES = {
@@ -154,6 +164,10 @@ public class SettingsActivity extends BaseActivity {
         button_palette = findViewById(R.id.button_palette);
         palette_preview_swatches = findViewById(R.id.palette_preview_swatches);
         text_palette_summary = findViewById(R.id.text_palette_summary);
+        til_latency_url = findViewById(R.id.til_latency_url);
+        edit_latency_url = findViewById(R.id.edit_latency_url);
+        spinner_latency_interval = findViewById(R.id.spinner_latency_interval);
+        spinner_latency_timeout = findViewById(R.id.spinner_latency_timeout);
         btn_save = findViewById(R.id.btn_save);
         group_network = findViewById(R.id.group_network);
         group_bypass = findViewById(R.id.group_bypass);
@@ -173,6 +187,56 @@ public class SettingsActivity extends BaseActivity {
 
         // 色彩方案入口行：点击弹出带色卡预览的对话框（选择即实时应用）
         button_palette.setOnClickListener(v -> showPaletteDialog());
+
+        // 延迟测试设置选择器
+        ArrayAdapter<String> latencyIntervalAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, LATENCY_INTERVAL_LABELS);
+        latencyIntervalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner_latency_interval.setAdapter(latencyIntervalAdapter);
+
+        ArrayAdapter<String> latencyTimeoutAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, LATENCY_TIMEOUT_LABELS);
+        latencyTimeoutAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner_latency_timeout.setAdapter(latencyTimeoutAdapter);
+
+        // 延迟测试 URL 实时保存
+        edit_latency_url.addTextChangedListener(new android.text.TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                String url = s.toString().trim();
+                if (!url.isEmpty()) {
+                    prefs.setLatencyTestUrl(url);
+                }
+            }
+        });
+
+        // 延迟测试间隔实时保存
+        spinner_latency_interval.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                prefs.setLatencyTestInterval(LATENCY_INTERVAL_VALUES[position]);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // 延迟测试超时实时保存
+        spinner_latency_timeout.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                prefs.setLatencyTestTimeout(LATENCY_TIMEOUT_VALUES[position]);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
 
         spinner_theme_mode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
@@ -372,6 +436,15 @@ public class SettingsActivity extends BaseActivity {
         text_palette_summary.setText(getString(R.string.settings_theme_palette_summary,
                 getString(PALETTE_LABEL_RES[palettePosition])));
         fillPalettePreview(); // 当前配色实时色卡
+
+        // 加载延迟测试设置
+        edit_latency_url.setText(prefs.getLatencyTestUrl());
+        int intervalValue = prefs.getLatencyTestInterval();
+        int intervalPosition = indexOf(LATENCY_INTERVAL_VALUES, intervalValue);
+        spinner_latency_interval.setSelection(intervalPosition);
+        int timeoutValue = prefs.getLatencyTestTimeout();
+        int timeoutPosition = indexOf(LATENCY_TIMEOUT_VALUES, timeoutValue);
+        spinner_latency_timeout.setSelection(timeoutPosition);
 
         // 检查 VPN 是否正在运行
         boolean isVpnRunning = prefs.getEnable();

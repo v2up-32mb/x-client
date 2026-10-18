@@ -3,6 +3,7 @@ package xclient
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/v2up-32mb/xshared/logger"
 	"github.com/v2up-32mb/xshared/routing"
+	"golang.org/x/net/proxy"
 	"xclient/gcm"
 	"xclient/xtunnel"
 )
@@ -218,4 +220,47 @@ func AppendRuntimeLog(scope, message string) {
 // GetRuntimeLogs returns logs accumulated since the current VPN start.
 func GetRuntimeLogs() string {
 	return logger.GetRuntimeLogs()
+}
+
+// MeasureLatency measures round-trip latency to targetURL through a SOCKS5 proxy.
+// proxyAddr format: "127.0.0.1:1080"
+// Returns elapsed milliseconds on success, -1 on any error (timeout, connection refused, non-2xx, etc.).
+func MeasureLatency(proxyAddr string, targetURL string, timeoutSeconds int) int {
+	log := logger.GetLogger("MeasureLatency")
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = 10
+	}
+
+	// Create SOCKS5 dialer
+	dialer, err := proxy.SOCKS5("tcp", proxyAddr, nil, proxy.Direct)
+	if err != nil {
+		log.Error("failed to create SOCKS5 dialer: %v", err)
+		return -1
+	}
+
+	// Create HTTP client with SOCKS5 transport
+	client := &http.Client{
+		Transport: &http.Transport{
+			Dial: dialer.Dial,
+		},
+		Timeout: time.Duration(timeoutSeconds) * time.Second,
+	}
+
+	// Measure latency
+	start := time.Now()
+	resp, err := client.Get(targetURL)
+	if err != nil {
+		log.Error("GET request failed: %v", err)
+		return -1
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Error("non-2xx status code: %d", resp.StatusCode)
+		return -1
+	}
+
+	elapsed := time.Since(start)
+	return int(elapsed.Milliseconds())
 }
