@@ -699,17 +699,22 @@ public class TProxyService extends VpnService {
         sendBroadcast(intent);
     }
 
-    private Notification buildNotification(String statusText) {
+    private Notification buildNotification(String title, String text) {
         Intent intent = new Intent(this, ProfileListActivity.class);
         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(getString(R.string.app_name))
-                .setContentText(statusText)
+                .setContentTitle(title)
+                .setContentText(text)
                 .setSmallIcon(android.R.drawable.sym_def_app_icon)
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .build();
+    }
+
+    private Notification buildNotification(String statusText) {
+        return buildNotification(getString(R.string.app_name), statusText);
     }
 
     private void startForegroundNotification(String statusText) {
@@ -721,9 +726,13 @@ public class TProxyService extends VpnService {
         }
     }
 
-    private void updateNotification(String statusText) {
+    private void updateNotification(String title, String text) {
         NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        manager.notify(NOTIFICATION_ID, buildNotification(statusText));
+        manager.notify(NOTIFICATION_ID, buildNotification(title, text));
+    }
+
+    private void updateNotification(String statusText) {
+        updateNotification(getString(R.string.app_name), statusText);
     }
 
     private void initNotificationChannel() {
@@ -732,8 +741,9 @@ public class TProxyService extends VpnService {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     getString(R.string.app_name),
-                    NotificationManager.IMPORTANCE_LOW
+                    NotificationManager.IMPORTANCE_DEFAULT
             );
+            channel.setShowBadge(false);
             manager.createNotificationChannel(channel);
         }
     }
@@ -770,12 +780,17 @@ public class TProxyService extends VpnService {
     }
 
     private void updateNotificationWithLatency() {
-        String statusText = "VPN 已连接";
+        String title;
+        String text = "VPN 已连接";
+        
         if (currentLatency > 0) {
-            statusText += " | 延迟 " + currentLatency + "ms";
+            title = getString(R.string.app_name) + " | " + currentLatency + "ms";
+        } else if (currentLatency == -1) {
+            title = getString(R.string.app_name) + " | " + getString(R.string.latency_error);
         } else {
-            statusText += " | " + getString(R.string.latency_error);
+            title = getString(R.string.app_name);
         }
-        updateNotification(statusText);
+        
+        updateNotification(title, text);
     }
 }
