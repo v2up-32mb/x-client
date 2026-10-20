@@ -183,6 +183,13 @@ func ValidateBypassRules(rules string) error {
 	return routing.ValidateManualRules(rules)
 }
 
+// ValidateForceProxyRules validates newline-separated force-proxy domain rules
+// without starting the proxy. Syntax is the same as bypass rules (domain:/full:
+// prefixes); IP/CIDR entries are silently ignored.
+func ValidateForceProxyRules(rules string) error {
+	return routing.ValidateForceProxyRules(rules)
+}
+
 // StopSocksProxy 停止当前代理并逆序释放所有资源。
 func StopSocksProxy() {
 	lifecycleMu.Lock()

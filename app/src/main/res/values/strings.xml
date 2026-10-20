@@ -117,6 +117,9 @@
         <string name="bypass_geosite_cn">绕过 GEOSITE:CN</string>
         <string name="manual_bypass_rules">手动规则（每行一条）</string>
         <string name="manual_bypass_rules_hint">192.168.1.0/24\nexample.com\nfull:api.example.com</string>
+        <string name="force_proxy_rules">强制走代理域名（每行一条）</string>
+        <string name="force_proxy_rules_hint">gstatic.com\nfull:www.example.com</string>
+        <string name="settings_error_force_proxy_rules">强制走代理规则格式错误：%1$s</string>
 
         <!-- ===== C6 ProfileEdit 重构新增（仅限 ProfileEdit 代理插入） ===== -->
         <!-- 分组标题 -->
@@ -276,4 +279,5 @@
     <string name="latency_ms">延迟 %dms</string>
     <string name="latency_timeout">测速超时</string>
     <string name="latency_error">测速失败</string>
+    <string name="latency_force_proxy">强制通过代理测速（防止测速域名被直连绕过）</string>
 </resources>

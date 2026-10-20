@@ -339,6 +339,26 @@
                         android:scrollbars="vertical" />
                 </com.google.android.material.textfield.TextInputLayout>
 
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/til_force_proxy"
+                    style="@style/Widget.XClient.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_md"
+                    android:hint="@string/force_proxy_rules"
+                    app:placeholderText="@string/force_proxy_rules_hint">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edittext_force_proxy"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine|textNoSuggestions"
+                        android:maxLines="6"
+                        android:minLines="2"
+                        android:scrollbars="vertical" />
+                </com.google.android.material.textfield.TextInputLayout>
+
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -505,6 +525,14 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_xs"
                     android:minHeight="@dimen/touch_target_min" />
+
+                <CheckBox
+                    android:id="@+id/checkbox_latency_force_proxy"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_sm"
+                    android:minHeight="@dimen/touch_target_min"
+                    android:text="@string/latency_force_proxy" />
             </LinearLayout>
 
             <!-- 保存按钮（M3 填充按钮，主题 colorPrimary） -->
