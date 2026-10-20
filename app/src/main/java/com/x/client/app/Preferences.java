@@ -44,6 +44,7 @@ public class Preferences
         public static final String BYPASS_GEOIP_CN = "BypassGeoIpCn";
         public static final String BYPASS_GEOSITE_CN = "BypassGeoSiteCn";
         public static final String BYPASS_RULES = "BypassRules";
+        public static final String BYPASS_FORCE_PROXY = "BypassForceProxy";
 
         // GCM tunnel 相关参数
         public static final String WORKER_HOST = "WorkerHost";
@@ -104,6 +105,7 @@ public class Preferences
         public static final String LATENCY_TEST_URL = "LatencyTestUrl";
         public static final String LATENCY_TEST_INTERVAL = "LatencyTestInterval";
         public static final String LATENCY_TEST_TIMEOUT = "LatencyTestTimeout";
+        public static final String LATENCY_FORCE_PROXY = "LatencyForceProxy";
         public static final String DEFAULT_LATENCY_TEST_URL = "https://www.gstatic.com/generate_204";
         public static final int DEFAULT_LATENCY_TEST_INTERVAL = 10;
         public static final int DEFAULT_LATENCY_TEST_TIMEOUT = 5;
@@ -427,6 +429,14 @@ public class Preferences
 
 	public void setBypassRules(String rules) {
 		prefs.edit().putString(BYPASS_RULES, rules).apply();
+	}
+
+	public String getBypassForceProxy() {
+		return prefs.getString(BYPASS_FORCE_PROXY, "");
+	}
+
+	public void setBypassForceProxy(String rules) {
+		prefs.edit().putString(BYPASS_FORCE_PROXY, rules).apply();
 	}
 
 	public int getTunnelMtu() {
@@ -774,6 +784,14 @@ public class Preferences
                 SharedPreferences.Editor editor = prefs.edit();
                 editor.putInt(LATENCY_TEST_TIMEOUT, timeout);
                 editor.commit();
+        }
+
+        public boolean getLatencyForceProxy() {
+                return prefs.getBoolean(LATENCY_FORCE_PROXY, false);
+        }
+
+        public void setLatencyForceProxy(boolean enabled) {
+                prefs.edit().putBoolean(LATENCY_FORCE_PROXY, enabled).apply();
         }
 
         // 配置信息类（用于列表展示）

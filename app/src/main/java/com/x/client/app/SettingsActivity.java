@@ -47,6 +47,8 @@ public class SettingsActivity extends BaseActivity {
     private CheckBox checkbox_bypass_geosite_cn;
     private TextInputLayout til_bypass_rules;
     private EditText edittext_bypass_rules;
+    private TextInputLayout til_force_proxy;
+    private EditText edittext_force_proxy;
     private TextInputLayout til_ech_dns;
     private EditText edittext_ech_dns;
     private TextInputLayout til_ech_domain;
@@ -64,6 +66,7 @@ public class SettingsActivity extends BaseActivity {
     private EditText edit_latency_url;
     private Spinner spinner_latency_interval;
     private Spinner spinner_latency_timeout;
+    private CheckBox checkbox_latency_force_proxy;
     private Button btn_save;
 
     // 分组内容容器：VPN 运行中整体置灰（alpha）；“通用”组为实时生效项，不受限
@@ -151,6 +154,8 @@ public class SettingsActivity extends BaseActivity {
         checkbox_bypass_geosite_cn = findViewById(R.id.checkbox_bypass_geosite_cn);
         til_bypass_rules = findViewById(R.id.til_bypass_rules);
         edittext_bypass_rules = findViewById(R.id.edittext_bypass_rules);
+        til_force_proxy = findViewById(R.id.til_force_proxy);
+        edittext_force_proxy = findViewById(R.id.edittext_force_proxy);
         til_ech_dns = findViewById(R.id.til_ech_dns);
         edittext_ech_dns = findViewById(R.id.edittext_ech_dns);
         til_ech_domain = findViewById(R.id.til_ech_domain);
@@ -168,6 +173,7 @@ public class SettingsActivity extends BaseActivity {
         edit_latency_url = findViewById(R.id.edit_latency_url);
         spinner_latency_interval = findViewById(R.id.spinner_latency_interval);
         spinner_latency_timeout = findViewById(R.id.spinner_latency_timeout);
+        checkbox_latency_force_proxy = findViewById(R.id.checkbox_latency_force_proxy);
         btn_save = findViewById(R.id.btn_save);
         group_network = findViewById(R.id.group_network);
         group_bypass = findViewById(R.id.group_bypass);
@@ -236,6 +242,20 @@ public class SettingsActivity extends BaseActivity {
 
             @Override
             public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // 延迟测试强制走代理：实时保存
+        checkbox_latency_force_proxy.setOnCheckedChangeListener((buttonView, isChecked) ->
+            prefs.setLatencyForceProxy(isChecked));
+
+        // 强制走代理例外域名：清除错误提示
+        edittext_force_proxy.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(android.text.Editable s) {
+                til_force_proxy.setError(null);
+            }
         });
 
         spinner_theme_mode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -396,6 +416,7 @@ public class SettingsActivity extends BaseActivity {
         checkbox_bypass_geoip_cn.setChecked(prefs.getBypassGeoIpCn());
         checkbox_bypass_geosite_cn.setChecked(prefs.getBypassGeoSiteCn());
         edittext_bypass_rules.setText(prefs.getBypassRules());
+        edittext_force_proxy.setText(prefs.getBypassForceProxy());
         edittext_ech_dns.setText(prefs.getEchDns());
         edittext_ech_domain.setText(prefs.getEchDomain());
         checkbox_enable_dns_warmup.setChecked(prefs.getEnableDnsWarmup());
@@ -445,6 +466,7 @@ public class SettingsActivity extends BaseActivity {
         int timeoutValue = prefs.getLatencyTestTimeout();
         int timeoutPosition = indexOf(LATENCY_TIMEOUT_VALUES, timeoutValue);
         spinner_latency_timeout.setSelection(timeoutPosition);
+        checkbox_latency_force_proxy.setChecked(prefs.getLatencyForceProxy());
 
         // 检查 VPN 是否正在运行
         boolean isVpnRunning = prefs.getEnable();
@@ -464,7 +486,7 @@ public class SettingsActivity extends BaseActivity {
         View[] controls = {
                 checkbox_global, button_apps, edittext_socks_port,
                 checkbox_bypass_private, checkbox_bypass_geoip_cn, checkbox_bypass_geosite_cn,
-                edittext_bypass_rules, edittext_ech_dns, edittext_ech_domain,
+                edittext_bypass_rules, edittext_force_proxy, edittext_ech_dns, edittext_ech_domain,
                 checkbox_enable_dns_warmup, spinner_log_level, btn_save
         };
         for (View control : controls) {
@@ -488,6 +510,7 @@ public class SettingsActivity extends BaseActivity {
         // 清除上一次的 inline 校验错误
         til_socks_port.setError(null);
         til_bypass_rules.setError(null);
+        til_force_proxy.setError(null);
 
         // 验证并保存端口
         int port = 1080;
@@ -516,6 +539,16 @@ public class SettingsActivity extends BaseActivity {
             return false;
         }
 
+        String forceProxyRules = edittext_force_proxy.getText().toString().trim();
+        try {
+            Xclient.validateForceProxyRules(forceProxyRules);
+        } catch (Exception e) {
+            String msg = getString(R.string.settings_error_force_proxy_rules, e.getMessage());
+            til_force_proxy.setError(msg);
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+            return false;
+        }
+
         // 保存全局设置
         prefs.setGlobal(checkbox_global.isChecked());
         prefs.setSocksPort(port);
@@ -523,6 +556,7 @@ public class SettingsActivity extends BaseActivity {
         prefs.setBypassGeoIpCn(checkbox_bypass_geoip_cn.isChecked());
         prefs.setBypassGeoSiteCn(checkbox_bypass_geosite_cn.isChecked());
         prefs.setBypassRules(bypassRules);
+        prefs.setBypassForceProxy(forceProxyRules);
         prefs.setEchDns(edittext_ech_dns.getText().toString().trim());
         prefs.setEchDomain(edittext_ech_domain.getText().toString().trim());
         prefs.setEnableDnsWarmup(checkbox_enable_dns_warmup.isChecked());

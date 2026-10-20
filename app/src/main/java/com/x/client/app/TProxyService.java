@@ -322,6 +322,7 @@ public class TProxyService extends VpnService {
         params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
         params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
         params.put("bypass_rules", prefs.getBypassRules());
+        params.put("force_proxy_rules", buildForceProxyRules());
         params.put("enable_dynamic_pool", prefs.getEnableDynamicPool());
         params.put("dynamic_pool_max", prefs.getDynamicPoolMax());
         params.put("log_level", prefs.getLogLevel());
@@ -348,6 +349,7 @@ public class TProxyService extends VpnService {
         params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
         params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
         params.put("bypass_rules", prefs.getBypassRules());
+        params.put("force_proxy_rules", buildForceProxyRules());
         // 高级参数（JSON，可选）：显式覆盖上面的基础参数，优先级最高
         String advanced = prefs.getXtAdvancedParams();
         if (advanced != null && !advanced.trim().isEmpty()) {
@@ -777,6 +779,42 @@ public class TProxyService extends VpnService {
             }
         };
         latencyHandler.postDelayed(latencyTask, 5000);
+    }
+
+    /**
+     * 组装 force_proxy_rules：手动输入的例外域名 + （若开启）测速 URL 的根域名。
+     */
+    private String buildForceProxyRules() {
+        Preferences prefs = new Preferences(this);
+        String manual = prefs.getBypassForceProxy().trim();
+        if (!prefs.getLatencyForceProxy()) {
+            return manual;
+        }
+        String domain = extractRootDomain(prefs.getLatencyTestUrl());
+        if (domain == null || domain.isEmpty()) {
+            return manual;
+        }
+        return manual.isEmpty() ? domain : manual + "\n" + domain;
+    }
+
+    /**
+     * 从 URL 提取根域名（保留最后两段，如 www.gstatic.com → gstatic.com）。
+     * 纯 IP 地址返回 null（IP 作为 force_proxy 规则会被 Go 层静默忽略，无需追加）。
+     */
+    private static String extractRootDomain(String url) {
+        try {
+            java.net.URL parsed = new java.net.URL(url);
+            String host = parsed.getHost();
+            if (host == null || host.isEmpty()) return null;
+            if (host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+")) return null;
+            String[] parts = host.split("\\.");
+            if (parts.length >= 2) {
+                return parts[parts.length - 2] + "." + parts[parts.length - 1];
+            }
+            return host;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private void updateNotificationWithLatency() {

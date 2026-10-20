@@ -39,6 +39,7 @@ const (
 	ParamBypassGeoIPCN   = "bypass_geoip_cn"
 	ParamBypassGeoSiteCN = "bypass_geosite_cn"
 	ParamBypassRules     = "bypass_rules"
+	ParamForceProxyRules = "force_proxy_rules"
 
 	// 高级参数（毫秒/字节整数，0 或缺省使用默认值；不进入分享链接）
 	ParamBackpressureLimit     = "backpressure_limit"
@@ -95,7 +96,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	if err != nil {
 		return err
 	}
-	bypassMatcher, err := routing.NewMatcher(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, stringParam(params, ParamBypassRules, ""))
+	bypassMatcher, err := routing.NewMatcherWithForceProxy(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, stringParam(params, ParamBypassRules, ""), stringParam(params, ParamForceProxyRules, ""))
 	if err != nil {
 		return fmt.Errorf("invalid bypass rules: %w", err)
 	}

@@ -44,6 +44,7 @@ const (
 	ParamBypassGeoIPCN     = "bypass_geoip_cn"
 	ParamBypassGeoSiteCN   = "bypass_geosite_cn"
 	ParamBypassRules       = "bypass_rules"
+	ParamForceProxyRules   = "force_proxy_rules"
 	ParamEnableDynamicPool = "enable_dynamic_pool"
 	ParamDynamicPoolMax    = "dynamic_pool_max"
 	ParamLogLevel          = "log_level"
@@ -95,7 +96,7 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 	if err != nil {
 		return err
 	}
-	bypassMatcher, err := routing.NewMatcher(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, stringParam(params, ParamBypassRules, ""))
+	bypassMatcher, err := routing.NewMatcherWithForceProxy(bypassPrivate, bypassGeoIPCN, bypassGeoSiteCN, stringParam(params, ParamBypassRules, ""), stringParam(params, ParamForceProxyRules, ""))
 	if err != nil {
 		return fmt.Errorf("invalid bypass rules: %w", err)
 	}
