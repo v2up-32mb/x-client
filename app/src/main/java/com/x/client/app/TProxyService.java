@@ -463,6 +463,7 @@ public class TProxyService extends VpnService {
         runtimeRunning = false;
         if (latencyHandler != null) {
             latencyHandler.removeCallbacks(latencyTask);
+            latencyHandler = null; // 防止后台测速线程完成后重新 postDelayed 复活任务
         }
         currentLatency = -1;
         unregisterScreenReceiver();

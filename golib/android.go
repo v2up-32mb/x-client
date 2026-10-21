@@ -3,6 +3,7 @@ package xclient
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -245,12 +246,16 @@ func MeasureLatency(proxyAddr string, targetURL string, timeoutSeconds int) int 
 		return -1
 	}
 
-	// Create HTTP client with SOCKS5 transport
+	// Create HTTP client with SOCKS5 transport.
+	// DisableKeepAlives 确保每次探测后连接立即关闭，不在 transport 的 idle 池中
+	// 积压（每次调用都新建 transport，keep-alive 连接会一直占用 SOCKS5 通道直到 GC）。
+	transport := &http.Transport{
+		Dial:              dialer.Dial,
+		DisableKeepAlives: true,
+	}
 	client := &http.Client{
-		Transport: &http.Transport{
-			Dial: dialer.Dial,
-		},
-		Timeout: time.Duration(timeoutSeconds) * time.Second,
+		Transport: transport,
+		Timeout:   time.Duration(timeoutSeconds) * time.Second,
 	}
 
 	// Measure latency
@@ -260,7 +265,13 @@ func MeasureLatency(proxyAddr string, targetURL string, timeoutSeconds int) int 
 		log.Error("GET request failed: %v", err)
 		return -1
 	}
-	defer resp.Body.Close()
+	defer func() {
+		// 先排尽 body 再 Close，让底层连接得以复用（此处 DisableKeepAlives 已关闭
+		// 复用，但 drain 仍是好习惯，可避免 server 端 broken pipe）。
+		_, _ = io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		transport.CloseIdleConnections()
+	}()
 
 	// Check status code
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

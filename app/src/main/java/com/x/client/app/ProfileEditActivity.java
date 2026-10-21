@@ -410,6 +410,10 @@ public class ProfileEditActivity extends BaseActivity {
                 return false;
             }
         }
+        if (xtConnections <= 0 || xtConnections > 16) {
+            showFieldError(edittext_xt_connections, getString(R.string.error_xt_connections_range));
+            return false;
+        }
 
         // 校验并解析 Hot Pair 数量（仅 X-Tunnel 且启用时有效）
         int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;

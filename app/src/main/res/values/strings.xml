@@ -171,6 +171,7 @@
         <string name="error_pool_max_invalid">动态扩容上限格式错误</string>
         <string name="error_pool_max_range">启用动态扩容时，上限必须在 WebSocket 连接数和 %1$d 之间</string>
         <string name="error_xt_connections_invalid">连接数必须是数字</string>
+        <string name="error_xt_connections_range">连接数必须在 1 到 16 之间</string>
         <string name="error_hot_pair_invalid">热通道对数必须是数字</string>
         <string name="error_hot_pair_range">热通道对数必须在 1-%1$d 之间</string>
         <string name="error_xt_advanced_invalid">高级参数数值无效，请检查输入（留空表示使用默认值）</string>
