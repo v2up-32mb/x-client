@@ -181,7 +181,7 @@ public class TProxyService extends VpnService {
             appendRuntimeLog("VPN 与本地隧道已启动");
             registerScreenReceiver();
             registerNetworkCallback();
-            updateNotification("VPN 已连接");
+            updateNotification(getString(R.string.app_name), buildConnectedText(prefs));
             startLatencyMeasurement();
             sendStatus(STATUS_STARTED, null);
             monitorNativeTunnel(prefs);
@@ -817,9 +817,18 @@ public class TProxyService extends VpnService {
         }
     }
 
+    private String buildConnectedText(Preferences prefs) {
+        String profileName = prefs.getProfileName(prefs.getCurrentProfileId());
+        if (profileName != null && !profileName.isEmpty()) {
+            return profileName + " · VPN 已连接";
+        }
+        return "VPN 已连接";
+    }
+
     private void updateNotificationWithLatency() {
         String title;
-        String text = "VPN 已连接";
+        Preferences prefs = new Preferences(this);
+        String text = buildConnectedText(prefs);
         
         if (currentLatency > 0) {
             title = getString(R.string.app_name) + " | " + currentLatency + "ms";
