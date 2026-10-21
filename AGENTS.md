@@ -115,6 +115,23 @@ x-tunnel 连接池自带持续重连；SOCKS5/HTTP 无可用通道时返回标�
 
 # MEMORY
 
+## 上游库与关联项目本地路径
+
+本仓库（`x-client`）依赖的上游 Go 库与关联项目均 clone 到 `/opt` 下，修改上游源码时直接改这些本地仓库（非模块缓存 `/root/go/pkg/mod`）：
+
+| 仓库 | 本地路径 | 远程 | 当前依赖版本 |
+|------|---------|------|-------------|
+| `xshared`（共享基础库：socks5/httpproxy/pipe/config 等） | `/opt/xshared` | https://github.com/v2up-32mb/xshared.git | v0.1.5 |
+| `xtunnel`（x-tunnel 协议核心库） | `/opt/xtunnel` | https://github.com/v2up-32mb/xtunnel.git | v0.3.4 |
+| `gcm`（GCM 协议核心库） | `/opt/gcm` | https://github.com/v2up-32mb/gcm.git | v0.1.1 |
+| `xtunnel-cli`（x-tunnel CLI 客户端，关联项目） | `/opt/xtunnel-cli` | https://github.com/v2up-32mb/xtunnel-cli.git | v1.5.3 |
+| `gcm-cli`（GCM CLI 客户端，关联项目） | `/opt/gcm-cli` | https://github.com/v2up-32mb/gcm-cli.git | — |
+| `gcm-worker`（GCM Worker 服务端） | `/opt/gcm-worker` | https://github.com/v2up-32mb/gcm-worker.git | — |
+
+`x-client` 自身的 `golib/go.mod` 通过版本号引用上游模块（如 `github.com/v2up-32mb/xtunnel v0.3.4`），编译时从模块缓存拉取。**改了上游本地仓库后必须打 tag、push、再升级 `golib/go.mod` 的版本号**，才能让 `x-client` 真正用上新代码。发版顺序按依赖关系：被依赖方先发（如 `xshared` → `xtunnel` → `x-client`/`xtunnel-cli`）。
+
+## 其他
+
 - Go 工具链：系统默认 go 1.25.5（/usr/local/go，2026-09-02 替换原 1.20.14），无需再指定 GOROOT/PATH；1.20 时代的模块缓存/构建缓存已清理，protoc-gen-go{,-grpc} 已用 1.25.5 重建。
 - 本机出站代理：socks5://127.0.0.1:30001 到 30004 共 4 个 SOCKS5 服务器（用户提供的，需要外网时可用，任取其一；2026-07 已实测可用）。
 - HTTP→SOCKS5 桥已做成 pi 全局 skill `http-socks5-bridge`（目录 ~/.pi/agent/skills/http-socks5-bridge/）：用 `scripts/bridge.sh [status|start|stop|restart|test]` 管理；启动后监听 127.0.0.1:18080（HTTP CONNECT），round-robin 转发到上述 4 个 SOCKS5 端口（可用 BRIDGE_SOCKS_PORTS / BRIDGE_LISTEN_PORT 环境变量改）。只接受 http 代理参数的工具（fetch_content / web_search / source_check）proxy 参数填 http://127.0.0.1:18080。日志 /tmp/http2socks-bridge.log。
