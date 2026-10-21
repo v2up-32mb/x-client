@@ -10,11 +10,15 @@ github.com/v2up-32mb/xshared v0.1.3 h1:kBxqvTlgGbosetw41tS7c2ZJb1vy69eeFkZrD9z2z
 github.com/v2up-32mb/xshared v0.1.3/go.mod h1:vBbVeDpe9hQJ7X7Q3LalI2OmbOSFso1t+qv6+MeQFNI=
 github.com/v2up-32mb/xshared v0.1.4 h1:f+UGh0ZwAX2E+YNbfQ1hk60ShBeauOCKgmwNDdnG42Q=
 github.com/v2up-32mb/xshared v0.1.4/go.mod h1:vBbVeDpe9hQJ7X7Q3LalI2OmbOSFso1t+qv6+MeQFNI=
+github.com/v2up-32mb/xshared v0.1.5 h1:W2RnB1vXQ/+aUc7JozSC5L4V1aq2q3SJrt7X78D5hos=
+github.com/v2up-32mb/xshared v0.1.5/go.mod h1:vBbVeDpe9hQJ7X7Q3LalI2OmbOSFso1t+qv6+MeQFNI=
 github.com/v2up-32mb/xtunnel v0.3.1 h1:jYDq5QZbODbswLGazxxRFOp/2pgkyyyHXCGR2pathAQ=
 github.com/v2up-32mb/xtunnel v0.3.1/go.mod h1:IAq55jjwIT3SOQufjvKS3wAcY9FpLIHd5IG3aEN7qEo=
 github.com/v2up-32mb/xtunnel v0.3.2 h1:2AaVPEX5E8vIRtuRCxhAmhM5S1oimAj8vlcrCKIAUMI=
 github.com/v2up-32mb/xtunnel v0.3.2/go.mod h1:IAq55jjwIT3SOQufjvKS3wAcY9FpLIHd5IG3aEN7qEo=
 github.com/v2up-32mb/xtunnel v0.3.3 h1:vpUFLh01yfcjIbG/rYe0MbUdaIiDLUlJRSiLj763GFA=
 github.com/v2up-32mb/xtunnel v0.3.3/go.mod h1:20/CrN+cGiA2sOQxHVvrM2Pp6ouLUbN7Q5yQo73106g=
+github.com/v2up-32mb/xtunnel v0.3.4 h1:K8pFLuUzYVAiE+J1QRvr09Y9RrYwO3arUlRhH3SVXxQ=
+github.com/v2up-32mb/xtunnel v0.3.4/go.mod h1:Hk2Oo3nkqU5m0KxPTVMWpXtAkuJqWFiMFcLmqk7hi4k=
 golang.org/x/net v0.17.0 h1:pVaXccu2ozPjCXewfr1S7xza/zcXTity9cCdXQYSjIM=
 golang.org/x/net v0.17.0/go.mod h1:NxSsAGuq816PNPmqtQdLE42eU2Fs7NoRIZrHJAlaCOE=

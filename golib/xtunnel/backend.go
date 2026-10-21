@@ -129,7 +129,10 @@ func (b *Backend) Start(listenAddr string, params map[string]string, verbose boo
 		logger.Close()
 		return err
 	}
-	opts := []socks5.Option{socks5.WithBypassMatcher(bypassMatcher)}
+	opts := []socks5.Option{
+		socks5.WithBypassMatcher(bypassMatcher),
+		socks5.WithTunnelIdleTimeout(120 * time.Second),
+	}
 	if cfg.MaxSOCKS5Connections > 0 {
 		opts = append(opts, socks5.WithMaxConns(cfg.MaxSOCKS5Connections))
 	}
