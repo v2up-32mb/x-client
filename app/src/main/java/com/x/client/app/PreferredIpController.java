@@ -15,10 +15,8 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -31,10 +29,10 @@ final class PreferredIpController {
     interface Listener { void changed(State state); }
     interface Work { void run() throws Exception; }
     static final class State {
-        JSONObject data, snapshot, results, preview, parse;
-        JSONArray chosen;
-        String message, taskId, network, referenceId, referenceSummary;
-        boolean busy, stale;
+        JSONObject data, snapshot, results, preview, parse, validation;
+        JSONArray chosen, selectedCandidates;
+        String message, taskId, network, referenceId, referenceSummary, logs, savedScope;
+        boolean busy, stale, parseThirdParty;
     }
     private final Context context;
     private final PreferredIpStore store;
@@ -49,13 +47,15 @@ final class PreferredIpController {
     private boolean registered;
     private JSONObject data, snapshot = new JSONObject(), preview, parsed;
     private JSONObject testResults = new JSONObject();
+    private JSONObject validation;
+    private long validationEpoch;
+    private final PreferredIpLog log = new PreferredIpLog();
     private JSONArray draftCandidates = new JSONArray();
     private final Set<String> chosen = new LinkedHashSet<>();
     private String message = "", referenceId, referenceSummary = "";
-    private boolean busy, scanning, testedThisSession;
+    private boolean busy, scanning;
     private String parseSource, parseKind, parseUrl = "";
     private boolean parseAppend = true;
-    private volatile State latest;
 
     PreferredIpController(Context context, String referenceId) {
         this.context = context.getApplicationContext();
@@ -66,6 +66,11 @@ final class PreferredIpController {
             data = store.read();
             snapshot = data.getJSONObject("last_test");
             testResults = snapshot;
+            validation = data.optJSONObject("last_validation");
+            validationEpoch = generation.get();
+            // A new page session cannot establish that no cancelled check happened after this
+            // saved record. Keep the effective saved pool, but never call history a fresh check.
+            invalidateValidation("已保存的历史验证；当前会话未重新验证，实际采用情况见已保存配置");
             for (int i = 0; i < data.getJSONArray("selected").length(); i++) {
                 chosen.add(data.getJSONArray("selected").getJSONObject(i).getString("address"));
             }
@@ -76,13 +81,13 @@ final class PreferredIpController {
     void attach(Listener next) {
         foreground = true;
         listener = next;
-        if (latest != null) next.changed(latest);
         String now = PreferredIpNetwork.id(context);
         if (!now.equals(network)) networkChanged();
         if (!registered) {
             context.getSystemService(ConnectivityManager.class).registerDefaultNetworkCallback(callback);
             registered = true;
         }
+        execute(() -> { data = store.read(); publish(); });
     }
 
     void detach(boolean rotating) {
@@ -129,14 +134,18 @@ final class PreferredIpController {
             try { canceller.execute(() -> Xclient.cancelPreferredIPTask(running)); }
             catch (java.util.concurrent.RejectedExecutionException ignored) { }
         }
-        execute(() -> { preview = null; message = reason; publish(); });
+        execute(() -> { invalidateValidation(reason); message = reason; publish(); });
     }
 
     private void execute(Work work) {
         if (worker.isShutdown()) return;
         try { worker.execute(() -> {
             try { work.run(); }
-            catch (Exception error) { message = error.getMessage() == null ? error.toString() : error.getMessage(); publish(); }
+            catch (Exception error) {
+                message = "错误：" + (error.getMessage() == null ? error.toString() : error.getMessage());
+                if (validation != null && "running".equals(validation.optString("state"))) invalidateValidation(message);
+                publish();
+            }
         }); } catch (java.util.concurrent.RejectedExecutionException ignored) { }
     }
 
@@ -148,7 +157,7 @@ final class PreferredIpController {
             referenceSummary = target.getString("target_host") + ":" + target.getInt("target_port")
                     + " · ECH " + target.getBoolean("enable_ech") + "\n" + target.getString("ech_domain")
                     + " · " + target.getString("dns_server")
-                    + (Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol()) ? "\n每IP " + merged.getInt("connections") + " 条通道（高级JSON合并后）" : "")
+                    + (Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol()) ? "\n每IP " + PreferredIpResolver.validatedConnections(p, merged) + " 条通道（高级JSON合并后）" : "")
                     + (PreferredIpResolver.conflict(p) ? "\n高级relay_nodes冲突，保留独立" : "");
             referenceId = id;
             publish();
@@ -156,14 +165,29 @@ final class PreferredIpController {
     }
 
     private void publish() {
+        long publicationEpoch = generation.get();
         try {
             State out = new State();
             out.data = data == null ? PreferredIpStore.empty() : new JSONObject(data.toString());
             out.snapshot = new JSONObject(snapshot.toString());
             out.results = new JSONObject(testResults.toString());
-            out.preview = preview == null ? null : new JSONObject(preview.toString());
             out.parse = parsed == null ? null : new JSONObject(parsed.toString());
+            out.parseThirdParty = "list".equals(parseKind) || "third_party".equals(parseKind);
             out.chosen = new JSONArray(chosen);
+            out.selectedCandidates = data == null ? new JSONArray() : selectedCandidates();
+            if (validation != null && (validationEpoch != generation.get()
+                    || !network.equals(validation.optString("network_id"))
+                    || !selectionKey().equals(validation.optString("selection_key"))
+                    || !profilesKey().equals(validation.optString("profiles_key"))
+                    || data.optLong("revision") != validation.optLong("pool_revision", -1)
+                    || (validation.optBoolean("saved") && !data.optBoolean("enabled")))) {
+                invalidateValidation("取消、选择、网络或节点参数变化，请重新验证");
+            }
+            out.validation = validation == null ? null : new JSONObject(validation.toString());
+            out.preview = preview == null ? null : new JSONObject(preview.toString());
+            log.message(message);
+            out.logs = log.text();
+            out.savedScope = savedScope();
             out.message = message;
             out.taskId = taskId;
             out.network = PreferredIpNetwork.label(context);
@@ -171,8 +195,10 @@ final class PreferredIpController {
             out.referenceSummary = referenceSummary;
             out.busy = busy;
             out.stale = !testResults.optString("network_id", network).equals(network);
-            latest = out;
-            main.post(() -> { Listener current = listener; if (current != null) current.changed(out); });
+            main.post(() -> {
+                Listener current = listener;
+                if (current != null && publicationEpoch == generation.get()) current.changed(out);
+            });
         } catch (Exception error) {
             android.util.Log.e("PreferredIp", "状态发布失败", error);
         }
@@ -198,11 +224,19 @@ final class PreferredIpController {
                     throw new IllegalStateException("忽略陈旧任务响应");
                 }
                 snapshot = next;
+                log.snapshot(next);
                 if (scanning) testResults = next;
                 publish();
                 String state = next.getString("state");
                 if (!"queued".equals(state) && !"running".equals(state)) {
-                    if (!"completed".equals(state)) throw new IllegalStateException(next.optString("error", state));
+                    if ("cancelled".equals(state)) {
+                        generation.compareAndSet(epoch, epoch + 1); // cancelled chunks cannot form a saveable partial preview
+                        throw new IllegalStateException("任务已取消；未完成整轮验证");
+                    }
+                    if (!"completed".equals(state)) {
+                        String error = next.optString("error");
+                        throw new IllegalStateException(error.isEmpty() ? PreferredIpPresentation.state(state) : error);
+                    }
                     check(epoch, net);
                     return next;
                 }
@@ -211,7 +245,12 @@ final class PreferredIpController {
         } finally {
             Xclient.cancelPreferredIPTask(id);
             // Read the actual terminal/partial snapshot after cancellation, never fabricate progress.
-            try { snapshot = new JSONObject(Xclient.getPreferredIPTask(id)); } catch (Exception ignored) { }
+            try {
+                JSONObject terminal = new JSONObject(Xclient.getPreferredIPTask(id));
+                if (id.equals(terminal.optString("id")) && net.equals(terminal.optString("network_id"))) snapshot = terminal;
+                else log.add("忽略陈旧任务的终态响应");
+            } catch (Exception ignored) { }
+            log.snapshot(snapshot);
             taskId = "";
         }
     }
@@ -219,7 +258,7 @@ final class PreferredIpController {
     private void operation(Work work) {
         execute(() -> {
             if (data == null) throw new IllegalStateException("优选库尚未加载");
-            busy = true; preview = null; message = ""; publish();
+            busy = true; invalidateValidation("新的操作已开始，请重新完成兼容检查"); message = ""; publish();
             try { work.run(); }
             finally { busy = false; publish(); }
         });
@@ -229,6 +268,7 @@ final class PreferredIpController {
         long epoch = generation.get();
         operation(() -> {
             String net = network;
+            log.add("来源 URL：" + url);
             if ("cidr6".equals(kind) && !PreferredIpNetwork.ipv6(context)) throw new IllegalStateException("当前直连网络没有IPv6地址");
             JSONObject result = run(new JSONObject().put("operation", "fetch").put("source",
                     new JSONObject().put("id", id).put("url", url).put("kind", kind)), epoch, net);
@@ -336,7 +376,7 @@ final class PreferredIpController {
             rebuildSources(next);
             data = store.write(next, next.getLong("revision"));
             message = "来源参与状态已更新；已选池不变，停用来源中的已选IP需复测";
-            preview = null;
+            invalidateValidation("来源参与状态变化，请重新验证");
             publish();
         });
     }
@@ -391,11 +431,17 @@ final class PreferredIpController {
             Preferences p = new Preferences(context).forProfile(profile);
             JSONObject target = PreferredIpResolver.target(p, PreferredIpResolver.baseParams(p));
             String net = network;
+            log.add("性能测速目标：" + PreferredIpPresentation.target(target));
+            JSONArray sources = data.getJSONArray("sources");
+            for (int i = 0; i < sources.length(); i++) {
+                JSONObject source = sources.getJSONObject(i);
+                if (source.optBoolean("enabled", true)) log.add("测试来源：" + PreferredIpPresentation.source(source));
+            }
+            log.add("HTTPS 下载 URL：" + url);
             JSONObject request = new JSONObject().put("operation", "test").put("candidates", data.getJSONArray("candidates"))
                     .put("prefixes", data.getJSONArray("prefixes")).put("options", options(target, true, sample, concurrency, url));
             draftCandidates = selectedCandidates();
             scanning = true;
-            testedThisSession = false;
             snapshot = new JSONObject();
             try {
                 run(request, epoch, net);
@@ -407,17 +453,17 @@ final class PreferredIpController {
                 data = store.write(next, next.getLong("revision"));
             }
             check(epoch, net);
-            testedThisSession = true;
             recommendInternal();
-            message = "测试完成，推荐 " + chosen.size() + " 个（不足3个不凑数）。HTTP可达不代表WebSocket升级或认证成功";
+            message = "测试完成，推荐 " + chosen.size() + " 个（不足3个不凑数）。HTTPS可达不代表WebSocket升级或认证成功";
         });
     }
 
     void select(String address, boolean selected) {
-        execute(() -> { if (selected) chosen.add(address); else chosen.remove(address); preview = null; publish(); });
+        generation.incrementAndGet();
+        execute(() -> { if (selected) chosen.add(address); else chosen.remove(address); invalidateValidation("选择已变化，请重新验证"); publish(); });
     }
 
-    void recommend() { execute(() -> { recommendInternal(); preview = null; publish(); }); }
+    void recommend() { generation.incrementAndGet(); execute(() -> { recommendInternal(); invalidateValidation("选择已变化，请重新验证"); publish(); }); }
 
     private void recommendInternal() throws Exception {
         if (!"completed".equals(testResults.optString("state")) || !network.equals(testResults.optString("network_id"))) {
@@ -451,123 +497,197 @@ final class PreferredIpController {
         return out;
     }
 
-    /** Validate at most three IPs per low-traffic task; never download before saving. */
+    private void invalidateValidation(String reason) {
+        preview = null;
+        if (validation != null) {
+            try { validation.put("state", "stale").put("reason", reason); }
+            catch (Exception ignored) { }
+        }
+    }
+
+    private String selectionKey() { return new JSONArray(chosen).toString(); }
+
+    /** Includes connections, advanced overrides, names and profile membership, not just TLS target.
+     * Only the opaque digest is retained; credentials never enter UI diagnostics or Go tests. */
+    private String profilesKey() throws Exception {
+        StringBuilder key = new StringBuilder();
+        Preferences prefs = new Preferences(context);
+        for (Preferences.ProfileInfo info : prefs.getProfileList()) {
+            Preferences p = prefs.forProfile(info.id);
+            String params;
+            try { params = PreferredIpResolver.baseParams(p).toString(); }
+            catch (Exception error) { params = p.getXtAdvancedParams() + ":" + error.getMessage(); }
+            key.append(info.id.length()).append(':').append(info.id)
+                    .append(info.name.length()).append(':').append(info.name)
+                    .append(params.length()).append(':').append(params);
+        }
+        return PreferredIpIds.opaque("profiles", key.toString());
+    }
+
+    private String savedScope() {
+        if (data == null) return "优选库加载中";
+        StringBuilder out = new StringBuilder("已保存配置（下次连接参数，不代表正在运行的连接）\n");
+        Preferences prefs = new Preferences(context);
+        for (Preferences.ProfileInfo info : prefs.getProfileList()) {
+            out.append(info.name).append("：");
+            Preferences p = prefs.forProfile(info.id);
+            try {
+                JSONObject merged = PreferredIpResolver.baseParams(p);
+                out.append(PreferredIpResolver.apply(p, merged, data).summary);
+            } catch (Exception error) { out.append("未接管，参数错误：").append(error.getMessage()); }
+            out.append('\n');
+        }
+        return out.toString();
+    }
+
+    static boolean compatible(JSONObject result) {
+        // recommend_count=0 checks intentionally never recommend; that is not a failure.
+        return "valid".equals(result.optString("status")) && result.optInt("http_success") > 0
+                && !result.optString("colo").isEmpty();
+    }
+
+    private static JSONObject diagnostic(String address, JSONObject result, String failure) throws Exception {
+        boolean valid = failure.isEmpty() && result != null && compatible(result);
+        String reason = failure;
+        if (reason.isEmpty() && !valid) {
+            reason = result == null ? "任务没有返回该 IP 的验证结果" : result.optString("error");
+            if (reason.isEmpty()) reason = "HTTPS / TLS 证书 / CF trace 未完整通过（非性能推荐状态）";
+        }
+        return new JSONObject().put("address", address).put("status", valid ? "valid" : "failed")
+                .put("error", reason).put("colo", result == null ? "" : result.optString("colo"))
+                .put("tested_at", result == null ? 0 : result.optLong("tested_at"));
+    }
+
+    /** Every complete target check retains every IP outcome, including zero-compatible previews. */
     void prepareSave() {
-        long epoch = generation.get();
+        long epoch = generation.incrementAndGet();
         operation(() -> {
             String net = network;
             check(epoch, net);
             JSONArray selected = selectedCandidates();
             if (selected.length() == 0) throw new IllegalStateException("请至少选择一个IP");
+            for (int i = 0; i < selected.length(); i++) {
+                JSONObject candidate = selected.getJSONObject(i);
+                log.add("检查已选 " + candidate.getString("address") + " · " + PreferredIpPresentation.sources(candidate, data));
+            }
             JSONObject next = store.read();
+            data = new JSONObject(next.toString());
             boolean first = !next.has("rollback_modes");
             if (first) next.put("rollback_modes", new JSONObject(next.getJSONObject("profile_modes").toString()));
-            JSONObject validations = new JSONObject();
-            JSONObject modes = next.getJSONObject("profile_modes");
+            String profileKey = profilesKey();
+            JSONArray profiles = new JSONArray();
+            validation = new JSONObject().put("state", "running").put("network_id", net)
+                    .put("selection_key", selectionKey()).put("profiles_key", profileKey).put("profiles", profiles)
+                    .put("pool_revision", next.getLong("revision"));
+            validationEpoch = epoch;
+            JSONObject validations = new JSONObject(), modes = next.getJSONObject("profile_modes");
             StringBuilder scope = new StringBuilder();
             Preferences prefs = new Preferences(context);
+            // Cache complete compatibility outcomes (including failures) per exact target only.
+            // Performance recommendations remain separate; no download on this path.
             Map<String, JSONArray> cache = new LinkedHashMap<>();
-            // Only a completed, same-network, same-target result from this page can seed reuse.
-            JSONObject lastTarget = testResults.optJSONObject("test_target");
-            if (testedThisSession && lastTarget != null && "completed".equals(testResults.optString("state")) && net.equals(testResults.optString("network_id"))) {
-                cache.put(PreferredIpResolver.fingerprint(lastTarget), validAddresses(testResults));
-            }
-            int compatible = 0;
+            int compatibleProfiles = 0;
             for (Preferences.ProfileInfo info : prefs.getProfileList()) {
                 check(epoch, net);
-                Preferences p;
+                Preferences p = prefs.forProfile(info.id);
+                JSONObject row = new JSONObject().put("id", info.id).put("name", info.name)
+                        .put("results", new JSONArray());
+                profiles.put(row);
                 JSONObject target;
                 int connections;
                 try {
-                    p = prefs.forProfile(info.id);
                     if (PreferredIpResolver.conflict(p)) {
                         throw new IllegalArgumentException("高级JSON含 relay_nodes 覆盖，请先在编辑页确认清除冲突");
                     }
-                    // Explicit independent/default nodes do not participate in takeover.
-                    // Validate only participating nodes, so an unsupported target cannot
-                    // silently restore a default-mode node's old relay address.
                     if ((!first || modes.has(info.id)) && !"global".equals(PreferredIpStore.mode(next, info.id))) {
-                        scope.append(info.name).append("：保留独立/域名默认（用户设置）\n");
+                        String reason = "未参与：明确独立/域名默认；如需接管，在编辑页选择跟随并保存后再验证";
+                        row.put("reason", reason);
+                        scope.append(info.name).append("：").append(reason).append('\n');
                         continue;
                     }
                     JSONObject merged = PreferredIpResolver.baseParams(p);
                     target = PreferredIpResolver.target(p, merged);
                     connections = PreferredIpResolver.validatedConnections(p, merged);
+                    row.put("target", target);
                 } catch (Exception invalid) {
-                    check(epoch, net); // never turn cancellation/network loss into a profile error
-                    modes.put(info.id, "independent");
-                    scope.append(info.name).append("：参数无效，保留独立：")
-                            .append(invalid.getMessage() == null ? invalid.toString() : invalid.getMessage()).append('\n');
+                    check(epoch, net);
+                    String reason = "未验证，保留原配置：" + invalid.getMessage();
+                    row.put("reason", reason);
+                    scope.append(info.name).append("：").append(reason).append('\n');
+                    // Do not persist a validation failure as a user's explicit independent choice.
                     continue;
                 }
                 String key = PreferredIpResolver.fingerprint(target);
-                JSONArray known = cache.get(key);
-                Set<String> passed = new LinkedHashSet<>();
-                List<JSONObject> missing = new ArrayList<>();
-                for (int i = 0; i < selected.length(); i++) {
-                    JSONObject candidate = selected.getJSONObject(i);
-                    if (contains(known, candidate.getString("address"))) passed.add(candidate.getString("address"));
-                    else missing.add(candidate);
-                }
-                for (int start = 0; start < missing.size(); start += 3) {
-                    JSONArray chunk = new JSONArray();
-                    for (int j = start; j < Math.min(start + 3, missing.size()); j++) chunk.put(missing.get(j));
-                    message = "保存前实际目标检查：" + info.name + "（无下载）";
-                    try {
-                        JSONObject result = run(new JSONObject().put("operation", "test").put("candidates", chunk)
-                                .put("prefixes", new JSONArray()).put("options", options(target, false, 3, 3, DOWNLOAD)), epoch, net);
-                        JSONArray valid = validAddresses(result);
-                        for (int j = 0; j < valid.length(); j++) passed.add(valid.getString(j));
-                    } catch (Exception failure) {
-                        check(epoch, net); // cancellation/network changes abort the whole preview
-                        scope.append(info.name).append("：检查失败 ").append(failure.getMessage()).append('\n');
+                JSONArray outcomes = cache.get(key);
+                if (outcomes == null) {
+                    outcomes = new JSONArray();
+                    for (int start = 0; start < selected.length(); start += 3) {
+                        JSONArray chunk = new JSONArray();
+                        for (int j = start; j < Math.min(start + 3, selected.length()); j++) chunk.put(selected.getJSONObject(j));
+                        message = "实际目标 HTTPS 检查：" + info.name + "（无下载，不生成性能推荐）";
+                        log.add(message + "\n" + PreferredIpPresentation.target(target));
+                        JSONObject result = null;
+                        String failure = "";
+                        try {
+                            result = run(new JSONObject().put("operation", "test").put("candidates", chunk)
+                                    .put("prefixes", new JSONArray()).put("options", options(target, false, 3, 3, DOWNLOAD)), epoch, net);
+                        } catch (Exception error) {
+                            check(epoch, net); // cancellation must abort the whole report, not pass partial IPs
+                            failure = error.getMessage() == null ? "检查任务失败" : error.getMessage();
+                        }
+                        for (int j = 0; j < chunk.length(); j++) {
+                            String address = chunk.getJSONObject(j).getString("address");
+                            JSONObject actual = result == null ? null : PreferredIpPresentation.find(result.optJSONArray("results"), address);
+                            outcomes.put(diagnostic(address, actual, failure));
+                        }
                     }
+                    cache.put(key, outcomes);
                 }
-                JSONArray addresses = new JSONArray(passed);
-                cache.put(key, addresses);
-                if (!passed.isEmpty()) {
-                    compatible++;
+                row.put("results", outcomes);
+                JSONArray addresses = new JSONArray();
+                for (int i = 0; i < outcomes.length(); i++) {
+                    JSONObject outcome = outcomes.getJSONObject(i);
+                    if ("valid".equals(outcome.optString("status"))) addresses.put(outcome.getString("address"));
+                }
+                if (addresses.length() > 0) {
+                    compatibleProfiles++;
                     validations.put(info.id, new JSONObject().put("target_key", key).put("network_id", net)
                             .put("tested_at", System.currentTimeMillis()).put("addresses", addresses));
                     modes.put(info.id, "global");
-                    scope.append(info.name).append("：跟随 ").append(passed.size()).append("个IP");
+                    String adopted = "待确认跟随 " + addresses.length() + "/" + selected.length() + " IP";
                     if (Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol())) {
-                        scope.append(" × 每IP ").append(connections).append(" = ").append((long) passed.size() * connections).append("条通道");
+                        adopted += " × 每IP " + connections + " = " + (long) addresses.length() * connections + " 条配置通道";
                     }
-                    scope.append('\n');
+                    row.put("summary", adopted);
+                    scope.append(info.name).append("：").append(adopted).append('\n');
                 } else {
-                    modes.put(info.id, "independent");
-                    scope.append(info.name).append("：不兼容/未知，保留原配置\n");
+                    row.put("summary", "全部不兼容/未知，未接管，保留原入口");
+                    scope.append(info.name).append("：全部不兼容/未知，保留原入口\n");
                 }
             }
             check(epoch, net);
-            if (compatible == 0) throw new IllegalStateException("没有实际节点验证通过，未接管任何节点\n" + scope);
+            if (!profileKey.equals(profilesKey())) throw new IllegalStateException("节点参数已变化，请重新验证");
+            validation.put("state", "completed").put("scope", scope.toString()).put("saved", false);
+            if (compatibleProfiles == 0) {
+                message = "检查结束：没有实际节点验证通过，禁止保存；逐IP诊断见下方，旧池未改变";
+                return;
+            }
             next.put("selected", selected).put("validations", validations).put("enabled", true);
             preview = new JSONObject().put("pool", next).put("network_id", net).put("scope", scope.toString())
-                    .put("generation", epoch);
-            message = "兼容检查完成，请确认接管范围；不代表协议认证成功";
+                    .put("generation", epoch).put("profiles_key", profileKey).put("selection_key", selectionKey());
+            message = "兼容检查完成，尚未保存启用。请确认接管范围；HTTPS通过不代表协议认证成功";
         });
-    }
-
-    private static boolean contains(JSONArray array, String address) {
-        if (array == null) return false;
-        for (int i = 0; i < array.length(); i++) if (address.equals(array.optString(i))) return true;
-        return false;
-    }
-
-    private static JSONArray validAddresses(JSONObject result) throws Exception {
-        JSONArray out = new JSONArray(), results = result.getJSONArray("results");
-        for (int i = 0; i < results.length(); i++) {
-            JSONObject r = results.getJSONObject(i);
-            if ("valid".equals(r.optString("status")) && r.optInt("http_success") > 0 && !r.optString("colo").isEmpty()) out.put(r.getString("address"));
-        }
-        return out;
     }
 
     void commitPreview() {
         execute(() -> {
             if (preview == null) throw new IllegalStateException("请重新验证");
             check(preview.getLong("generation"), preview.getString("network_id"));
+            if (!profilesKey().equals(preview.getString("profiles_key"))
+                    || !selectionKey().equals(preview.getString("selection_key"))) {
+                invalidateValidation("节点参数或选择已变化，请重新验证");
+                throw new IllegalStateException("节点参数或选择已变化，请重新验证");
+            }
             JSONObject next = preview.getJSONObject("pool");
             // Profile edits invalidate the preview even when the pool revision did not change.
             Preferences p = new Preferences(context);
@@ -584,7 +704,18 @@ final class PreferredIpController {
                     throw new IllegalStateException("节点参数已变化，请重新验证");
                 }
             }
-            data = store.write(next, next.getLong("revision"));
+            // Recheck immediately before the AtomicFile CAS; no partially checked draft is applied.
+            check(preview.getLong("generation"), preview.getString("network_id"));
+            JSONObject savedValidation = new JSONObject(validation.toString()).put("saved", true)
+                    .put("pool_revision", next.getLong("revision") + 1)
+                    .put("scope", preview.getString("scope").replace("待确认跟随", "已保存跟随"));
+            next.put("last_validation", savedValidation);
+            try { data = store.write(next, next.getLong("revision")); }
+            catch (Exception error) {
+                invalidateValidation("保存未完成/优选库已变化，请重新验证：" + error.getMessage());
+                throw error;
+            }
+            validation = savedValidation;
             preview = null;
             message = "全局优选已保存，下次连接生效；原节点地址保留，不自动重连";
             publish();
@@ -600,7 +731,7 @@ final class PreferredIpController {
                 next.remove("rollback_modes");
             }
             data = store.write(next, next.getLong("revision"));
-            preview = null;
+            invalidateValidation("全局池已禁用，请重新验证后再启用");
             message = "已禁用全局并恢复接管前模式；原IP未被覆盖，下次连接生效";
             publish();
         });

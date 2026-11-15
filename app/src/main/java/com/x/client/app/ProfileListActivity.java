@@ -1130,11 +1130,13 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                     }
 
                     mutateProfile(() -> {
-                        // Before initial activation, the takeover preview supplies user consent.
-                        if (new PreferredIpStore(this).read().optBoolean("enabled")) PreferredIpStore.setMode(this, id, "independent");
+                        // New URI profiles keep an unset mode, just like new manual profiles.
+                        // Original URI addresses remain effective until this profile is verified
+                        // and the user confirms the global preview. Never invent an explicit opt-out.
+                        new PreferredIpStore(this).read();
                     }, () -> {
                         refreshProfileList();
-                        Toast.makeText(this, "配置已导入", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "配置已导入；原入口保留，全局跟随需在优选页验证并确认", Toast.LENGTH_LONG).show();
                     });
                 })
                 .setNegativeButton("取消", null)

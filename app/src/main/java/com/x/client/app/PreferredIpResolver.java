@@ -133,34 +133,69 @@ public final class PreferredIpResolver {
         return PreferredIpStore.mode(pool, p.getCurrentProfileId());
     }
 
-    /** No valid target match means original values, never assume every XT server is on Cloudflare. */
-    public static void apply(Preferences p, JSONObject merged, JSONObject pool) throws Exception {
+    /** The decision describes the actual outgoing parameters, not merely the requested mode. */
+    public static final class Decision {
+        public final String mode, reason, summary;
+        public final boolean applied;
+        Decision(Preferences p, JSONObject merged, String mode, boolean applied, String reason) {
+            this.mode = mode;
+            this.applied = applied;
+            this.reason = reason;
+            this.summary = "请求模式=" + mode + " · " + reason + " · " + effectiveCount(p, merged);
+        }
+    }
+
+    public static String effectiveCount(Preferences p, JSONObject merged) {
+        boolean xt = Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol());
+        String raw = stripComments(merged.optString(xt ? "relay_nodes" : "relay_ips"));
+        int count = raw.isEmpty() ? 0 : raw.split(",").length;
+        String out = "最终入口 " + count + " 个";
+        if (count == 0) return out + "（域名解析，不是零连接）";
+        if (xt) {
+            try {
+                int connections = validatedConnections(p, merged);
+                out += " × 每入口 " + connections + " = " + (long) count * connections + " 条配置通道";
+            } catch (Exception error) { out += " · connections 无效：" + error.getMessage(); }
+        }
+        return out + "（非已建立/认证连接数）";
+    }
+
+    /** Base -> advanced -> explicit mode -> saved verified subset. Never use a UI draft. */
+    public static Decision apply(Preferences p, JSONObject merged, JSONObject pool) throws Exception {
         String key = Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol()) ? "relay_nodes" : "relay_ips";
-        String mode = effectiveMode(p, pool);
+        String mode = PreferredIpStore.mode(pool, p.getCurrentProfileId());
         merged.put(key, stripComments(merged.optString(key)));
+        if (conflict(p)) return new Decision(p, merged, mode, false, "未接管：高级 relay_nodes 冲突，保留高级入口");
         if ("default".equals(mode)) {
             merged.put(key, "");
-            return;
+            return new Decision(p, merged, mode, false, "未接管：用户选择域名默认");
         }
-        if (!"global".equals(mode) || !pool.optBoolean("enabled")) return;
+        if (!"global".equals(mode)) {
+            JSONObject modes = pool.optJSONObject("profile_modes");
+            boolean explicit = modes != null && modes.has(p.getCurrentProfileId());
+            return new Decision(p, merged, mode, false, explicit
+                    ? "未接管：明确独立；如需跟随，请在编辑页选择跟随并保存，再验证"
+                    : "未接管：尚无已启用全局池，保留原入口；选择草稿不会自动生效");
+        }
+        if (!pool.optBoolean("enabled")) return new Decision(p, merged, mode, false, "未接管：全局池未确认保存或已禁用");
         JSONObject validations = pool.optJSONObject("validations");
         JSONObject valid = validations == null ? null : validations.optJSONObject(p.getCurrentProfileId());
-        if (valid == null || !fingerprint(target(p, merged)).equals(valid.optString("target_key"))) return;
+        if (valid == null) return new Decision(p, merged, mode, false, "未接管：此节点没有已保存的实际目标验证，保留原入口");
+        if (!fingerprint(target(p, merged)).equals(valid.optString("target_key"))) {
+            return new Decision(p, merged, mode, false, "未接管：目标/ECH/DNS 已变化，需重新验证，保留原入口");
+        }
         JSONArray addresses = valid.optJSONArray("addresses");
         JSONArray selected = pool.optJSONArray("selected");
-        if (addresses == null || selected == null) return;
-        StringBuilder relay = new StringBuilder();
-        for (int i = 0; i < selected.length(); i++) {
+        java.util.Set<String> relay = new java.util.LinkedHashSet<>();
+        if (addresses != null && selected != null) for (int i = 0; i < selected.length(); i++) {
             String address = selected.getJSONObject(i).getString("address");
             for (int j = 0; j < addresses.length(); j++) {
-                if (address.equals(addresses.getString(j))) {
-                    if (relay.length() > 0) relay.append(',');
-                    relay.append(address);
-                    break;
-                }
+                if (address.equals(addresses.getString(j))) { relay.add(address); break; }
             }
         }
-        if (relay.length() > 0) merged.put(key, relay.toString());
+        if (relay.isEmpty()) return new Decision(p, merged, mode, false, "未接管：已选地址没有已验证子集，保留原入口");
+        merged.put(key, String.join(",", relay));
+        return new Decision(p, merged, mode, true, "已采用已保存全局池的兼容子集 " + relay.size() + "/" + selected.length() + " IP");
     }
 
     public static String stripComments(String value) {

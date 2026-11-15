@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="preferred_log">任务日志（可滚动，保留最近 160 行 / 24KiB）</string>
     <string name="preferred_ip_title">优选 IP</string>
     <string name="preferred_back">返回</string>
     <string name="preferred_sources">来源</string>
@@ -35,17 +36,17 @@
     <string name="preferred_download_url">下载 URL（不用于判断节点兼容性）</string>
     <string name="preferred_go">开始</string>
     <string name="preferred_no_profiles">请先创建一个节点；必须按真实节点目标验证。</string>
-    <string name="preferred_not_tested">尚未测试。HTTP 可达不等于 WebSocket 升级或认证成功。</string>
+    <string name="preferred_not_tested">尚未测试。HTTPS 可达不等于 WebSocket 升级或认证成功。</string>
     <string name="preferred_old_network">旧网络 / 未完成结果不可自动推荐，保存时会重新检查。</string>
     <string name="preferred_save">验证实际节点并预览保存</string>
     <string name="preferred_confirm">确认保存全局优选</string>
-    <string name="preferred_save_hint">保存前仅对已选 IP 按实际目标 / ECH / DNS 做低流量检查，不下载。未知或不兼容节点保留独立。HTTP 可达不代表协议认证成功。</string>
+    <string name="preferred_save_hint">保存前仅对已选 IP 按实际目标 / ECH / DNS 做低流量检查，不下载。未知或不兼容节点保留原配置。独立/域名默认节点不参与；需要跟随时请先在编辑页选择并保存。HTTPS 可达不代表协议认证成功。</string>
     <string name="preferred_many">已选超过 3 个：XT 通道数 = 兼容 IP 数 × 高级参数合并后的每 IP 连接数，请关注资源占用。</string>
     <string name="preferred_disable">恢复原配置 / 禁用全局</string>
     <string name="preferred_disable_body">恢复接管前的模式，保留全局池和节点原 IP；下次连接生效，不自动重连。</string>
     <string name="preferred_no_selection">还未选择 IP。在测试页查看真实结果并勾选，或采用本轮推荐。</string>
     <string name="preferred_remove">移除 %1$s</string>
-    <string name="preferred_summary">revision %1$d · 全局%2$s · 已保存 %3$d 个 · 本次选择 %4$d 个</string>
+    <string name="preferred_summary">revision %1$d · 全局%2$s · 已保存 %3$d 个 · 选择草稿 %4$d 个</string>
     <string name="preferred_mode">优选 IP 来源</string>
     <string name="preferred_manage">管理全局优选 IP（先保存节点更改）</string>
     <string name="preferred_mode_hint">跟随仅应用已验证的当前目标；目标或 ECH / DNS 改变后保留原配置，需在管理页重新验证。独立值始终保留。</string>

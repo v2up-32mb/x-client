@@ -35,6 +35,12 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
     private PreferredIpController.State state;
     private FrameLayout page;
     private TabLayout tabs;
+    private TextView logText;
+    private ScrollView logScroll;
+    private boolean logTouched;
+    private long logInteraction;
+    private int restoredLogY = -1;
+    private String sourceRenderKey = "", selectedRenderKey = "";
     private TextView status, sourceSummary, parseSummary, selectedSummary, scope, targetDetail;
     private TextInputEditText manual, sourceUrl;
     private LinearLayout selectedRows, sourceRows;
@@ -52,12 +58,21 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 ? new Preferences(this).getCurrentProfileId() : getIntent().getStringExtra(ProfileEditActivity.EXTRA_PROFILE_ID));
         if (saved != null) {
             currentTab = saved.getInt("tab");
+            restoredLogY = saved.getInt("log_y", 0);
             manualDraft = saved.getString("manual", "");
             urlDraft = saved.getString("url", urlDraft);
         }
         setContentView(R.layout.activity_preferred_ip);
         ((MaterialToolbar) findViewById(R.id.preferred_toolbar)).setNavigationOnClickListener(v -> finish());
         page = findViewById(R.id.preferred_page);
+        logText = findViewById(R.id.preferred_log_text);
+        logScroll = findViewById(R.id.preferred_log_scroll);
+        logScroll.setOnTouchListener((v, event) -> {
+            int action = event.getActionMasked();
+            if (action == android.view.MotionEvent.ACTION_DOWN || action == android.view.MotionEvent.ACTION_MOVE) { logTouched = true; logInteraction++; }
+            if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) logTouched = false;
+            return false;
+        });
         tabs = findViewById(R.id.preferred_tabs);
         for (int title : new int[]{R.string.preferred_sources, R.string.preferred_test, R.string.preferred_selected}) {
             tabs.addTab(tabs.newTab().setText(title));
@@ -77,6 +92,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
     @Override protected void onDestroy() { if (!isChangingConfigurations()) controller.close(); super.onDestroy(); }
     @Override protected void onSaveInstanceState(Bundle out) {
         retainDrafts();
+        out.putInt("log_y", logScroll.getScrollY());
         out.putInt("tab", currentTab); out.putString("manual", manualDraft); out.putString("url", urlDraft);
         // Opaque ID only: a killed UI process never silently starts a replacement task.
         if (state != null) out.putString("task_id", state.taskId);
@@ -137,6 +153,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         manual = null; sourceUrl = null; results = null;
         sourceSummary = null; parseSummary = null; selectedSummary = null; scope = null;
         selectedRows = null; sourceRows = null; accept = null; commit = null;
+        sourceRenderKey = ""; selectedRenderKey = "";
         page.removeAllViews();
         if (tab == 0) buildSources(); else if (tab == 1) buildTests(); else buildSelected();
         render();
@@ -292,33 +309,50 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         if (targetDetail != null) targetDetail.setText(state.referenceSummary);
         JSONObject snap = state.snapshot;
         String progress = snap.length() == 0 ? getString(R.string.preferred_not_tested)
-                : phase(snap.optString("phase")) + " · " + snap.optString("state") + " · "
+                : PreferredIpPresentation.phase(snap.optString("phase")) + " · " + PreferredIpPresentation.state(snap.optString("state")) + " · "
                 + snap.optInt("completed") + "/" + snap.optInt("total") + " · 下载正文 "
                 + String.format(Locale.getDefault(), "%.2f MiB", snap.optLong("download_bytes") / 1048576.0);
-        status.setText(state.network + "\n" + progress + (state.stale ? "\n" + getString(R.string.preferred_old_network) : "")
-                + "\n" + state.message + (snap.optString("error").isEmpty() ? "" : "\n" + snap.optString("error"))
-                + (snap.optJSONArray("warnings") == null || snap.optJSONArray("warnings").length() == 0 ? "" : "\n" + snap.optJSONArray("warnings")));
+        String statusText = state.network + "\n" + progress + (state.stale ? "\n" + getString(R.string.preferred_old_network) : "")
+                + "\n" + state.message;
+        if (!statusText.contentEquals(status.getText())) status.setText(statusText);
+        if (!state.logs.contentEquals(logText.getText())) {
+            boolean follow = restoredLogY < 0 && !logTouched && !logScroll.canScrollVertically(1);
+            int oldY = restoredLogY < 0 ? logScroll.getScrollY() : restoredLogY;
+            restoredLogY = -1;
+            long interaction = logInteraction;
+            logText.setText(state.logs);
+            logScroll.post(() -> {
+                if (!logTouched && interaction == logInteraction) {
+                    if (follow) logScroll.fullScroll(View.FOCUS_DOWN);
+                    else logScroll.scrollTo(0, oldY);
+                }
+            });
+        }
         for (View v : idleOnly) v.setEnabled(!state.busy);
         if (sourceSummary != null) {
             JSONArray sources = state.data.optJSONArray("sources");
-            StringBuilder summary = new StringBuilder();
-            sourceRows.removeAllViews();
-            if (sources != null) for (int i = 0; i < sources.length(); i++) {
-                JSONObject source = sources.optJSONObject(i);
-                String id = source.optString("id");
-                MaterialCheckBox enabled = new MaterialCheckBox(this);
-                enabled.setText("参与测试：" + id);
-                enabled.setMinHeight(dimen(R.dimen.touch_target_min));
-                enabled.setChecked(source.optBoolean("enabled", true));
-                enabled.setEnabled(!state.busy);
-                enabled.setOnCheckedChangeListener((b, on) -> controller.enableSource(id, on));
-                sourceRows.addView(enabled);
-                summary.append(source.optString("id")).append("：")
-                        .append(source.optJSONArray("candidates").length()).append(" IP / ")
-                        .append(source.optJSONArray("prefixes").length()).append(" 段 · ")
-                        .append(DateFormat.getDateTimeInstance().format(new Date(source.optLong("updated_at")))).append('\n');
+            String key = String.valueOf(sources) + state.busy;
+            if (!key.equals(sourceRenderKey)) {
+                sourceRenderKey = key;
+                StringBuilder summary = new StringBuilder();
+                sourceRows.removeAllViews();
+                if (sources != null) for (int i = 0; i < sources.length(); i++) {
+                    JSONObject source = sources.optJSONObject(i);
+                    String id = source.optString("id");
+                    MaterialCheckBox enabled = new MaterialCheckBox(this);
+                    enabled.setText("参与测试：" + PreferredIpPresentation.source(source));
+                    enabled.setMinHeight(dimen(R.dimen.touch_target_min));
+                    enabled.setChecked(source.optBoolean("enabled", true));
+                    enabled.setEnabled(!state.busy);
+                    enabled.setOnCheckedChangeListener((b, on) -> controller.enableSource(id, on));
+                    sourceRows.addView(enabled);
+                    summary.append(PreferredIpPresentation.source(source)).append("：")
+                            .append(source.optJSONArray("candidates").length()).append(" IP / ")
+                            .append(source.optJSONArray("prefixes").length()).append(" 段 · ")
+                            .append(DateFormat.getDateTimeInstance().format(new Date(source.optLong("updated_at")))).append('\n');
+                }
+                sourceSummary.setText(summary.length() == 0 ? getString(R.string.preferred_empty_sources) : summary);
             }
-            sourceSummary.setText(summary.length() == 0 ? getString(R.string.preferred_empty_sources) : summary);
             accept.setVisibility(state.parse == null ? View.GONE : View.VISIBLE);
             if (state.parse != null) {
                 StringBuilder parsed = new StringBuilder("有效行：" + state.parse.optJSONArray("candidates").length() + "\n");
@@ -326,7 +360,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 for (int i = 0; errors != null && i < errors.length(); i++) {
                     JSONObject error = errors.optJSONObject(i);
                     parsed.append("第").append(error.optInt("line")).append("行：").append(error.optString("message"))
-                            .append("\n").append(error.optString("text")).append('\n');
+                            .append("\n").append(state.parseThirdParty ? error.optString("text").split("#", 2)[0]
+                                    : error.optString("text")).append('\n');
                 }
                 parseSummary.setText(parsed);
             } else parseSummary.setText("");
@@ -336,36 +371,86 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             selectedSummary.setText(getString(R.string.preferred_summary, state.data.optLong("revision"),
                     state.data.optBoolean("enabled") ? "启用" : "未启用", state.data.optJSONArray("selected").length(), state.chosen.length())
                     + (state.chosen.length() > 3 ? "\n" + getString(R.string.preferred_many) : ""));
-            selectedRows.removeAllViews();
-            if (state.chosen.length() == 0) text(selectedRows, getString(R.string.preferred_no_selection));
-            for (int i = 0; i < state.chosen.length(); i++) {
-                String address = state.chosen.optString(i);
-                MaterialButton remove = button(selectedRows, R.string.preferred_selected, () -> controller.select(address, false), false);
-                remove.setText(getString(R.string.preferred_remove, address)); remove.setEnabled(!state.busy);
+            String key = state.chosen + "|" + state.validation + "|" + state.results + "|" + state.data.optLong("revision") + state.busy + state.stale;
+            if (!key.equals(selectedRenderKey)) {
+                selectedRenderKey = key;
+                selectedRows.removeAllViews();
+                if (state.chosen.length() == 0) text(selectedRows, getString(R.string.preferred_no_selection));
+                for (int i = 0; i < state.chosen.length(); i++) {
+                    String address = state.chosen.optString(i);
+                    renderSelectedAddress(address);
+                    MaterialButton remove = button(selectedRows, R.string.preferred_selected, () -> controller.select(address, false), false);
+                    remove.setText(getString(R.string.preferred_remove, address)); remove.setEnabled(!state.busy);
+                }
             }
-            scope.setText(state.preview == null ? "" : state.preview.optString("scope"));
+            String reportScope = state.validation == null ? "尚未验证当前选择" :
+                    ("stale".equals(state.validation.optString("state")) ? state.validation.optString("reason")
+                    : state.validation.optString("scope", "正在验证；未完成结果不可保存"));
+            scope.setText(reportScope + "\n\n" + state.savedScope);
             commit.setVisibility(state.preview == null ? View.GONE : View.VISIBLE);
         }
     }
 
-    private static String phase(String value) {
-        switch (value) {
-            case "fetch": return "抓取来源";
-            case "connectivity": return "连通 / TLS / CF trace";
-            case "stability": return "10次 TCP 稳定性";
-            case "latency": return "5次 HTTP 请求";
-            case "download": return "顺序下载";
-            case "done": return "结束";
-            default: return value;
+    private static String time(long value) {
+        return value > 0 ? DateFormat.getDateTimeInstance().format(new Date(value)) : "无测量时间";
+    }
+
+    private void renderSelectedAddress(String address) {
+        JSONObject candidate = PreferredIpPresentation.find(state.selectedCandidates, address);
+        text(selectedRows, address).setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
+        if (candidate != null) {
+            String comment = PreferredIpPresentation.comment(candidate, state.data);
+            text(selectedRows, PreferredIpPresentation.sources(candidate, state.data) + (comment.isEmpty() ? "" : "\n备注：" + comment));
         }
+        JSONObject original = PreferredIpPresentation.find(state.results.optJSONArray("results"), address);
+        if (original == null) text(selectedRows, "原测速：无结果（不代表兼容验证失败）");
+        else text(selectedRows, "原测速：" + (original.optBoolean("recommended") ? "曾推荐" : "未推荐")
+                + " · " + original.optString("status") + " · CF " + original.optString("colo") + " · " + time(original.optLong("tested_at"))
+                + "\n" + PreferredIpPresentation.target(state.results.optJSONObject("test_target"))
+                + (state.stale ? "\n旧网络结果" : "") + "\n仅为原性能记录，不代表下面各实际节点的最新兼容性");
+        JSONObject report = state.validation;
+        boolean current = report != null && "completed".equals(report.optString("state"));
+        if (!current) {
+            text(selectedRows, report == null ? "当前选择：未做实际目标兼容验证" :
+                    "当前选择：" + ("running".equals(report.optString("state")) ? "验证尚未完整结束" : report.optString("reason"))
+                    + "；不展示旧验证成功，请重新验证");
+            return;
+        }
+        JSONArray profiles = report.optJSONArray("profiles");
+        int valid = 0, failed = 0, untested = 0;
+        StringBuilder details = new StringBuilder();
+        for (int i = 0; profiles != null && i < profiles.length(); i++) {
+            JSONObject profile = profiles.optJSONObject(i);
+            JSONObject result = PreferredIpPresentation.find(profile.optJSONArray("results"), address);
+            details.append(profile.optString("name")).append("：");
+            if (result == null) {
+                untested++;
+                details.append("未测 · ").append(profile.optString("reason", "没有结果"));
+            } else {
+                boolean passed = "valid".equals(result.optString("status"));
+                if (passed) valid++; else failed++;
+                details.append(passed ? "有效（HTTPS / CF trace 通过）" : "失败 · " + result.optString("error"))
+                        .append(" · CF ").append(result.optString("colo").isEmpty() ? "未验证" : result.optString("colo"))
+                        .append("\n").append(time(result.optLong("tested_at")));
+            }
+            details.append("\n").append(PreferredIpPresentation.target(profile.optJSONObject("target"))).append("\n\n");
+        }
+        String status = valid > 0 ? (failed + untested > 0 ? "部分目标兼容" : "参与目标均有效") : (failed > 0 ? "已测目标均失败" : "未测");
+        text(selectedRows, "最新实际目标验证：" + status + " · 有效 " + valid + " / 失败 " + failed + " / 未测 " + untested
+                + (report.optBoolean("saved") ? "\n已确认保存；下次连接生效" : "\n未确认保存；尚未改变正在使用的入口")
+                + "\n无下载验证不产生新推荐；单节点失败不表示 IP 对所有节点失效。\n" + details);
     }
 
     private final class ResultAdapter extends RecyclerView.Adapter<ResultHolder> {
         private final LinearLayout header;
         private JSONArray visible = new JSONArray();
+        private String renderKey = "";
         ResultAdapter(LinearLayout header) { this.header = header; }
         private JSONArray rows() { return visible; }
         void updateRows() {
+            String key = state == null ? "" : state.results + "|" + state.chosen + "|" + state.busy + state.stale + resultFilter + "|" + state.data.optLong("revision");
+            if (key.equals(renderKey)) return;
+            renderKey = key;
             visible = new JSONArray();
             JSONArray all = state == null ? null : state.results.optJSONArray("results");
             if (all != null) for (int i = 0; i < all.length(); i++) {
@@ -402,17 +487,17 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             holder.choice.setText(address + (r.optBoolean("recommended") ? " · 推荐" : "") + (state.stale ? " · 旧网络" : ""));
             holder.choice.setEnabled(!state.busy && "valid".equals(r.optString("status")));
             holder.choice.setOnCheckedChangeListener((b, selected) -> controller.select(address, selected));
-            String latency = r.optInt("http_success") > 0 ? String.format(Locale.getDefault(), "HTTP 中位 %.1fms · 波动 %.1fms",
-                    r.optDouble("http_median_ms"), r.optDouble("http_jitter_ms")) : "HTTP 未验证";
+            String latency = r.optInt("http_success") > 0 ? String.format(Locale.getDefault(), "HTTPS 中位 %.1fms · 波动 %.1fms",
+                    r.optDouble("http_median_ms"), r.optDouble("http_jitter_ms")) : "HTTPS 未验证";
             String download = r.optString("download_state", "untested");
             String speed = "ok".equals(download) || "short".equals(download)
                     ? String.format(Locale.getDefault(), "下载均速 %.2f MiB/s · %.2fs · %s", r.optDouble("download_mib_s"),
                     r.optDouble("download_seconds"), "short".equals(download) ? "短样本，低置信" : "有效样本")
                     : "下载：" + ("failed".equals(download) ? "失败" : "未测");
-            holder.detail.setText(r.optString("source_kind") + " · " + r.optString("source_id") + " · CF " + r.optString("colo", "未验证")
-                    + "\n" + r.optString("comment") + "\n" + latency
+            holder.detail.setText(PreferredIpPresentation.sources(r, state.data) + " · CF " + (r.optString("colo").isEmpty() ? "未验证" : r.optString("colo"))
+                    + "\n" + PreferredIpPresentation.comment(r, state.data) + "\n" + latency
                     + "\nTCP 成功 " + r.optInt("tcp_success") + "/" + r.optInt("tcp_attempts")
-                    + " · HTTP 成功 " + r.optInt("http_success") + "/" + r.optInt("http_attempts")
+                    + " · HTTPS 成功 " + r.optInt("http_success") + "/" + r.optInt("http_attempts")
                     + (r.optInt("tcp_success") > 0 ? String.format(Locale.getDefault(), "\nTCP 最小/均值/最大 %.1f/%.1f/%.1fms",
                     r.optDouble("tcp_min_ms"), r.optDouble("tcp_avg_ms"), r.optDouble("tcp_max_ms")) : "")
                     + (r.optDouble("tls_ms", 0) > 0 ? String.format(Locale.getDefault(), " · TLS %.1fms", r.optDouble("tls_ms")) : " · TLS 未测/失败")

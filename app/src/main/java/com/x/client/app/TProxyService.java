@@ -293,11 +293,11 @@ public class TProxyService extends VpnService {
         // A stable AtomicFile snapshot, read only once after all advanced overrides.
         try {
             JSONObject pool = new PreferredIpStore(this).read();
-            PreferredIpResolver.apply(prefs, params, pool);
-            appendRuntimeLog("优选IP revision=" + pool.optLong("revision")
-                    + " mode=" + PreferredIpResolver.effectiveMode(prefs, pool));
+            PreferredIpResolver.Decision decision = PreferredIpResolver.apply(prefs, params, pool);
+            appendRuntimeLog("优选IP revision=" + pool.optLong("revision") + " · " + decision.summary);
         } catch (Exception error) {
-            appendRuntimeLog("优选IP不可用，保留节点原配置：" + error.getMessage());
+            appendRuntimeLog("优选IP未接管，保留节点原配置：" + error.getMessage()
+                    + " · " + PreferredIpResolver.effectiveCount(prefs, params));
         }
 
         // 诊断：将实际传递的参数写入运行日志（排查 server_addr/token 传递问题）

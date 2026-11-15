@@ -83,7 +83,8 @@ public class ProfileEditActivity extends BaseActivity {
     private final java.util.concurrent.ExecutorService preferredWorker = java.util.concurrent.Executors.newSingleThreadExecutor();
     private Spinner preferredMode;
     private boolean preferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
-    private boolean preferredDraftDirty;
+    private boolean preferredDraftDirty, preferredImportedAddresses;
+    private String preferredSavedSummary = "";
     // Unknown keys and confirmed deletions live here, never reloaded from saved prefs on save.
     private String xtAdvancedDraft;
     private String pendingPreferredImport;
@@ -99,6 +100,7 @@ public class ProfileEditActivity extends BaseActivity {
         if (savedInstanceState != null) {
             restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
             preferredDraftDirty = savedInstanceState.getBoolean("preferred_dirty_draft");
+            preferredImportedAddresses = savedInstanceState.getBoolean("preferred_imported_addresses");
             xtAdvancedDraft = savedInstanceState.getString("xt_advanced_draft");
             pendingPreferredImport = savedInstanceState.getString("pending_preferred_import");
         }
@@ -273,6 +275,7 @@ public class ProfileEditActivity extends BaseActivity {
                 boolean independent = position == 1 && !preferredLocked();
                 setFieldEnabled(edittext_pref_ip, independent);
                 setFieldEnabled(edittext_xt_relay_nodes, independent);
+                if (preferredLoaded) showPreferredSummary();
             }
             @Override public void onNothingSelected(android.widget.AdapterView<?> a) { }
         });
@@ -291,7 +294,7 @@ public class ProfileEditActivity extends BaseActivity {
                         preferredDraftDirty = true;
                         refreshPreferredConflict(getSelectedProtocol());
                         preferredMode.setSelection(0);
-                        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
+                        showPreferredSummary();
                     } catch (JSONException error) {
                         Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
                     }
@@ -299,14 +302,27 @@ public class ProfileEditActivity extends BaseActivity {
         loadPreferredMode(false);
     }
 
+    private void showPreferredSummary() {
+        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(preferredSavedSummary
+                + "\n当前选择草稿：" + getResources().getStringArray(R.array.preferred_modes)[Math.max(0, preferredMode.getSelectedItemPosition())]
+                + "（需保存节点；全局接管另需兼容检查及确认）\n"
+                + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
+    }
+
     private void loadPreferredMode(boolean refresh) {
         preferredWorker.execute(() -> {
             try {
                 JSONObject pool = new PreferredIpStore(this).read();
                 String mode = PreferredIpStore.mode(pool, profileId);
-                String summary = "revision " + pool.optLong("revision") + " · 全局池"
+                String decision;
+                Preferences savedProfile = prefs.forProfile(profileId);
+                try {
+                    decision = PreferredIpResolver.apply(savedProfile, PreferredIpResolver.baseParams(savedProfile), pool).summary;
+                } catch (Exception error) { decision = "未接管，参数异常：" + error.getMessage(); }
+                String summary = "已保存 revision " + pool.optLong("revision") + " · 全局池"
                         + (pool.optBoolean("enabled") ? "已启用" : "未启用")
-                        + " · 已选 " + pool.getJSONArray("selected").length() + " 个IP";
+                        + " · 池中 " + pool.getJSONArray("selected").length() + " 个IP\n" + decision
+                        + "\n以上是已保存参数的下次连接效果，不是草稿或正在运行的连接。";
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
                     if (refresh && preferredOriginalMode != null && (preferredDraftDirty
@@ -317,13 +333,13 @@ public class ProfileEditActivity extends BaseActivity {
                     for (int i = 0; i < PREFERRED_MODES.length; i++) if (PREFERRED_MODES[i].equals(displayMode)) preferredMode.setSelection(i);
                     restoredPreferredMode = null;
                     preferredOriginalMode = preferredConflict ? "independent" : mode;
-                    preferredInitialImplicit = !pool.optBoolean("enabled") && !pool.optJSONObject("profile_modes").has(profileId);
+                    preferredInitialImplicit = !pool.optJSONObject("profile_modes").has(profileId);
                     preferredLoaded = true;
                     preferredMode.setEnabled(!preferredLocked());
                     btn_save.setEnabled(!preferredLocked());
                     btn_import.setEnabled(!preferredLocked());
-                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(summary + "\n"
-                            + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
+                    preferredSavedSummary = summary;
+                    showPreferredSummary();
                     if (pendingPreferredImport != null) {
                         String pending = pendingPreferredImport;
                         pendingPreferredImport = null;
@@ -345,6 +361,7 @@ public class ProfileEditActivity extends BaseActivity {
     @Override protected void onSaveInstanceState(Bundle out) {
         if (preferredMode != null && preferredLoaded) out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
         out.putBoolean("preferred_dirty_draft", preferredDraftDirty);
+        out.putBoolean("preferred_imported_addresses", preferredImportedAddresses);
         out.putString("xt_advanced_draft", xtAdvancedDraft);
         out.putString("pending_preferred_import", pendingPreferredImport);
         super.onSaveInstanceState(out);
@@ -633,7 +650,7 @@ public class ProfileEditActivity extends BaseActivity {
 
         // 保存 GCM 配置级参数（保留，切换协议时不丢失）
         prefs.setWorkerHost(edittext_worker_host.getText().toString().trim());
-        if (preferredMode.getSelectedItemPosition() == 1) prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
+        if (preferredImportedAddresses || preferredMode.getSelectedItemPosition() == 1) prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
         prefs.setUserID(edittext_user_id.getText().toString().trim());
         prefs.setFallbackIp(edittext_fallback_ip.getText().toString().trim());
         prefs.setDisableEch(checkbox_disable_ech.isChecked());
@@ -648,7 +665,7 @@ public class ProfileEditActivity extends BaseActivity {
         // 保存 X-Tunnel 参数
         prefs.setXtServerAddr(edittext_xt_server_addr.getText().toString().trim());
         prefs.setXtToken(edittext_xt_token.getText().toString().trim());
-        if (preferredMode.getSelectedItemPosition() == 1) prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
+        if (preferredImportedAddresses || preferredMode.getSelectedItemPosition() == 1) prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
         prefs.setXtConnections(xtConnections);
         prefs.setXtDisableEch(checkbox_xt_disable_ech.isChecked());
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
@@ -1121,8 +1138,16 @@ public class ProfileEditActivity extends BaseActivity {
         // Confirm before changing any form field or mode. Re-enter only after the draft
         // no longer contains these overrides; cancellation leaves the whole editor intact.
         if (isXtunnel && !confirmXtImportOverrides(protocol)) return;
-        preferredDraftDirty = true;
-        preferredMode.setSelection(1); // imported URI is a standalone effective-address snapshot
+        // A first import with no explicit mode is NOT a user request to opt out forever.
+        // Keep the automatic mode; before activation it uses the URI's original addresses,
+        // after activation it still requires this profile's own saved target validation.
+        boolean implicitImport = preferredInitialImplicit && !preferredDraftDirty
+                && PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode);
+        preferredImportedAddresses = true;
+        if (!implicitImport) {
+            preferredDraftDirty = true;
+            preferredMode.setSelection(1); // replacing an explicitly configured node is an independent URI snapshot
+        }
 
         if (isXtunnel) {
             // X-Tunnel 配置
@@ -1157,7 +1182,7 @@ public class ProfileEditActivity extends BaseActivity {
         }
 
         refreshPreferredConflict(isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM);
-        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
+        showPreferredSummary();
         Toast.makeText(this, getString(R.string.toast_imported_check), Toast.LENGTH_LONG).show();
     }
 

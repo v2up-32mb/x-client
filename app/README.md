@@ -110,12 +110,12 @@ app/src/main/res/values[-night]/
   首版必须断开所有可检测VPN；不支持VPN中物理网络桥接。旋转保留控制器和taskId，
   离开页面/后台取消，网络切换取消并标旧结果；进程死亡后不自动启动新任务。
 - 保存前每批最多3个已选IP，对需要接管的实际Profile目标做无下载兼容检查
-  (`download_top=0`, `recommend_count=0`)。只在同一页面会话、完整测试、同网络及
-  相同目标/ECH/DNS时复用结果。确认页列出接管范围、例外、XT最终连接数乘法。
+  (`download_top=0`, `recommend_count=0`)。本轮保存检查对相同最终目标/ECH/DNS复用完整兼容结果
+  （包括失败项）；不以原测速推荐替代最新检查。确认页列出接管范围、例外、XT最终连接数乘法。
   每个节点联网前独立校验高级JSON、入口冲突、最终目标和合并后的连接数；坏节点留独立并列出
   具体原因，不阻断正常节点。XT连接数沿用编辑页的1–16，GCM沿用1–64；接受Go支持的整数标量/
   整数字符串，不用 `getInt()` 截断小数。取消/网络变化仍中止整轮，零兼容节点不替换旧池。
-  仅HTTP/CF trace通过，不等同WebSocket升级/认证或完整VPN速度。
+  仅HTTPS/CF trace通过，不等同WebSocket升级/认证或完整VPN速度。
 - 应用私有 `preferred-ip-v1.json` 由UI通过 `AtomicFile` 写入，含 schema/revision、来源快照、
   候选、已选、最近测试、模式映射、按实际目标的兼容地址和接管前模式。保存使用revision
   比较；UI与`:vpn`均先对永久独立的 `preferred-ip-v1.lock` 取OS `FileLock`，再执行完整
@@ -127,7 +127,9 @@ app/src/main/res/values[-night]/
   XT高级JSON含`relay_nodes`时强制独立，可明确确认删除该覆盖键；其他未知高级键不因编辑丢失。
   编辑/冲突删除/URI导入/保存共用高级JSON草稿，旋转后仍保留；导入XT链接前列出并确认删除
   `server_addr/token/relay_nodes/connections` 等链接字段的旧高级覆盖（ECH域名/DNS恢复全局设置），
-  取消不修改表单。完整URI缺少或留空 `ip/relay_nodes` 均清空旧入口，并显式保存为独立快照。
+  取消不修改表单。完整URI缺少或留空 `ip/relay_nodes` 均清空旧入口。首次导入且没有明确模式时
+  保持隐式默认，不伪造用户独立选择；池未启用时用原入口，池启用后也须该节点自己的验证及确认。
+  替换已明确配置模式的节点仍保存为独立URI快照；原入口单独保存，不被全局池改写。
 - `PreferredIpResolver`统一模式优先级，服务在高级JSON合并后应用池，分享URI导出当时有效
   入口快照（无备注/继承绑定）。`Preferences.forProfile(id)`提供不改变当前Profile指针的
   独立访问器，编辑、导入、分享和遍历验证不再通过持久切换当前节点读取其他节点。
@@ -147,9 +149,9 @@ app/src/main/res/values[-night]/
 | API 24写者在 `startWrite` 后暂停，VPN读者读取；另测写者进程死亡并遗留 `.bak` | `PreferredIpStore.withLock` 在存在性判断之前取独立文件锁；读者不能打开在写base；进程死亡释放锁后 `readLocked/openRead` 恢复完整旧版本。现代系统 `.new` 恢复亦在锁内。 |
 | `setMode/copyMode/removeMode`、保存池、禁用恢复，与另一进程读者交错；陈旧revision提交 | 内部只调用 `readLocked/writeLocked`，不嵌套 `withLock`；CAS与写后读取在同一锁内。禁用/池保存均经 `write`；陈旧提交报错，不能覆盖新模式。 |
 | 旧高级JSON为 `{"server_addr":"wss://old.example","token":"old","relay_nodes":"1.1.1.1:443","connections":8,"custom_key":"keep"}`，导入 `xtunnel://new.example?token=new` | 弹窗列出前4个覆盖键；取消时表单/草稿/模式均不变。确认后保存实际server/token来自链接，relay为空，connections为默认3，`custom_key`仍保留；高级表单其他修改仍可保存。 |
-| 删除高级relay冲突→普通高级字段编辑→导入第二个链接→旋转→保存；或退出不保存 | 所有删除只改 `xtAdvancedDraft`；保存不重读旧JSON复活覆盖键。旋转恢复草稿与模式，退出未保存不改旧JSON。即使导入前为隐式独立，保存也明确写入independent。 |
+| 删除高级relay冲突→普通高级字段编辑→导入第二个链接→旋转→保存；或退出不保存 | 所有删除只改 `xtAdvancedDraft`；保存不重读旧JSON复活覆盖键。旋转恢复草稿、模式与URI原地址标记，退出未保存不改旧JSON。没有明确模式且未改模式的首次导入保持隐式默认，不伪造independent。 |
 | 旧 `PrefIp/XtRelayNodes` 非空，导入GCM/XT链接：不含入口参数，或 `ip=` / `relay_nodes=` | 两种形式都无条件写空输入框，保存为空入口；XT高级relay覆盖必须先确认删除。GCM出口FallbackIp不参与本修复。 |
-| 混合节点：损坏高级JSON、`relay_nodes`覆盖、错误target类型/非法端口，另有正常节点 | `prepareSave` 的逐节点try/catch覆盖这些检查；坏节点independent且scope含具体原因，无探测；正常节点继续校验和保存。全坏时保留旧池并报告各节点原因。 |
+| 混合节点：损坏高级JSON、`relay_nodes`覆盖、错误target类型/非法端口，另有正常节点 | `prepareSave` 的逐节点try/catch覆盖这些检查；坏节点保持原入口且scope含具体原因，无探测；不把自动失败持久化为用户明确independent；正常节点继续校验和保存。全坏时保留旧池并报告各节点原因。 |
 | XT高级connections取 `null/true/{}/[]/"abc"/"3.5"/3.5/0/-1/17`；有效取 `1/16/"3"/3.0` | 前组拒绝且不探测，后组得到1/16/3/3；检查在base+advanced合并后、任何缓存复用及 `run` 前。GCM范围1–64，乘法使用已验证整数。 |
 | 显式default的ws:// XT节点保留旧relay，另一个正常节点保存池 | 不参与接管的节点在目标/连接数检查前跳过，保留default，下次仍传空入口；高级relay冲突仍须单独处理。 |
 | 编辑页重建后扫码结果先于优选库加载返回；加载中再旋转 | URI暂存于 `pendingPreferredImport` 和savedState，加载成功后导入；手动导入按钮加载完成前禁用，不静默丢弃结果。 |
@@ -157,62 +159,47 @@ app/src/main/res/values[-night]/
 | 双栈多地址、多DNS；合法长列表URL | 完整描述/URL分别生成带前缀SHA-256 ID，长度小于256字节；原URL保持，网络比较共用同一函数，不直接截断。 |
 | 参数异常时/探测途中/缓存复用结束时取消或切网；预览后修改connections为非法 | 各catch和循环边界仍检查generation/network；整轮中止，不生成/提交新池；`commitPreview`再次检查最终连接数。 |
 
-从仓库根目录执行（仅检查源码结构，不编译、不执行Android/Go代码）：
+从仓库根目录执行（仅检查源码结构/XML/资源，不编译、不执行Android/Go代码）：
 
 ```sh
-python3 - <<'PY'
-from pathlib import Path
-root = Path('app/src/main/java/com/x/client/app')
-store, editor, controller, resolver = [
-    (root / (name + '.java')).read_text()
-    for name in ['PreferredIpStore', 'ProfileEditActivity', 'PreferredIpController', 'PreferredIpResolver']
-]
-def section(text, start, end):
-    return text.split(start, 1)[1].split(end, 1)[0]
-
-# Persistent lock surrounds recovery, CAS, write and verification; no nested public read/write.
-assert 'new RandomAccessFile(lockFile, "rw")' in store and 'lock.getChannel().lock()' in store
-assert 'return withLock(this::readLocked)' in store
-assert 'return withLock(() -> writeLocked(data, expectedRevision))' in store
-assert 'file.openRead()' in section(store, 'private JSONObject readLocked()', 'public static JSONObject empty()')
-assert 'read().getLong' not in store and 'store.read()' not in store and 'store.write(' not in store
-assert store.count('store.withLock(() -> {') == 3  # mode set/copy/remove
-write = section(store, 'private JSONObject writeLocked(', 'public static String mode(')
-assert write.index('readLocked()') < write.index('file.startWrite()') < write.index('stream.getFD().sync()')
-assert write.index('file.finishWrite(stream)') < write.rindex('readLocked()')
-assert 'lockFile.delete' not in store
-
-# Draft only; import confirmation precedes all form mutation; absent entries clear the widgets.
-collect = section(editor, 'private String collectXtAdvancedParams()', 'private void putTimeoutSeconds(')
-assert 'parseXtAdvancedDraft()' in collect and 'getXtAdvancedParams' not in collect
-assert 'savedInstanceState.getString("xt_advanced_draft")' in editor
-assert 'out.putString("xt_advanced_draft", xtAdvancedDraft)' in editor
-imp = section(editor, 'private void importFromProtocol(', 'private boolean confirmXtImportOverrides(')
-assert imp.index('!confirmXtImportOverrides(protocol)') < imp.index('preferredMode.setSelection(1)')
-assert 'if (!relayNodes.isEmpty())' not in imp and 'if (!prefIp.isEmpty())' not in imp
-assert 'edittext_xt_relay_nodes.setText(relayNodes)' in imp and 'edittext_pref_ip.setText(prefIp)' in imp
-confirm = editor.split('private boolean confirmXtImportOverrides(', 1)[1]
-for key in ['server_addr', 'token', 'relay_nodes', 'connections', 'enable_ech', 'ech_domain',
-            'dns_server', 'insecure', 'ip_strategy', 'enable_hot_pair', 'hot_pair_count']:
-    assert '"' + key + '"' in confirm
-assert confirm.index('setPositiveButton') < confirm.index('draft.remove(key)')
-assert 'preferredDraftDirty || !preferredInitialImplicit' in editor
-
-# All risky profile validation is inside the per-profile boundary, before the first probe.
-prepare = section(controller, 'void prepareSave()', 'private static boolean contains(')
-loop = prepare.split('for (Preferences.ProfileInfo info', 1)[1]
-validation = section(loop, 'try {', '} catch (Exception invalid)')
-for call in ['conflict(p)', 'baseParams(p)', 'target(p, merged)', 'validatedConnections(p, merged)']:
-    assert call in validation
-assert loop.index('catch (Exception invalid)') < loop.index('JSONObject result = run(')
-failed = section(loop, 'catch (Exception invalid)', 'String key =')
-assert failed.index('check(epoch, net)') < failed.index('modes.put(info.id, "independent")')
-assert 'invalid.getMessage()' in failed and 'continue;' in failed
-assert 'int connections = merged.getInt' not in prepare
-assert 'int max = xt ? 16 : Preferences.MAX_DYNAMIC_POOL_LIMIT' in resolver
-assert 'count != Math.rint(count)' in resolver and 'count < 1 || count > max' in resolver
-assert 'value instanceof String' in resolver and 'value instanceof Number' in resolver
-assert 'validatedConnections(scoped, merged)' in controller
-print('PASS: preferred-IP source guards (not Android runtime tests)')
-PY
+python3 app/src/static_checks/preferred_ip_feedback.py
+git diff --check
 ```
+
+### 首次试用反馈修复（11412ad 基线）
+
+静态确认的路径与限制：
+
+- `ProfileEditActivity` 原先把首次 URI 导入一律记成明确独立；`ProfileListActivity` 在池已启用时
+  也把新导入节点记成独立。`prepareSave` 正确跳过明确独立节点，因此此组合可导致保留旧入口。
+  新导入现在和新建节点一样保留隐式模式，只有验证完成并确认保存后才能应用；没有迁移历史
+  `independent`，因为旧数据无法区分用户意图。旧节点若已明确独立，需用户在编辑页选择跟随。
+- 原先保存预览把参数错误/不兼容节点写成 `independent`，下一次预览又把自动失败当作用户设置跳过。
+  现在失败仅产生诊断、没有验证则实际保留原入口，不写入伪造的明确模式。显式独立/default、
+  高级 `relay_nodes` 冲突、未知CF目标仍不会被强行接管。
+- `Resolver.apply` 原本已经在高级JSON后取已选与验证地址交集；未发现“已保存且匹配的global
+  仍必然使用旧6IP”的源码证据。新增 `Decision` 由这一实际修改路径返回采用状态、原因与最终数量，
+  编辑页、已选页和服务日志复用它。三IP×最终connections=3应输出9条**配置**通道；不声称已连接或认证。
+  没有用户当时日志，不能断言手机上旧6IP就是上述某一条分支所致。
+- UI区分选择草稿、完整验证但未确认、已确认保存及当前已保存的下次启动参数；正在运行VPN不重连。
+  兼容报告独立于 `last_test`，逐IP列出各实际节点（目标/端口/ECH/DNS）、有效/失败/未测与具体原因。
+  全失败仍展示诊断并禁止保存；部分成功按各节点的真实子集接管。无下载检查的 `recommended=false`
+  不作失败依据。同一检查轮只复用完整同目标结果，不把某目标失败扩散到其他目标。
+- 取消/离开、网络、选择、节点参数（包括最终connections）或池revision变化会使报告过期、移除预览。
+  提交前再校验generation/network、完整节点签名和选择，并保留原AtomicFile CAS。
+  新页面会话不把保存历史称为刚完成验证；已保存池的实际参数摘要仍可查看。
+- 一个公共固定高度日志框位于三个页签外：竖屏160dp/横屏96dp，最多160行/24KiB，外部超长行截断。
+  真实阶段/进度、下载正文、URL、警告、错误与取消转成可读事件；累计warnings按序号增量消费，
+  相同快照不反复输出，不显示原始JSON。仅原在底部且未手动触摸时跟随；旋转保留历史滚动位置。
+- 第三方来源按内部完整SHA256 ID映射URL；多来源分别显示，缺记录显示“原URL映射已缺失”，
+  不回退随机码。第三方COMMENT只隐藏展示；混合来源备注仅从纯manual源记录恢复，避免合并碎片泄漏。
+  手工备注、解析及内部comment未删除。UI统一“HTTPS验证/请求延迟”；Go字段仍为 `http_*`。
+
+新增 `app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java` 为无框架依赖的设备断言集，
+通过 `run(Context)` 供后续CI/设备harness调用（未接入自动runner，不增加依赖）：覆盖3/9接管、部分子集、禁用/独立/default/目标变更/高级冲突、
+0-download非推荐仍有效、URL多来源/备注、日志去重和界限。**仅编写，未本地运行或编译，也未运行CI。**
+静态脚本通过只说明源代码守卫/XML/词法括号成立，不证明Android编译或设备行为。
+
+仍需新CI验证AAR API/Android构建，并在设备检查首导入→选择3IP→验证→确认→下次连接9条参数、
+全失败及部分兼容、取消/切网/参数变更、长URL、大字体/暗色/横屏、日志手动历史滚动和旋转。
+首次183916a包的用户反馈不能用旧11412ad CI成功记录替代本轮验证。
