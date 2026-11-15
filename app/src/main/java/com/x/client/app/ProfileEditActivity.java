@@ -80,12 +80,22 @@ public class ProfileEditActivity extends BaseActivity {
     private EditText edittext_xt_adv_max_socks5;
     private EditText edittext_xt_adv_udp_ports;
 
+    private final java.util.concurrent.ExecutorService preferredWorker = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private Spinner preferredMode;
+    private boolean preferredConflict, clearPreferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
+    private String preferredOriginalMode, restoredPreferredMode;
+    private static final String[] PREFERRED_MODES = {"global", "independent", "default"};
+
     private Button btn_import;
     private Button btn_save;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
+            clearPreferredConflict = savedInstanceState.getBoolean("preferred_clear_draft");
+        }
 
         prefs = new Preferences(this);
 
@@ -205,17 +215,125 @@ public class ProfileEditActivity extends BaseActivity {
         // 加载配置数据
         loadProfileData();
 
+        setupPreferredIp();
+
         // 设置导入按钮点击事件
         btn_import.setOnClickListener(v -> showImportDialog());
 
         // 设置保存按钮点击事件
         btn_save.setOnClickListener(v -> {
+            if (!preferredLoaded) return;
             if (savePrefs()) {
                 hasBeenSaved = true;
-                Toast.makeText(this, getString(R.string.toast_profile_saved), Toast.LENGTH_SHORT).show();
-                finish();
+                String mode = PREFERRED_MODES[preferredMode.getSelectedItemPosition()];
+                boolean saveMode = !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
+                btn_save.setEnabled(false);
+                preferredWorker.execute(() -> {
+                    try {
+                        if (saveMode) PreferredIpStore.setMode(this, profileId, mode);
+                        runOnUiThread(() -> {
+                            hasBeenSaved = true;
+                            Toast.makeText(this, getString(R.string.toast_profile_saved), Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> {
+                            btn_save.setEnabled(true);
+                            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                                    .setMessage("节点已保存，但优选模式写入失败：" + error.getMessage())
+                                    .setPositiveButton(R.string.ok, null).show();
+                        });
+                    }
+                });
             }
         });
+    }
+
+    private boolean preferredLocked() {
+        return prefs.getEnable() && profileId.equals(prefs.getCurrentProfileId());
+    }
+
+    private void setupPreferredIp() {
+        preferredMode = findViewById(R.id.preferred_mode_spinner);
+        preferredMode.setEnabled(false);
+        btn_save.setEnabled(false);
+        preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
+                if (preferredConflict && !clearPreferredConflict && position != 1) {
+                    preferredMode.setSelection(1);
+                    return;
+                }
+                boolean independent = position == 1 && !preferredLocked();
+                setFieldEnabled(edittext_pref_ip, independent);
+                setFieldEnabled(edittext_xt_relay_nodes, independent);
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> a) { }
+        });
+        findViewById(R.id.preferred_manage).setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setMessage("管理页仅使用已保存的节点参数。请先保存未提交的目标/ECH更改；本页原值不会被全局池覆盖。")
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.preferred_ip_title, (d, w) -> startActivity(new Intent(this, PreferredIpActivity.class)
+                        .putExtra(EXTRA_PROFILE_ID, profileId))).show());
+        findViewById(R.id.preferred_clear_conflict).setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.preferred_clear_conflict_body).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.ok, (d, w) -> {
+                    clearPreferredConflict = true;
+                    preferredMode.setSelection(0);
+                    findViewById(R.id.preferred_clear_conflict).setVisibility(View.GONE);
+                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
+                }).show());
+        loadPreferredMode(false);
+    }
+
+    private void loadPreferredMode(boolean refresh) {
+        preferredWorker.execute(() -> {
+            try {
+                JSONObject pool = new PreferredIpStore(this).read();
+                Preferences p = prefs.forProfile(profileId);
+                boolean conflict = PreferredIpResolver.conflict(p);
+                String mode = conflict ? "independent" : PreferredIpStore.mode(pool, profileId);
+                JSONObject merged = PreferredIpResolver.baseParams(p);
+                PreferredIpResolver.apply(p, merged, pool);
+                String relay = merged.optString(Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol()) ? "relay_nodes" : "relay_ips");
+                String summary = "revision " + pool.optLong("revision") + " · 有效入口：" + (relay.isEmpty() ? "域名默认" : relay)
+                        + "\n" + getString(conflict ? R.string.preferred_conflict : R.string.preferred_mode_hint);
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (refresh && preferredOriginalMode != null
+                            && !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode)) return;
+                    preferredConflict = conflict;
+                    String displayMode = restoredPreferredMode != null ? restoredPreferredMode : mode;
+                    for (int i = 0; i < PREFERRED_MODES.length; i++) if (PREFERRED_MODES[i].equals(displayMode)) preferredMode.setSelection(i);
+                    restoredPreferredMode = null;
+                    preferredOriginalMode = mode;
+                    preferredInitialImplicit = !pool.optBoolean("enabled") && !pool.optJSONObject("profile_modes").has(profileId);
+                    preferredLoaded = true;
+                    preferredMode.setEnabled(!preferredLocked());
+                    btn_save.setEnabled(!preferredLocked());
+                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(summary);
+                    findViewById(R.id.preferred_clear_conflict).setVisibility(conflict && !clearPreferredConflict && !preferredLocked() ? View.VISIBLE : View.GONE);
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败，请先修复：" + error.getMessage()));
+            }
+        });
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (preferredResumed && preferredMode != null) loadPreferredMode(true);
+        preferredResumed = true;
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        if (preferredMode != null && preferredLoaded) out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
+        out.putBoolean("preferred_clear_draft", clearPreferredConflict);
+        super.onSaveInstanceState(out);
+    }
+
+    @Override protected void onDestroy() {
+        preferredWorker.shutdown();
+        super.onDestroy();
     }
 
     private void updateFieldVisibility(String protocol) {
@@ -246,9 +364,8 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void loadProfileData() {
-        // 临时切换到目标配置以读取数据
-        String originalId = prefs.getCurrentProfileId();
-        prefs.setCurrentProfileId(profileId);
+        Preferences activePrefs = prefs;
+        Preferences prefs = activePrefs.forProfile(profileId);
 
         // 加载配置名称
         edittext_profile_name.setText(prefs.getProfileName(profileId));
@@ -280,12 +397,9 @@ public class ProfileEditActivity extends BaseActivity {
         setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
         loadXtAdvancedParams(prefs.getXtAdvancedParams());
 
-        // 恢复原配置
-        prefs.setCurrentProfileId(originalId);
-
         // 检查是否是当前激活的配置且 VPN 正在运行
         boolean isVpnRunning = prefs.getEnable();
-        boolean isCurrentProfile = profileId.equals(prefs.getCurrentProfileId());
+        boolean isCurrentProfile = profileId.equals(activePrefs.getCurrentProfileId());
 
         if (isVpnRunning && isCurrentProfile) {
             // VPN 运行时禁用当前配置的修改（输入框连同外层 TextInputLayout 一起置灰）
@@ -330,7 +444,15 @@ public class ProfileEditActivity extends BaseActivity {
     public void onBackPressed() {
         // 如果是新配置且未保存，删除该配置
         if (isNewProfile && !hasBeenSaved) {
-            prefs.removeProfile(profileId);
+            preferredWorker.execute(() -> {
+                try {
+                    prefs.removeProfile(profileId);
+                    runOnUiThread(this::finish);
+                } catch (IllegalStateException error) {
+                    runOnUiThread(() -> Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show());
+                }
+            });
+            return;
         }
         super.onBackPressed();
     }
@@ -463,9 +585,8 @@ public class ProfileEditActivity extends BaseActivity {
             }
         }
 
-        // 临时切换到目标配置以保存数据
-        String originalId = prefs.getCurrentProfileId();
-        prefs.setCurrentProfileId(profileId);
+        // Scoped accessor writes only this profile; the selected profile never changes.
+        Preferences prefs = this.prefs.forProfile(profileId);
 
         // 保存配置名称
         prefs.setProfileName(profileId, profileName);
@@ -475,7 +596,7 @@ public class ProfileEditActivity extends BaseActivity {
 
         // 保存 GCM 配置级参数（保留，切换协议时不丢失）
         prefs.setWorkerHost(edittext_worker_host.getText().toString().trim());
-        prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
+        if (preferredMode.getSelectedItemPosition() == 1) prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
         prefs.setUserID(edittext_user_id.getText().toString().trim());
         prefs.setFallbackIp(edittext_fallback_ip.getText().toString().trim());
         prefs.setDisableEch(checkbox_disable_ech.isChecked());
@@ -490,17 +611,14 @@ public class ProfileEditActivity extends BaseActivity {
         // 保存 X-Tunnel 参数
         prefs.setXtServerAddr(edittext_xt_server_addr.getText().toString().trim());
         prefs.setXtToken(edittext_xt_token.getText().toString().trim());
-        prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
+        if (preferredMode.getSelectedItemPosition() == 1) prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
         prefs.setXtConnections(xtConnections);
         prefs.setXtDisableEch(checkbox_xt_disable_ech.isChecked());
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
         prefs.setXtHotPairCount(xtHotPairCount);
         prefs.setXtIpStrategy(xtIpStrategy);
-        prefs.setXtAdvancedParams(xtAdvancedParams);
-
-        // 恢复原配置
-        prefs.setCurrentProfileId(originalId);
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) prefs.setXtAdvancedParams(xtAdvancedParams);
 
         return true;
     }
@@ -630,7 +748,12 @@ public class ProfileEditActivity extends BaseActivity {
     // 从各输入框收集高级参数并组装 JSON；数值非法时返回 null（留空项不写入，使用默认值）
     private String collectXtAdvancedParams() {
         try {
-            JSONObject adv = new JSONObject();
+            JSONObject adv = prefs.forProfile(profileId).getXtAdvancedParams().isEmpty()
+                    ? new JSONObject() : new JSONObject(prefs.forProfile(profileId).getXtAdvancedParams());
+            if (clearPreferredConflict) adv.remove("relay_nodes");
+            for (String key : new String[]{"backpressure_limit", "write_queue_wait_timeout", "dial_timeout",
+                    "handshake_timeout", "read_timeout", "write_timeout", "ping_interval", "reconnect_delay",
+                    "connect_timeout", "max_socks5_connections", "udp_blocked_ports"}) adv.remove(key);
             String mb = edittext_xt_adv_backpressure.getText().toString().trim();
             if (!mb.isEmpty()) {
                 int n = Integer.parseInt(mb);
@@ -939,6 +1062,8 @@ public class ProfileEditActivity extends BaseActivity {
                 }
             }
         }
+
+        preferredMode.setSelection(1); // imported URI is a standalone effective-address snapshot
 
         // 从 fragment 解码配置名称
         String profileName = "";

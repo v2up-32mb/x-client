@@ -54,6 +54,24 @@
             android:layout_height="wrap_content"
             android:minHeight="48dp" />
 
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xl" android:text="@string/preferred_mode"
+            android:textAppearance="?attr/textAppearanceTitleMedium" />
+        <Spinner android:id="@+id/preferred_mode_spinner" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="@dimen/touch_target_min"
+            android:entries="@array/preferred_modes" />
+        <TextView android:id="@+id/preferred_mode_summary" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/preferred_mode_hint"
+            android:textAppearance="?attr/textAppearanceBodyMedium" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/preferred_manage"
+            style="@style/Widget.XClient.OutlinedButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="@dimen/touch_target_min"
+            android:text="@string/preferred_manage" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/preferred_clear_conflict"
+            style="@style/Widget.XClient.TextButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:minHeight="@dimen/touch_target_min"
+            android:text="@string/preferred_clear_conflict" android:visibility="gone" />
+
         <!-- ==================== GCM 协议字段 ==================== -->
         <LinearLayout
             android:id="@+id/gcm_fields"

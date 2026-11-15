@@ -287,6 +287,18 @@ public class TProxyService extends VpnService {
             params = buildGCMParams(prefs);
         }
 
+        String relayKey = Preferences.PROTOCOL_X_TUNNEL.equals(protocol) ? "relay_nodes" : "relay_ips";
+        params.put(relayKey, PreferredIpResolver.stripComments(params.optString(relayKey)));
+        // A stable AtomicFile snapshot, read only once after all advanced overrides.
+        try {
+            JSONObject pool = new PreferredIpStore(this).read();
+            PreferredIpResolver.apply(prefs, params, pool);
+            appendRuntimeLog("优选IP revision=" + pool.optLong("revision")
+                    + " mode=" + PreferredIpResolver.effectiveMode(prefs, pool));
+        } catch (Exception error) {
+            appendRuntimeLog("优选IP不可用，保留节点原配置：" + error.getMessage());
+        }
+
         // 诊断：将实际传递的参数写入运行日志（排查 server_addr/token 传递问题）
         appendRuntimeLog("启动参数(" + protocol + "): " + params.toString());
 

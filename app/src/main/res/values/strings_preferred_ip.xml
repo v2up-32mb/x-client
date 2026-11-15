@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="preferred_ip_title">优选 IP</string>
+    <string name="preferred_back">返回</string>
+    <string name="preferred_sources">来源</string>
+    <string name="preferred_test">测试</string>
+    <string name="preferred_selected">已选</string>
+    <string name="preferred_intro">一份全局名单，按实际节点验证。不会修改出口代理 IP；保存后下次连接生效。</string>
+    <string name="preferred_official">Cloudflare 官方</string>
+    <string name="preferred_fetch_v4">更新官网 IPv4（默认来源）</string>
+    <string name="preferred_fetch_v6">更新官网 IPv6（可选）</string>
+    <string name="preferred_v6_hint">IPv6 仅在当前直连网络有 IPv6 地址时可添加。地址段有界抽样，不穷举。</string>
+    <string name="preferred_third">第三方列表 · 主动加入才抓取</string>
+    <string name="preferred_url">HTTPS 列表 URL</string>
+    <string name="preferred_fetch_list">加入 / 更新第三方列表</string>
+    <string name="preferred_manual">手动 / TXT / 旧节点</string>
+    <string name="preferred_format">每行 IP:PORT#备注 或 [IPv6]:PORT#备注（备注可空）；错误行须确认，不静默丢弃。</string>
+    <string name="preferred_content">粘贴 IP 列表</string>
+    <string name="preferred_parse">解析粘贴列表</string>
+    <string name="preferred_import">导入 UTF-8 TXT（最多 2MiB）</string>
+    <string name="preferred_legacy">收集旧节点入口 IP</string>
+    <string name="preferred_accept">确认：仅导入有效行</string>
+    <string name="preferred_empty_sources">尚无候选。先更新官网 IPv4 或导入列表，再开始测试。</string>
+    <string name="preferred_start">设置并开始优选</string>
+    <string name="preferred_cancel">取消当前任务</string>
+    <string name="preferred_recommend">采用本轮推荐（最多 3 个）</string>
+    <string name="preferred_view_selected">查看已选 / 保存</string>
+    <string name="preferred_budget">顺序下载前 5 个，每个最多 5 秒 / 20MiB，下载正文总计最多 100MiB；另有探测、TLS、ECH/DNS 开销。下载均速为正文采样期，不代表完整 VPN 速度。</string>
+    <string name="preferred_direct">首版仅前台直连测试：请先手动断开所有 VPN。离开页面或切换网络会取消；旋转屏幕可继续。</string>
+    <string name="preferred_metered">移动 / 计费网络确认</string>
+    <string name="preferred_metered_body">当前网络可能计费。本轮最多下载 100MiB 正文，另有探测开销。仍要开始？</string>
+    <string name="preferred_target">选择实际参考节点（不会切换当前连接节点）</string>
+    <string name="preferred_sample">CIDR 抽样数量（默认 256，上限 4096）</string>
+    <string name="preferred_concurrency">探测并发（默认 8，上限 32）</string>
+    <string name="preferred_download_url">下载 URL（不用于判断节点兼容性）</string>
+    <string name="preferred_go">开始</string>
+    <string name="preferred_no_profiles">请先创建一个节点；必须按真实节点目标验证。</string>
+    <string name="preferred_not_tested">尚未测试。HTTP 可达不等于 WebSocket 升级或认证成功。</string>
+    <string name="preferred_old_network">旧网络 / 未完成结果不可自动推荐，保存时会重新检查。</string>
+    <string name="preferred_save">验证实际节点并预览保存</string>
+    <string name="preferred_confirm">确认保存全局优选</string>
+    <string name="preferred_save_hint">保存前仅对已选 IP 按实际目标 / ECH / DNS 做低流量检查，不下载。未知或不兼容节点保留独立。HTTP 可达不代表协议认证成功。</string>
+    <string name="preferred_many">已选超过 3 个：XT 通道数 = 兼容 IP 数 × 高级参数合并后的每 IP 连接数，请关注资源占用。</string>
+    <string name="preferred_disable">恢复原配置 / 禁用全局</string>
+    <string name="preferred_disable_body">恢复接管前的模式，保留全局池和节点原 IP；下次连接生效，不自动重连。</string>
+    <string name="preferred_no_selection">还未选择 IP。在测试页查看真实结果并勾选，或采用本轮推荐。</string>
+    <string name="preferred_remove">移除 %1$s</string>
+    <string name="preferred_summary">revision %1$d · 全局%2$s · 已保存 %3$d 个 · 本次选择 %4$d 个</string>
+    <string name="preferred_mode">优选 IP 来源</string>
+    <string name="preferred_manage">管理全局优选 IP（先保存节点更改）</string>
+    <string name="preferred_mode_hint">跟随仅应用已验证的当前目标；目标或 ECH / DNS 改变后保留原配置，需在管理页重新验证。独立值始终保留。</string>
+    <string name="preferred_conflict">高级 JSON 含 relay_nodes：强制独立，避免显示跟随但实际覆盖。</string>
+    <string name="preferred_clear_conflict">删除高级 relay_nodes 覆盖并选择跟随</string>
+    <string name="preferred_clear_conflict_body">仅删除高级 JSON 中的 relay_nodes。原 XtRelayNodes 文本保持不变；仍需在管理页验证后才会接管。</string>
+    <string-array name="preferred_modes"><item>跟随全局（需验证）</item><item>独立配置（原值）</item><item>域名默认（不使用入口 IP）</item></string-array>
+</resources>

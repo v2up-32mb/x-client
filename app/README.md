@@ -86,10 +86,45 @@ app/src/main/res/values[-night]/
 
 ## 构建
 
-**所有 APK 编译验证走 GitHub Actions**（本地仅可验证 Go 侧与 AAR 构建）：
+**所有 Go / AAR / APK 编译和测试均走 GitHub Actions**（本地仅允许静态检查）：
 
 | 工作流 | 触发 | 说明 |
 |---|---|---|
 | `build-aar.yml` | main 推送（`golib/**`）/ 手动 | gomobile AAR 构建，预热默认分支缓存 |
 | `release.yml` | `v*` tag / 手动 | tag=构建+签名+发版；手动=release 类型 CI 构建验证（unsigned，不发版） |
 | `check-keystore.yml` | 手动 | 验证签名密钥 secrets |
+
+## 全局优选 IP（首版）
+
+入口：主页「更多 → 优选 IP」或节点编辑页的「管理全局优选 IP」。`PreferredIpActivity`
+提供来源 / 测试 / 已选三个页签，沿用现有 Material 3 语义色与触控尺寸。
+
+- 官网 IPv4 默认入口、官网 IPv6 可选（检查本机直连 IPv6 地址），`776771.xyz/all.txt`
+  仅预置，不会自动抓取；支持其他 HTTPS 列表、粘贴、UTF-8 TXT（2MiB）和旧节点入口收集。
+  解析通过固定 Go JSON API，错误行显示原文及行号，必须明确确认只导入有效行。
+- 测试使用实际参考 Profile 的最终目标 / ECH / DNS；XT 高级 JSON 先合并。
+  默认 CIDR 抽样256、并发8（最多32），推荐最多3个。前5个顺序下载，每IP最多
+  5秒/20MiB，总正文最多100MiB，移动/计费网络再次确认。探测及ECH/DNS有额外开销。
+- 真实任务每500ms在工作线程查询：`startPreferredIPTask` / `getPreferredIPTask` /
+  `cancelPreferredIPTask`，列表解析使用 `parsePreferredIPList`。UI不生成假进度。
+  首版必须断开所有可检测VPN；不支持VPN中物理网络桥接。旋转保留控制器和taskId，
+  离开页面/后台取消，网络切换取消并标旧结果；进程死亡后不自动启动新任务。
+- 保存前每批最多3个已选IP，对需要接管的实际Profile目标做无下载兼容检查
+  (`download_top=0`, `recommend_count=0`)。只在同一页面会话、完整测试、同网络及
+  相同目标/ECH/DNS时复用结果。确认页列出接管范围、例外、XT最终连接数乘法。
+  仅HTTP/CF trace通过，不等同WebSocket升级/认证或完整VPN速度。
+- 应用私有 `preferred-ip-v1.json` 由UI通过 `AtomicFile` 写入，含 schema/revision、来源快照、
+  候选、已选、最近测试、模式映射、按实际目标的兼容地址和接管前模式。保存使用revision
+  比较；`:vpn`只打开稳定文件快照，不依赖SharedPreferences多进程缓存，也不调用可能删除
+  写者临时文件的`AtomicFile.openRead()`。损坏库不覆盖；服务保留原节点入口并记录原因。
+- 编辑页支持跟随 / 独立 / 域名默认。原 `PrefIp` / `XtRelayNodes` 保留；GCM
+  `FallbackIp` 不参与。未知目标不接管；目标变更使验证失配，运行参数回到原值，需重新验证。
+  XT高级JSON含`relay_nodes`时强制独立，可明确确认删除该覆盖键；其他未知高级键不因编辑丢失。
+- `PreferredIpResolver`统一模式优先级，服务在高级JSON合并后应用池，分享URI导出当时有效
+  入口快照（无备注/继承绑定）。`Preferences.forProfile(id)`提供不改变当前Profile指针的
+  独立访问器，编辑、导入、分享和遍历验证不再通过持久切换当前节点读取其他节点。
+- 更新来源或取消测试不修改已选池。全局保存/禁用均下次连接生效，不自动重连；
+  「恢复原配置 / 禁用全局」恢复接管前模式，仍保留池与原IP。复制/删除节点同步处理模式。
+
+验证边界：本地仅进行了源码/XML/资源引用静态检查。新AAR API绑定、Android编译、真机的
+深浅主题/字体放大/横屏/网络切换/VPN检测和跨进程文件读写需集成后在GitHub Actions及设备验证。

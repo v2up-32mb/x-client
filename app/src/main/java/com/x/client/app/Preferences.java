@@ -116,9 +116,12 @@ public class Preferences
         public static final String PROFILE_NAME_PREFIX = "ProfileName_";
 
         private SharedPreferences prefs;
+        private Context appContext;
+        private boolean scoped;
         private String currentProfileId; // Current Profile ID (e.g., "default", "uuid...")
 
         public Preferences(Context context) {
+                appContext = context.getApplicationContext();
                 prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_MULTI_PROCESS);
                 currentProfileId = prefs.getString(CURRENT_PROFILE_ID, null);
                 // 迁移（含任何写盘）只允许在主进程执行：:vpn 进程可能持有
@@ -127,6 +130,18 @@ public class Preferences
                         migrateGlobalNetworkSettings();
                 }
         }
+
+        /** Isolated profile accessor; never changes the persisted active-profile pointer. */
+        public Preferences forProfile(String id) {
+                Preferences view = new Preferences();
+                view.prefs = prefs;
+                view.appContext = appContext;
+                view.currentProfileId = id;
+                view.scoped = true;
+                return view;
+        }
+
+        private Preferences() { }
 
         // 判断当前是否为主进程（进程名 == 包名；:vpn 服务进程名为 "包名:vpn"）。
         private static boolean isMainProcess(Context context) {
@@ -199,6 +214,7 @@ public class Preferences
         }
 
         public void setCurrentProfileId(String id) {
+            if (scoped) throw new IllegalStateException("Scoped profile cannot change active selection");
             this.currentProfileId = id;
             SharedPreferences.Editor editor = prefs.edit();
             editor.putString(CURRENT_PROFILE_ID, id);
@@ -228,6 +244,7 @@ public class Preferences
         // copyProfile 以新 UUID 复制一个配置的全部数据。配置名称允许重复，
         // 底层始终以唯一 profile id 区分（所有 profile 键带 "_<id>" 后缀）。
         public void copyProfile(String sourceId, String newId, String name) {
+            PreferredIpStore.copyMode(appContext, sourceId, newId);
             String suffix = "_" + sourceId;
             String newSuffix = "_" + newId;
             SharedPreferences.Editor editor = prefs.edit();
@@ -274,6 +291,7 @@ public class Preferences
             SharedPreferences.Editor editor = prefs.edit();
             editor.putStringSet(PROFILES, profiles);
             editor.remove(PROFILE_NAME_PREFIX + id);
+            PreferredIpStore.removeMode(appContext, id);
             
             // 清理该配置的全部键：遍历存储，删除所有带 "_<id>" 后缀的键
             // （包含 XT_*、AdvancedParams 等任意 profile 级键，避免复制/删除后残留）。
