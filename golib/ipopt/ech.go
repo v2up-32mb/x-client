@@ -147,18 +147,50 @@ func parseECHAnswer(buf []byte, id uint16, domain string) ([]byte, error) {
 	if err != nil || len(qs) != 1 || qs[0].Type != dnsmessage.Type(65) || qs[0].Class != dnsmessage.ClassINET || !strings.EqualFold(qs[0].Name.String(), strings.TrimSuffix(domain, ".")+".") {
 		return nil, fmt.Errorf("DNS问题不匹配")
 	}
-	// Permit a bounded CNAME chain within this response, but not unrelated
-	// answer records. Alias-mode HTTPS records need a new query and fall back.
-	allowed := map[string]bool{strings.ToLower(qs[0].Name.String()): true}
-	answers, err := p.AllAnswers()
-	if err != nil {
-		return nil, err
-	}
-	for round := 0; round < 8; round++ {
-		for _, r := range answers {
-			if c, ok := r.Body.(*dnsmessage.CNAMEResource); ok && allowed[strings.ToLower(r.Header.Name.String())] {
-				allowed[strings.ToLower(c.CNAME.String())] = true
+	// Read type65 as wire RDATA explicitly: AllAnswers returns UnknownResource
+	// in x/net v0.17.0 but HTTPSResource in v0.61.0. UnknownResource after a
+	// header works for known types too, in both versions, and leaves our strict
+	// TargetName/SvcParam validation independent of the dependency's decoder.
+	var answers []dnsmessage.Resource
+	for {
+		header, e := p.AnswerHeader()
+		if e == dnsmessage.ErrSectionDone {
+			break
+		}
+		if e != nil {
+			return nil, e
+		}
+		var r dnsmessage.Resource
+		if header.Type == dnsmessage.Type(65) {
+			body, e := p.UnknownResource()
+			if e != nil {
+				return nil, e
 			}
+			r = dnsmessage.Resource{Header: header, Body: &body}
+		} else {
+			// Answer reuses the pending header. Do not merely skip other types:
+			// their malformed bodies must still fail, and CNAMEs need decoding.
+			r, e = p.Answer()
+			if e != nil {
+				return nil, e
+			}
+		}
+		answers = append(answers, r)
+	}
+	// Read every answer before selecting ECH, including records following
+	// an otherwise usable one. Permit up to eight CNAME hops within this reply;
+	// HTTPS alias-mode targets still need a new query and are not followed.
+	allowed := map[string]bool{strings.ToLower(qs[0].Name.String()): true}
+	for round := 0; round < 8; round++ {
+		next := map[string]bool{}
+		for _, r := range answers {
+			if c, ok := r.Body.(*dnsmessage.CNAMEResource); ok && r.Header.Class == dnsmessage.ClassINET && allowed[strings.ToLower(r.Header.Name.String())] {
+				next[strings.ToLower(c.CNAME.String())] = true
+			}
+		}
+		// Merge after the round so wire order cannot bypass the hop limit.
+		for name := range next {
+			allowed[name] = true
 		}
 	}
 	for _, r := range answers {
