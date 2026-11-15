@@ -204,6 +204,10 @@ jobs:
           test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/gcm)" = v0.1.1
           test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xshared)" = v0.1.5
           test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xtunnel)" = v0.3.4
+          # 补齐当前已选模块的校验和；不得改变绑定时的版本选择。
+          cp go.mod "$RUNNER_TEMP/bind-resolved.go.mod"
+          go mod download
+          cmp go.mod "$RUNNER_TEMP/bind-resolved.go.mod"
           go list -m all
           go test -race -count=1 ./...
 
