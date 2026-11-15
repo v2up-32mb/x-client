@@ -82,7 +82,10 @@ public class ProfileEditActivity extends BaseActivity {
 
     private final java.util.concurrent.ExecutorService preferredWorker = java.util.concurrent.Executors.newSingleThreadExecutor();
     private Spinner preferredMode;
-    private boolean preferredConflict, clearPreferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
+    private boolean preferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
+    private boolean preferredDraftDirty;
+    // Unknown keys and confirmed deletions live here, never reloaded from saved prefs on save.
+    private String xtAdvancedDraft;
     private String preferredOriginalMode, restoredPreferredMode;
     private static final String[] PREFERRED_MODES = {"global", "independent", "default"};
 
@@ -94,7 +97,8 @@ public class ProfileEditActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) {
             restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
-            clearPreferredConflict = savedInstanceState.getBoolean("preferred_clear_draft");
+            preferredDraftDirty = savedInstanceState.getBoolean("preferred_dirty_draft");
+            xtAdvancedDraft = savedInstanceState.getString("xt_advanced_draft");
         }
 
         prefs = new Preferences(this);
@@ -226,7 +230,7 @@ public class ProfileEditActivity extends BaseActivity {
             if (savePrefs()) {
                 hasBeenSaved = true;
                 String mode = PREFERRED_MODES[preferredMode.getSelectedItemPosition()];
-                boolean saveMode = !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
+                boolean saveMode = preferredDraftDirty || !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
                 btn_save.setEnabled(false);
                 preferredWorker.execute(() -> {
                     try {
@@ -259,7 +263,7 @@ public class ProfileEditActivity extends BaseActivity {
         btn_save.setEnabled(false);
         preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
-                if (preferredConflict && !clearPreferredConflict && position != 1) {
+                if (preferredConflict && position != 1) {
                     preferredMode.setSelection(1);
                     return;
                 }
@@ -277,10 +281,17 @@ public class ProfileEditActivity extends BaseActivity {
         findViewById(R.id.preferred_clear_conflict).setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setMessage(R.string.preferred_clear_conflict_body).setNegativeButton(R.string.cancel, null)
                 .setPositiveButton(R.string.ok, (d, w) -> {
-                    clearPreferredConflict = true;
-                    preferredMode.setSelection(0);
-                    findViewById(R.id.preferred_clear_conflict).setVisibility(View.GONE);
-                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
+                    try {
+                        JSONObject draft = parseXtAdvancedDraft();
+                        draft.remove("relay_nodes");
+                        xtAdvancedDraft = draft.toString();
+                        preferredDraftDirty = true;
+                        refreshPreferredConflict(getSelectedProtocol());
+                        preferredMode.setSelection(0);
+                        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
+                    } catch (JSONException error) {
+                        Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
+                    }
                 }).show());
         loadPreferredMode(false);
     }
@@ -289,29 +300,26 @@ public class ProfileEditActivity extends BaseActivity {
         preferredWorker.execute(() -> {
             try {
                 JSONObject pool = new PreferredIpStore(this).read();
-                Preferences p = prefs.forProfile(profileId);
-                boolean conflict = PreferredIpResolver.conflict(p);
-                String mode = conflict ? "independent" : PreferredIpStore.mode(pool, profileId);
-                JSONObject merged = PreferredIpResolver.baseParams(p);
-                PreferredIpResolver.apply(p, merged, pool);
-                String relay = merged.optString(Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol()) ? "relay_nodes" : "relay_ips");
-                String summary = "revision " + pool.optLong("revision") + " · 有效入口：" + (relay.isEmpty() ? "域名默认" : relay)
-                        + "\n" + getString(conflict ? R.string.preferred_conflict : R.string.preferred_mode_hint);
+                String mode = PreferredIpStore.mode(pool, profileId);
+                String summary = "revision " + pool.optLong("revision") + " · 全局池"
+                        + (pool.optBoolean("enabled") ? "已启用" : "未启用")
+                        + " · 已选 " + pool.getJSONArray("selected").length() + " 个IP";
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    if (refresh && preferredOriginalMode != null
-                            && !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode)) return;
-                    preferredConflict = conflict;
-                    String displayMode = restoredPreferredMode != null ? restoredPreferredMode : mode;
+                    if (refresh && preferredOriginalMode != null && (preferredDraftDirty
+                            || !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode))) return;
+                    refreshPreferredConflict(getSelectedProtocol());
+                    String displayMode = preferredConflict ? "independent"
+                            : restoredPreferredMode != null ? restoredPreferredMode : mode;
                     for (int i = 0; i < PREFERRED_MODES.length; i++) if (PREFERRED_MODES[i].equals(displayMode)) preferredMode.setSelection(i);
                     restoredPreferredMode = null;
-                    preferredOriginalMode = mode;
+                    preferredOriginalMode = preferredConflict ? "independent" : mode;
                     preferredInitialImplicit = !pool.optBoolean("enabled") && !pool.optJSONObject("profile_modes").has(profileId);
                     preferredLoaded = true;
                     preferredMode.setEnabled(!preferredLocked());
                     btn_save.setEnabled(!preferredLocked());
-                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(summary);
-                    findViewById(R.id.preferred_clear_conflict).setVisibility(conflict && !clearPreferredConflict && !preferredLocked() ? View.VISIBLE : View.GONE);
+                    ((TextView) findViewById(R.id.preferred_mode_summary)).setText(summary + "\n"
+                            + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败，请先修复：" + error.getMessage()));
@@ -327,7 +335,8 @@ public class ProfileEditActivity extends BaseActivity {
 
     @Override protected void onSaveInstanceState(Bundle out) {
         if (preferredMode != null && preferredLoaded) out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
-        out.putBoolean("preferred_clear_draft", clearPreferredConflict);
+        out.putBoolean("preferred_dirty_draft", preferredDraftDirty);
+        out.putString("xt_advanced_draft", xtAdvancedDraft);
         super.onSaveInstanceState(out);
     }
 
@@ -340,6 +349,23 @@ public class ProfileEditActivity extends BaseActivity {
         boolean isXtunnel = Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
         gcm_fields.setVisibility(isXtunnel ? View.GONE : View.VISIBLE);
         xtunnel_fields.setVisibility(isXtunnel ? View.VISIBLE : View.GONE);
+        if (preferredMode != null) refreshPreferredConflict(protocol);
+    }
+
+    private JSONObject parseXtAdvancedDraft() throws JSONException {
+        return xtAdvancedDraft == null || xtAdvancedDraft.trim().isEmpty()
+                ? new JSONObject() : new JSONObject(xtAdvancedDraft);
+    }
+
+    private void refreshPreferredConflict(String protocol) {
+        boolean hasRelay = false;
+        preferredConflict = false;
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            try { preferredConflict = hasRelay = parseXtAdvancedDraft().has("relay_nodes"); }
+            catch (JSONException error) { preferredConflict = true; } // do not silently discard bad JSON
+        }
+        if (preferredConflict) preferredMode.setSelection(1);
+        findViewById(R.id.preferred_clear_conflict).setVisibility(hasRelay && !preferredLocked() ? View.VISIBLE : View.GONE);
     }
 
     // IP 策略真实值 → 下拉选项索引；未知值（含存量 "default"）回落首项（4,6，IPv4 优先）
@@ -395,7 +421,8 @@ public class ProfileEditActivity extends BaseActivity {
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
-        loadXtAdvancedParams(prefs.getXtAdvancedParams());
+        if (xtAdvancedDraft == null) xtAdvancedDraft = prefs.getXtAdvancedParams();
+        loadXtAdvancedParams(xtAdvancedDraft);
 
         // 检查是否是当前激活的配置且 VPN 正在运行
         boolean isVpnRunning = prefs.getEnable();
@@ -564,7 +591,7 @@ public class ProfileEditActivity extends BaseActivity {
         }
 
         // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
-        String xtAdvancedParams = "";
+        String xtAdvancedParams = xtAdvancedDraft;
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
             // 就近报错：先定位格式非法的高级参数输入框（判定规则与 collectXtAdvancedParams 一致）
             EditText invalidAdvField = findInvalidXtAdvField();
@@ -618,7 +645,7 @@ public class ProfileEditActivity extends BaseActivity {
         prefs.setXtEnableHotPair(checkbox_xt_enable_hot_pair.isChecked());
         prefs.setXtHotPairCount(xtHotPairCount);
         prefs.setXtIpStrategy(xtIpStrategy);
-        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) prefs.setXtAdvancedParams(xtAdvancedParams);
+        prefs.setXtAdvancedParams(xtAdvancedParams);
 
         return true;
     }
@@ -748,9 +775,7 @@ public class ProfileEditActivity extends BaseActivity {
     // 从各输入框收集高级参数并组装 JSON；数值非法时返回 null（留空项不写入，使用默认值）
     private String collectXtAdvancedParams() {
         try {
-            JSONObject adv = prefs.forProfile(profileId).getXtAdvancedParams().isEmpty()
-                    ? new JSONObject() : new JSONObject(prefs.forProfile(profileId).getXtAdvancedParams());
-            if (clearPreferredConflict) adv.remove("relay_nodes");
+            JSONObject adv = parseXtAdvancedDraft();
             for (String key : new String[]{"backpressure_limit", "write_queue_wait_timeout", "dial_timeout",
                     "handshake_timeout", "read_timeout", "write_timeout", "ping_interval", "reconnect_delay",
                     "connect_timeout", "max_socks5_connections", "udp_blocked_ports"}) adv.remove(key);
@@ -795,7 +820,8 @@ public class ProfileEditActivity extends BaseActivity {
                 }
                 adv.put("udp_blocked_ports", ports);
             }
-            return adv.length() > 0 ? adv.toString() : "";
+            xtAdvancedDraft = adv.length() > 0 ? adv.toString() : "";
+            return xtAdvancedDraft;
         } catch (JSONException e) {
             return null;
         } catch (NumberFormatException e) {
@@ -925,6 +951,7 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void importFromProtocol(String protocol) {
+        if (preferredLocked() || !preferredLoaded) return;
         // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
         boolean isXtunnel = protocol.startsWith("xtunnel://");
         if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
@@ -1063,8 +1090,6 @@ public class ProfileEditActivity extends BaseActivity {
             }
         }
 
-        preferredMode.setSelection(1); // imported URI is a standalone effective-address snapshot
-
         // 从 fragment 解码配置名称
         String profileName = "";
         if (!fragment.isEmpty()) {
@@ -1075,12 +1100,18 @@ public class ProfileEditActivity extends BaseActivity {
             }
         }
 
+        // Confirm before changing any form field or mode. Re-enter only after the draft
+        // no longer contains these overrides; cancellation leaves the whole editor intact.
+        if (isXtunnel && !confirmXtImportOverrides(protocol)) return;
+        preferredDraftDirty = true;
+        preferredMode.setSelection(1); // imported URI is a standalone effective-address snapshot
+
         if (isXtunnel) {
             // X-Tunnel 配置
             setProtocolSelection(Preferences.PROTOCOL_X_TUNNEL);
             edittext_xt_server_addr.setText(wssAddr);
-            if (!token.isEmpty()) edittext_xt_token.setText(token);
-            if (!relayNodes.isEmpty()) edittext_xt_relay_nodes.setText(relayNodes);
+            edittext_xt_token.setText(token);
+            edittext_xt_relay_nodes.setText(relayNodes); // absent/empty means domain default, not the old IP
             edittext_xt_connections.setText(String.valueOf(connections));
             checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
@@ -1092,9 +1123,7 @@ public class ProfileEditActivity extends BaseActivity {
             // GCM 配置
             setProtocolSelection(Preferences.PROTOCOL_GCM);
             edittext_worker_host.setText(wssAddr);
-            if (!prefIp.isEmpty()) {
-                edittext_pref_ip.setText(prefIp);
-            }
+            edittext_pref_ip.setText(prefIp); // complete URI snapshot: empty clears the old entry
             if (!fallbackIp.isEmpty()) {
                 edittext_fallback_ip.setText(fallbackIp);
             }
@@ -1109,6 +1138,39 @@ public class ProfileEditActivity extends BaseActivity {
             edittext_profile_name.setText(profileName);
         }
 
+        refreshPreferredConflict(isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM);
+        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(R.string.preferred_mode_hint);
         Toast.makeText(this, getString(R.string.toast_imported_check), Toast.LENGTH_LONG).show();
+    }
+
+    private boolean confirmXtImportOverrides(String protocol) {
+        try {
+            JSONObject draft = parseXtAdvancedDraft();
+            java.util.List<String> conflicts = new java.util.ArrayList<>();
+            // These are supplied by the URI or its defaults. Legacy domain/dns URI fields
+            // use global settings, so their old advanced overrides must also be cleared.
+            for (String key : new String[]{"server_addr", "token", "relay_nodes", "connections",
+                    "enable_ech", "ech_domain", "dns_server", "insecure", "ip_strategy",
+                    "enable_hot_pair", "hot_pair_count"}) {
+                if (draft.has(key)) conflicts.add(key);
+            }
+            if (conflicts.isEmpty()) return true;
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setMessage("导入将删除高级JSON中的以下覆盖键，使用链接字段及默认值（ECH域名/DNS使用全局设置）：\n"
+                            + android.text.TextUtils.join(", ", conflicts)
+                            + "\n其他高级参数保留；取消不会修改当前编辑内容。确认后仍需保存才生效。")
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.ok, (d, w) -> {
+                        if (isFinishing() || isDestroyed() || preferredLocked()) return;
+                        for (String key : conflicts) draft.remove(key);
+                        xtAdvancedDraft = draft.toString();
+                        preferredDraftDirty = true;
+                        refreshPreferredConflict(getSelectedProtocol());
+                        importFromProtocol(protocol);
+                    }).show();
+        } catch (JSONException error) {
+            Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
+        }
+        return false;
     }
 }

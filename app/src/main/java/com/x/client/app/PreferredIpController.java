@@ -475,17 +475,28 @@ final class PreferredIpController {
             int compatible = 0;
             for (Preferences.ProfileInfo info : prefs.getProfileList()) {
                 check(epoch, net);
-                Preferences p = prefs.forProfile(info.id);
-                boolean conflict = PreferredIpResolver.conflict(p);
-                if (((!first || modes.has(info.id)) && !"global".equals(PreferredIpStore.mode(next, info.id))) || conflict) {
-                    if (conflict) modes.put(info.id, "independent");
-                    scope.append(info.name).append("：保留独立/域名默认（含高级relay_nodes冲突）\n");
+                Preferences p;
+                JSONObject target;
+                int connections;
+                try {
+                    p = prefs.forProfile(info.id);
+                    if (PreferredIpResolver.conflict(p)) {
+                        throw new IllegalArgumentException("高级JSON含 relay_nodes 覆盖，请先在编辑页确认清除冲突");
+                    }
+                    JSONObject merged = PreferredIpResolver.baseParams(p);
+                    target = PreferredIpResolver.target(p, merged);
+                    connections = PreferredIpResolver.validatedConnections(p, merged);
+                    if ((!first || modes.has(info.id)) && !"global".equals(PreferredIpStore.mode(next, info.id))) {
+                        scope.append(info.name).append("：保留独立/域名默认（用户设置）\n");
+                        continue;
+                    }
+                } catch (Exception invalid) {
+                    check(epoch, net); // never turn cancellation/network loss into a profile error
+                    modes.put(info.id, "independent");
+                    scope.append(info.name).append("：参数无效，保留独立：")
+                            .append(invalid.getMessage() == null ? invalid.toString() : invalid.getMessage()).append('\n');
                     continue;
                 }
-                JSONObject merged = PreferredIpResolver.baseParams(p);
-                JSONObject target;
-                try { target = PreferredIpResolver.target(p, merged); }
-                catch (Exception invalid) { modes.put(info.id, "independent"); scope.append(info.name).append("：待验证，保留原配置\n"); continue; }
                 String key = PreferredIpResolver.fingerprint(target);
                 JSONArray known = cache.get(key);
                 Set<String> passed = new LinkedHashSet<>();
@@ -518,7 +529,6 @@ final class PreferredIpController {
                     modes.put(info.id, "global");
                     scope.append(info.name).append("：跟随 ").append(passed.size()).append("个IP");
                     if (Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol())) {
-                        int connections = merged.getInt("connections");
                         scope.append(" × 每IP ").append(connections).append(" = ").append((long) passed.size() * connections).append("条通道");
                     }
                     scope.append('\n');
@@ -528,7 +538,7 @@ final class PreferredIpController {
                 }
             }
             check(epoch, net);
-            if (compatible == 0) throw new IllegalStateException("没有实际节点验证通过，未接管任何节点");
+            if (compatible == 0) throw new IllegalStateException("没有实际节点验证通过，未接管任何节点\n" + scope);
             next.put("selected", selected).put("validations", validations).put("enabled", true);
             preview = new JSONObject().put("pool", next).put("network_id", net).put("scope", scope.toString())
                     .put("generation", epoch);
@@ -563,9 +573,11 @@ final class PreferredIpController {
             while (ids.hasNext()) {
                 String id = ids.next();
                 Preferences scoped = p.forProfile(id);
+                JSONObject merged = PreferredIpResolver.baseParams(scoped);
+                PreferredIpResolver.validatedConnections(scoped, merged);
                 if (!p.getProfileIds().contains(id) || PreferredIpResolver.conflict(scoped)
                         || !validations.getJSONObject(id).getString("target_key").equals(PreferredIpResolver.fingerprint(
-                        PreferredIpResolver.target(scoped, PreferredIpResolver.baseParams(scoped))))) {
+                        PreferredIpResolver.target(scoped, merged)))) {
                     throw new IllegalStateException("节点参数已变化，请重新验证");
                 }
             }

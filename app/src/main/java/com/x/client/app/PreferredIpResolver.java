@@ -49,7 +49,7 @@ public final class PreferredIpResolver {
     /** Does not include credentials or download host. No token/user ID leaves the protocol backend. */
     public static JSONObject target(Preferences p, JSONObject merged) throws Exception {
         boolean xt = Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol());
-        String server = merged.getString(xt ? "server_addr" : "worker_host").trim();
+        String server = targetString(merged, xt ? "server_addr" : "worker_host").trim();
         URI uri = new URI(xt ? server : "https://" + server);
         if (uri.getHost() == null || (xt && !"wss".equalsIgnoreCase(uri.getScheme()))) {
             throw new IllegalArgumentException("实际节点需要有效的TLS域名（XT必须wss://）");
@@ -59,8 +59,42 @@ public final class PreferredIpResolver {
         return new JSONObject().put("target_host", uri.getHost().toLowerCase(Locale.ROOT))
                 .put("target_port", port).put("protocol", xt ? "xtunnel" : "gcm")
                 .put("enable_ech", merged.getBoolean("enable_ech"))
-                .put("ech_domain", merged.getString("ech_domain"))
-                .put("dns_server", merged.getString(xt ? "dns_server" : "ech_dns"));
+                .put("ech_domain", targetString(merged, "ech_domain"))
+                .put("dns_server", targetString(merged, xt ? "dns_server" : "ech_dns"));
+    }
+
+    private static String targetString(JSONObject merged, String key) throws Exception {
+        Object value = merged.get(key);
+        // JSONObject.getString coerces objects/null/numbers and can hide invalid overrides.
+        if (!(value instanceof String)) throw new IllegalArgumentException(key + " 必须是字符串");
+        return (String) value;
+    }
+
+    /** Validate AFTER advanced merge, before probing or displaying channel multiplication. */
+    static int validatedConnections(Preferences p, JSONObject merged) throws Exception {
+        boolean xt = Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol());
+        String key = xt ? "connections" : "ws_conn";
+        // Same bounds as ProfileEditActivity/Preferences; GCM's Go pool cap is also 64.
+        int max = xt ? 16 : Preferences.MAX_DYNAMIC_POOL_LIMIT;
+        Object value = merged.get(key);
+        double count;
+        if (value instanceof Number) {
+            count = ((Number) value).doubleValue();
+        } else if (value instanceof String) {
+            // Go accepts integer strings, but NOT decimal strings; do not use getInt(),
+            // which silently truncates fractional numbers/strings on Android.
+            String text = ((String) value).trim();
+            if (!text.matches("[+-]?[0-9]+")) throw new IllegalArgumentException(key + " 必须是整数");
+            try { count = Integer.parseInt(text); }
+            catch (NumberFormatException error) { throw new IllegalArgumentException(key + " 必须是 1–" + max + " 的整数", error); }
+        } else {
+            throw new IllegalArgumentException(key + " 必须是整数或整数字符串");
+        }
+        if (Double.isNaN(count) || Double.isInfinite(count) || count != Math.rint(count)) {
+            throw new IllegalArgumentException(key + " 必须是整数");
+        }
+        if (count < 1 || count > max) throw new IllegalArgumentException(key + " 必须在 1–" + max + " 范围内");
+        return (int) count;
     }
 
     public static String fingerprint(JSONObject target) throws Exception {
