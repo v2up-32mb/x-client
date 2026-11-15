@@ -57,18 +57,15 @@ func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []
 	if sample.state == "short" {
 		warnings = append(warnings, r.Address+": 下载采样不足1秒，低置信度，不自动推荐")
 	}
-	if u.Scheme == "https" && o.EnableECH && s.echStatus() == "fallback" {
+	if o.EnableECH && s.echStatus() == "fallback" {
 		warnings = append(warnings, r.Address+": 下载站使用标准TLS回退；目标域名ECH状态见结果")
-	}
-	if u.Scheme == "http" {
-		warnings = append(warnings, r.Address+": 自定义下载使用HTTP，下载流量未经TLS验证")
 	}
 	return r, warnings
 }
 
 func validateDownloadResponse(resp *http.Response) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 || resp.StatusCode == 204 {
-		return fmt.Errorf("下载返回HTTP %d", resp.StatusCode)
+		return fmt.Errorf("HTTPS下载返回状态码 %d", resp.StatusCode)
 	}
 	if enc := resp.Header.Get("Content-Encoding"); enc != "" && enc != "identity" {
 		return fmt.Errorf("下载禁止压缩正文")

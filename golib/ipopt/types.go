@@ -81,6 +81,8 @@ type Request struct {
 	Options    Options     `json:"options"`
 }
 
+// Result keeps legacy http_* JSON keys for HTTPS trace measurements. Callers
+// should label those counters and timings HTTPS, not cleartext HTTP.
 type Result struct {
 	Candidate
 	Status           string  `json:"status"`

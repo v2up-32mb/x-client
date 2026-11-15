@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -471,17 +472,47 @@ func rejectionConfig(t *testing.T, publicName string) []byte {
 }
 
 func TestECHRejectionFallsBackToVerifiedTLSAndIsNotCalledUsed(t *testing.T) {
-	_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, traceBody(r.Host)) }))
+	var requests atomic.Int32
+	_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		if r.TLS == nil || r.TLS.ServerName != "node.example.com" || r.Host != "node.example.com:8443" || r.URL.RequestURI() != "/cdn-cgi/trace" {
+			t.Errorf("fallback lost HTTPS/SNI/Host/path: %+v", r)
+		}
+		_, _ = io.WriteString(w, traceBody(r.Host))
+	}))
 	o := defaultOptions()
-	o.TargetHost = "node.example.com"
+	o.TargetHost, o.TargetPort = "node.example.com", 8443
 	o.EnableECH = true
-	r, warnings := p.connectivity(context.Background(), newResult(testCandidate(1), true), o, rejectionConfig(t, "node.example.com"))
-	if r.Status != "valid" || r.ECHStatus != "fallback" || dials.Load() != 2 || !strings.Contains(strings.Join(warnings, " "), "回退") {
+	c := testCandidate(1)
+	c.Address, c.Port = "104.16.0.1:2008", 2008
+	baseDial := p.dial
+	p.dial = func(ctx context.Context, network, address string) (net.Conn, error) {
+		if address != c.Address {
+			t.Errorf("ECH/fallback dial %s want %s", address, c.Address)
+		}
+		return baseDial(ctx, network, address)
+	}
+	config := rejectionConfig(t, "node.example.com")
+	r, warnings := p.connectivity(context.Background(), newResult(c, true), o, config)
+	if r.Status != "valid" || r.Colo != "HKG" || r.ECHStatus != "fallback" || dials.Load() != 2 || !strings.Contains(strings.Join(warnings, " "), "回退") {
 		t.Fatalf("%+v %v dials=%d", r, warnings, dials.Load())
 	}
+	r, warnings = p.latency(context.Background(), r, o, config)
+	if r.Status != "valid" || r.Colo != "HKG" || r.HTTPAttempts != 5 || r.HTTPSuccess != 5 || r.ECHStatus != "fallback" || dials.Load() != 4 || requests.Load() != 7 || len(warnings) == 0 {
+		t.Fatalf("HTTPS latency after ECH rejection: %+v %v dials=%d requests=%d", r, warnings, dials.Load(), requests.Load())
+	}
 	// Missing config must never silently report a successful ECH verification.
-	r, warnings = p.connectivity(context.Background(), newResult(testCandidate(1), true), o, nil)
+	r, warnings = p.connectivity(context.Background(), newResult(c, true), o, nil)
 	if r.Status != "valid" || r.ECHStatus != "fallback" || len(warnings) == 0 {
 		t.Fatalf("%+v %v", r, warnings)
+	}
+	// The outer ECH public name has a trusted certificate, but the fresh
+	// fallback must still reject a mismatched target certificate before HTTP.
+	o.TargetHost = "wrong.example.net"
+	p.baseTLS.InsecureSkipVerify = true
+	before := dials.Load()
+	r, _ = p.connectivity(context.Background(), newResult(c, true), o, config)
+	if r.Status != "failed" || r.Error == "" || r.ECHStatus != "fallback" || dials.Load()-before != 2 || requests.Load() != 8 {
+		t.Fatalf("unverified ECH fallback accepted: %+v dials=%d requests=%d", r, dials.Load()-before, requests.Load())
 	}
 }

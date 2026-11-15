@@ -106,7 +106,7 @@ func TestRealTLSNonstandardPortSNIHostTenSocketsAndFiveRequests(t *testing.T) {
 			t.Fatalf("host/sni/path: %s %s %s", hosts[i], snis[i], paths[i])
 		}
 		if i > 1 && remotes[i] != remotes[1] {
-			t.Fatal("five HTTP requests not same connection")
+			t.Fatal("five HTTPS requests not same connection")
 		}
 	}
 }
@@ -122,8 +122,8 @@ func TestTLSCertificateFailureCannotBeMadeInsecure(t *testing.T) {
 	}
 }
 
-func TestTraceHTTPFailuresAndNoCrossOriginRedirect(t *testing.T) {
-	for _, mode := range []string{"403", "html", "non-cf", "redirect"} {
+func TestTraceHTTPSFailuresAndNoRedirect(t *testing.T) {
+	for _, mode := range []string{"403", "html", "non-cf", "redirect", "same-origin", "downgrade"} {
 		t.Run(mode, func(t *testing.T) {
 			_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				switch mode {
@@ -134,8 +134,13 @@ func TestTraceHTTPFailuresAndNoCrossOriginRedirect(t *testing.T) {
 					_, _ = io.WriteString(w, "<html>error</html>")
 				case "non-cf":
 					_, _ = io.WriteString(w, "ordinary server")
-				case "redirect":
-					w.Header().Set("Location", "https://elsewhere.example.com/cdn-cgi/trace")
+				case "redirect", "same-origin", "downgrade":
+					location := map[string]string{
+						"redirect":    "https://elsewhere.example.com/cdn-cgi/trace",
+						"same-origin": "https://node.example.com/other",
+						"downgrade":   "http://node.example.com/cdn-cgi/trace",
+					}[mode]
+					w.Header().Set("Location", location)
 					w.WriteHeader(302)
 				}
 			}))
@@ -160,7 +165,7 @@ func TestCFTraceRaySupplementAndMissingTrace(t *testing.T) {
 	}
 }
 
-func TestHTTPNoReuseIsExplicitlyWarned(t *testing.T) {
+func TestHTTPSNoReuseIsExplicitlyWarned(t *testing.T) {
 	_, p, _ := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Connection", "close")
 		_, _ = io.WriteString(w, traceBody(r.Host))
@@ -209,7 +214,7 @@ func TestProbeCancellationClosesBlockingBody(t *testing.T) {
 	}
 }
 
-func TestFailedHTTPRecheckIsRetainedAndCannotBeRecommended(t *testing.T) {
+func TestFailedHTTPSRecheckIsRetainedAndCannotBeRecommended(t *testing.T) {
 	var requests atomic.Int32
 	_, p, _ := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if requests.Add(1) == 3 {

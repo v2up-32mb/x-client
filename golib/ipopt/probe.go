@@ -63,8 +63,10 @@ func (p *networkProbe) session(parent context.Context, c Candidate, u *url.URL, 
 		// Keep HTTP/1.1 explicit so request timing and connection reuse have a
 		// consistent interpretation, rather than implicitly multiplexing h2.
 		ForceAttemptHTTP2: false, TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{},
-		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
-			return bindDial(owner, p.dial, ctx, network, c.Address)
+		// HTTPS uses DialTLSContext below. Fail closed if a caller ever supplies
+		// a cleartext URL; neither candidate ports nor ECH fallback permit HTTP.
+		DialContext: func(context.Context, string, string) (net.Conn, error) {
+			return nil, fmt.Errorf("测速仅允许HTTPS，禁止明文HTTP请求")
 		},
 	}
 	tr.DialTLSContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
@@ -150,7 +152,7 @@ func requestTrace(ctx context.Context, s *pinnedSession, u *url.URL, now func() 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		return "", 0, reused.Load(), fmt.Errorf("目标trace返回HTTP %d（不代表WS/认证成功）", resp.StatusCode)
+		return "", 0, reused.Load(), fmt.Errorf("目标HTTPS trace返回状态码 %d（不代表WS/认证成功）", resp.StatusCode)
 	}
 	if enc := resp.Header.Get("Content-Encoding"); enc != "" && enc != "identity" {
 		return "", 0, reused.Load(), fmt.Errorf("trace返回压缩正文")
@@ -216,7 +218,7 @@ func (p *networkProbe) connectivity(ctx context.Context, r Result, o Options, ec
 	s.mu.Unlock()
 	if err != nil {
 		r.Status = "failed"
-		r.Error = "TCP/TLS/CF trace检查失败: " + err.Error()
+		r.Error = "TCP/TLS/HTTPS CF trace检查失败: " + err.Error()
 	} else {
 		r.Status = "valid"
 		r.Colo = colo
@@ -270,7 +272,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 	// request latency instead of pretending it is pure established-stream RTT.
 	if _, _, _, err := requestTrace(ctx, s, u, p.now); err != nil {
 		r.Status = "failed"
-		r.Error = "HTTP复查预热失败: " + err.Error()
+		r.Error = "HTTPS复查预热失败: " + err.Error()
 		r.TestedAt = p.now().UnixMilli()
 		r.ECHStatus = s.echStatus()
 		return r, warnings
@@ -288,7 +290,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		}
 		if err != nil {
 			r.Status = "failed"
-			r.Error = "HTTP复查失败: " + err.Error()
+			r.Error = "HTTPS复查失败: " + err.Error()
 			continue
 		}
 		r.Colo = colo
@@ -296,7 +298,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		times = append(times, ms)
 	}
 	if !reuseAll {
-		warnings = append(warnings, r.Address+": HTTP连接未全程复用，http_median_ms为含重连的总请求延迟，不是纯RTT")
+		warnings = append(warnings, r.Address+": HTTPS连接未全程复用，http_median_ms为含重连的总请求延迟，不是纯RTT")
 	}
 	if r.HTTPSuccess == 0 && ctx.Err() == nil {
 		r.Status = "failed"
@@ -308,7 +310,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		if n%2 == 0 {
 			r.HTTPMedianMS = (times[n/2-1] + times[n/2]) / 2
 		}
-		// Jitter is max-min across successful complete HTTP request durations.
+		// Jitter is max-min across successful complete HTTPS request durations.
 		r.HTTPJitterMS = times[n-1] - times[0]
 	}
 	if s.echStatus() == "fallback" || r.ECHStatus == "fallback" {
@@ -317,7 +319,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		r.ECHStatus = s.echStatus()
 	}
 	if o.EnableECH && r.ECHStatus == "fallback" {
-		warnings = append(warnings, r.Address+": HTTP复查未全程使用ECH，已记录fallback")
+		warnings = append(warnings, r.Address+": HTTPS复查未全程使用ECH，已记录fallback")
 	}
 	r.TestedAt = p.now().UnixMilli()
 	return r, warnings

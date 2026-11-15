@@ -189,6 +189,7 @@ BOM、CRLF、空行；只在 `source_kind=legacy` 时允许裸 IP 默认 443。�
 仅由调用方明确选择后抓取，没有自动订阅。抓取 15s/2MiB，最多 3 次安全重定向，禁止
 HTTPS 降级及私网目标；官方还禁止转到其他域名/路径。非 2xx、HTML、非 UTF-8、压缩正文
 均失败，空有效列表失败；混合有效/错误行保留错误明细，调用方须确认后导入有效部分。
+来源抓取与测速是独立操作；本轮不改变第三方 `list` 显式 HTTP(S) URL 的抓取策略，也不额外测速来源站。
 
 测试任务（数值省略使用默认值；显式 0 仅在允许关闭的参数中具有关闭含义）：
 
@@ -209,6 +210,8 @@ HTTPS 降级及私网目标；官方还禁止转到其他域名/路径。非 2xx
 
 - `target_host/target_port` 必须取目标 Profile 的**最终有效参数**，包括 XT 高级 JSON 覆盖；
   `target_host` 不带 scheme/端口/路径。目标 trace 固定 HTTPS `/cdn-cgi/trace`。
+- `download_url` 仅允许 HTTPS（含自定义非标准端口），显式 `http://` 在任务输入校验时拒绝；
+  测速 session 也拒绝明文 HTTP 拨号，不按 80/443 等端口猜测 scheme，不自动改写用户 URL。
 - `protocol` 为 `gcm/xtunnel`，只标识参考协议，不发送 token/userid，不进行 WS/认证。
 - `sample_limit` 1..4096，仅用于 CIDR 新抽样；手动/列表候选全参与。前缀 round-robin 分配额度、
   每段分层抽样，IPv6使用有界大整数主机位运算，不展开地址空间。前缀多于额度时显式警告覆盖不足。
@@ -217,7 +220,7 @@ HTTPS 降级及私网目标；官方还禁止转到其他域名/路径。非 2xx
 - 并发 1..32，默认8；下载永远串行，`download_top` 0..5；每 IP最多5秒/20MiB，正文总100MiB。
   总任务30分钟上限。下载上限之外还有连接、TLS、trace、DoH及HTTP头等流量开销。
 - `download_top=0` **不发起下载**；`recommend_count=0` **不自动推荐**，适合保存前的少量
-  实际目标兼容性检查。仍做真实 TLS/trace、10次TCP、5次HTTP，不用测速站成功替代目标可用性。
+  实际目标兼容性检查。仍做真实 TLS/HTTPS trace、10次TCP、5次HTTPS，不用测速站成功替代目标可用性。
 
 快照字段固定为 `id/operation/state/phase/completed/total/network_id/started_at/updated_at/`
 `download_bytes/warnings/error/candidates/prefixes/errors/results`，所有数组空值为 `[]` 而不是
@@ -237,33 +240,39 @@ download_state, ech_status, recommended, tested_at
 `status=untested/valid/failed`，`download_state=untested/ok/short/failed`，
 `ech_status=disabled/used/fallback`。未测数字0必须结合状态解释，不能展示为真实0延迟/速度。
 
+兼容语义：`http_success/http_attempts/http_median_ms/http_jitter_ms` 字段名称及 phase 枚举保持不变，
+这些统计实际是 **HTTPS trace 请求**的成功数、尝试数、延迟与波动；Android 应显示“HTTPS验证/延迟”，
+不能因字段名前缀而标为明文 HTTP。目标 trace、预热和5次请求在本轮前已经使用 TLS；本轮收紧的是
+原先允许显式 HTTP 的自定义下载入口，并修正日志措辞，不删减证书、CF trace 或延迟检查。
+
 ### 测量、取消与安全边界
 
-- 连通阶段独立 TCP+验证证书的 TLS+HTTP 200 trace，校验 trace 的 `ip/h/colo`；CF-RAY仅补充
+- 连通阶段独立 TCP+验证证书的 TLS+HTTPS trace（状态码200），校验 trace 的 `ip/h/colo`；CF-RAY仅补充
   机房代码。普通网页、403、HTML、无有效trace/colo的目标标为失败/不适用，不冒充任意 XT 可用。
 - 通过连通检查的候选做 **10次独立 TCP socket**，成功延迟和失败分开；不是 ICMP 丢包。
-  初始 TLS 时间单列 `tls_ms`。再做一次验证 trace 预热，随后 **5次完整小HTTP请求**，记录成功数、
+  初始 TLS 时间单列 `tls_ms`。再做一次验证 trace 预热，随后 **5次完整小HTTPS请求**，记录成功数、
   成功请求中位数和 max-min 波动。只有观察到连接复用才可按已建连接解释；无法全程复用时快照
   明确警告“含重连的总请求延迟”。连通检查/预热不混入5次请求成功计数。
 - 所有目标 HTTPS 证书始终校验，XT的 `insecure` 不传入这里。保留 URL scheme、Host、SNI、
   path/query，**仅把 TCP 目的地址换为 Candidate 的明确 IP+port**，不按端口猜 TLS。
+  目标 trace 的连通、预热及5次延迟请求均拒绝所有重定向，包括同源跳转和 HTTPS→HTTP 降级。
 - ECH直接使用 Go TLS 配置，独立实现任务 context-bound 的 RFC8484 DNS wire POST、HTTPS(type65)
   ECH key5解析；空ECH域名恢复 `cloudflare-ech.com`，显式空DoH按既有后端语义处理：GCM复用
   `xshared` 内置服务器列表，XT使用 `https://v.recipes/dns-query`；未指定选项仍保持原默认值。
   按用户/内置 DoH、Cloudflare DoH、Google DoH 顺序，每次最多4秒，再 UDP
   `8.8.8.8:53` 最多2秒，总准备15秒。校验DNS响应ID/问题/rcode/截断和记录归属。
   不调用共享manager的 background-context 获取，不启动刷新；配置缺失/获取失败/ECH拒绝均明确
-  标 fallback并回退**仍验证证书**的标准TLS。只记录服务模式HTTPS记录和响应内CNAME链，
-  需要另行解析的HTTPS alias-mode暂走明确回退，不递归无限查询。
+  标 fallback并回退**仍验证证书**的标准TLS，不回退明文 HTTP；UDP DNS 辅助查询不是 HTTP 测速。
+  只记录服务模式HTTPS记录和响应内CNAME链，需要另行解析的HTTPS alias-mode暂走明确回退，
+  不递归无限查询。
 - 下载拒绝所有重定向（比仅禁止跨域更严格），拒绝非2xx、空正文、压缩、HTML/JSON/XML错误页；
   要求明确二进制 Content-Type（octet-stream/binary/zip/image），自定义不合格URL显示不可用。
   只统计正文读取窗口的 MiB/s，峰值来自≥500ms窗口、不用于主排名；<1秒为short，不自动推荐。
   读出的错误正文也计入预算但不给速度；已知 Content-Length提前 EOF为失败。时长截止可形成部分
   正文样本，用户取消则永不当成功。正文每次读取即累计到任务快照；取消后的清理只结算实际
   `download_bytes/download_seconds`（不重复计费），当前下载标 `failed`，不恢复速度/成功/推荐。
-  HTTPS自定义非标准端口和HTTP显式scheme均按URL处理。
-- 排序先成功次数/稳定性，再真实HTTP延迟；相近组（锚点+max(20ms,20%)）比较有效下载，
-  性能接近时优先官方来源。采用锚点分组避免模糊比较违反排序传递性。推荐只取10/10 TCP、5/5 HTTP
+- 排序先成功次数/稳定性，再真实HTTPS延迟；相近组（锚点+max(20ms,20%)）比较有效下载，
+  性能接近时优先官方来源。采用锚点分组避免模糊比较违反排序传递性。推荐只取10/10 TCP、5/5 HTTPS
   且有效目标结果；启用下载时还须下载`ok`，不足推荐数不凑数。短样本、失败项不自动推荐。
 - 每个任务/请求有 context和期限，UDP deadline+取消关闭，TLS HandshakeContext，HTTP body随取消
   关闭。额外绑定 HTTP Transport可能脱离单次请求的 dial context到真实任务，关闭 idle transports。
@@ -281,9 +290,11 @@ download_state, ech_status, recommended, tested_at
 ### 测试与交付验证
 
 `ipopt/*_test.go` 包含解析、规范化/来源合并/边界、真实CIDR范围与抽样上限、私网过滤、来源抓取、
-RFC8484/UDP/ECH拒绝回退、非标准TLS端口/SNI/Host、证书失败、真实连接复用、HTTP错页、取消阻塞读取、
+RFC8484/UDP/ECH拒绝回退、非标准TLS端口/SNI/Host、证书失败、真实连接复用、HTTPS错页、取消阻塞读取、
 正文budget/short/峰均速、推荐不足、阶段进度、并发上限、历史保留和晚结果隔离；另覆盖纯Go DNS
 bootstrap/UDP与TCP framing/解析阶段取消清理、site-local混合答案拒绝，以及正文部分读取后的取消计量。
+HTTPS回归还覆盖显式明文下载在输入/拨号边界被拒绝、目标请求与下载拒绝跳转降级、ECH回退后的
+Host/SNI/候选端口和证书失败；新增用例仅落盘，须由本轮 CI 实际执行后才有通过证据。
 测试使用注入 transport/dial/probe/clock 与本地 `httptest` / UDP / `net.Pipe`，无需访问外网；
 生产JSON API没有私网旁路、替换证书或假探测入口。
 

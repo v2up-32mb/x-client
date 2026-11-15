@@ -8,7 +8,6 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -69,45 +68,45 @@ func TestDownloadResponseValidation(t *testing.T) {
 	}
 }
 
-func TestDownloadSchemePathQueryHostAndCandidatePort(t *testing.T) {
+func TestDownloadHTTPSPathQueryHostAndCandidatePort(t *testing.T) {
 	seen := make(chan *http.Request, 1)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	_, p, _ := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen <- r
 		w.Header().Set("Content-Type", "application/octet-stream")
 		_, _ = io.WriteString(w, strings.Repeat("x", 4096))
 	}))
-	defer srv.Close()
-	p := newNetworkProbe()
 	c := testCandidate(1)
 	c.Address = "104.16.0.1:443"
+	baseDial := p.dial
 	p.dial = func(ctx context.Context, network, address string) (net.Conn, error) {
 		if address != c.Address {
 			t.Errorf("dial address %s", address)
 		}
-		return (&net.Dialer{}).DialContext(ctx, network, srv.Listener.Addr().String())
+		return baseDial(ctx, network, address)
 	}
 	o := defaultOptions()
-	o.DownloadURL = "http://speed.example.com:2008/data?bytes=4096&keep=yes"
+	o.DownloadURL = "https://speed.example.com:2008/data?bytes=4096&keep=yes"
 	o.DownloadBytesPerIP = 4096
 	r, warnings := p.download(context.Background(), newResult(c, false), o, nil, 2048, nil)
-	if r.DownloadBytes != 2048 || r.DownloadState != "short" || !strings.Contains(strings.Join(warnings, " "), "HTTP") {
+	if r.DownloadBytes != 2048 || r.DownloadState != "short" || !strings.Contains(strings.Join(warnings, " "), "不足1秒") {
 		t.Fatalf("%+v %v", r, warnings)
 	}
 	req := <-seen
-	if req.Host != "speed.example.com:2008" || req.URL.RequestURI() != "/data?bytes=4096&keep=yes" || req.TLS != nil || req.Header.Get("Accept-Encoding") != "identity" {
+	if req.Host != "speed.example.com:2008" || req.URL.RequestURI() != "/data?bytes=4096&keep=yes" || req.TLS == nil || req.TLS.ServerName != "speed.example.com" || req.Header.Get("Accept-Encoding") != "identity" {
 		t.Fatal(req)
 	}
 }
 
 func TestDownloadHTTPSOnNonstandardPortAndRejectsRedirect(t *testing.T) {
-	for _, redirect := range []bool{false, true} {
-		t.Run(map[bool]string{true: "redirect", false: "tls"}[redirect], func(t *testing.T) {
+	for _, location := range []string{"", "https://elsewhere.example.com/data", "https://speed.example.com:8443/other", "http://speed.example.com:8443/data"} {
+		t.Run(location, func(t *testing.T) {
+			redirect := location != ""
 			_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.TLS.ServerName != "speed.example.com" || r.URL.RawQuery != "bytes=4096" {
 					t.Errorf("lost SNI/query")
 				}
 				if redirect {
-					w.Header().Set("Location", "https://elsewhere.example.com/data")
+					w.Header().Set("Location", location)
 					w.WriteHeader(302)
 					return
 				}
@@ -120,7 +119,10 @@ func TestDownloadHTTPSOnNonstandardPortAndRejectsRedirect(t *testing.T) {
 			c := testCandidate(1)
 			c.Address = "104.16.0.1:2008"
 			c.Port = 2008
-			r, _ := p.download(context.Background(), newResult(c, false), o, nil, 4096, nil)
+			r, warnings := p.download(context.Background(), newResult(c, false), o, nil, 4096, nil)
+			if redirect && !strings.Contains(strings.Join(warnings, " "), "测速禁止重定向") {
+				t.Fatalf("redirect not explicitly rejected: %v", warnings)
+			}
 			if dials.Load() != 1 || (redirect && r.DownloadState != "failed") || (!redirect && r.DownloadBytes != 4096) {
 				t.Fatalf("%+v dials=%d", r, dials.Load())
 			}

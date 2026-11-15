@@ -301,8 +301,8 @@ func (m *Manager) runTest(t *task) error {
 			}
 			s.Results = append(s.Results, result)
 		}
-		s.Warnings = append(s.Warnings, "TCP成功率不是ICMP丢包；HTTP trace成功不代表WebSocket/认证成功",
-			"HTTP统计为完整小请求中位数与最大最小差；下载均速仅表示测速站正文吞吐，另有探测/协议开销")
+		s.Warnings = append(s.Warnings, "TCP成功率不是ICMP丢包；HTTPS trace成功不代表WebSocket/认证成功",
+			"HTTPS统计为完整小请求中位数与最大最小差；下载均速仅表示测速站正文吞吐，另有探测/协议开销")
 		if len(r.Prefixes) > r.Options.SampleLimit {
 			s.Warnings = append(s.Warnings, "地址段多于抽样上限，本轮只覆盖前部分地址段")
 		}

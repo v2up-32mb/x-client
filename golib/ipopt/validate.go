@@ -115,8 +115,12 @@ func validateOptions(o *Options) error {
 	if o.DownloadBytesPerIP < 1 || o.DownloadBytesPerIP > maxDownloadBytes || o.DownloadSeconds < 1 || o.DownloadSeconds > 5 {
 		return fmt.Errorf("每IP下载上限为1..20MiB和1..5秒")
 	}
-	if _, err := safeURL(o.DownloadURL); err != nil {
+	u, err := safeURL(o.DownloadURL)
+	if err != nil {
 		return fmt.Errorf("download_url: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("download_url必须为HTTPS URL，禁止明文HTTP测速")
 	}
 	o.ECHDomain = strings.TrimSpace(o.ECHDomain)
 	if o.ECHDomain == "" {
