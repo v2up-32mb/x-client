@@ -17,7 +17,7 @@ type operations struct {
 	connectivity func(context.Context, Result, Options, []byte) (Result, []string)
 	stability    func(context.Context, Result) (Result, []string)
 	latency      func(context.Context, Result, Options, []byte) (Result, []string)
-	download     func(context.Context, Result, Options, []byte, int64) (Result, []string)
+	download     func(context.Context, Result, Options, []byte, int64, func(int64, float64)) (Result, []string)
 }
 
 func productionOperations() operations {
@@ -52,6 +52,7 @@ type task struct {
 	ctx      context.Context
 	cancel   context.CancelFunc
 	done     chan struct{}
+	io       *ioScope
 	now      func() time.Time
 }
 
@@ -77,12 +78,14 @@ func (m *Manager) Start(requestJSON string) (string, error) {
 	}
 	id := hex.EncodeToString(bytes[:])
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	scope := newIOScope()
+	ctx = context.WithValue(ctx, ioScopeKey{}, scope)
 	now := m.now().UnixMilli()
 	phase := "connectivity"
 	if r.Operation == "fetch" {
 		phase = "fetch"
 	}
-	t := &task{request: r, ctx: ctx, cancel: cancel, done: make(chan struct{}), now: m.now,
+	t := &task{request: r, ctx: ctx, cancel: cancel, done: make(chan struct{}), io: scope, now: m.now,
 		snapshot: Snapshot{ID: id, Operation: r.Operation, NetworkID: r.NetworkID, State: "queued", Phase: phase,
 			StartedAt: now, UpdatedAt: now, Warnings: []string{}, Candidates: []Candidate{}, Prefixes: []Prefix{}, Errors: []LineError{}, Results: []Result{}},
 	}
@@ -146,6 +149,49 @@ func (t *task) update(fn func(*Snapshot)) {
 	t.snapshot.UpdatedAt = t.now().UnixMilli()
 }
 
+// Download accounting is the only update allowed after explicit cancellation.
+// It is cumulative (not additive per report), so final settlement cannot double
+// charge the body budget. No late status, speed, recommendation or phase leaks
+// through this path. The worker slot remains occupied until download returns.
+func (t *task) recordDownload(i int, bytes int64, seconds float64) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.recordDownloadLocked(i, bytes, seconds)
+}
+
+func (t *task) recordDownloadLocked(i int, bytes int64, seconds float64) {
+	s := &t.snapshot
+	if terminal(s.State) && s.State != "cancelled" {
+		return
+	}
+	r := &s.Results[i]
+	if bytes > r.DownloadBytes {
+		s.DownloadBytes += bytes - r.DownloadBytes
+		r.DownloadBytes = bytes
+	}
+	if seconds > r.DownloadSeconds {
+		r.DownloadSeconds = seconds
+	}
+	// The fixed schema has no downloading/cancelled sample state. Until a
+	// non-cancelled completion validates it, an attempted sample is failed.
+	r.DownloadState = "failed"
+	r.DownloadMiBS, r.DownloadPeakMiBS = 0, 0
+	r.Recommended = false
+	s.UpdatedAt = t.now().UnixMilli()
+}
+
+func (t *task) finishDownload(i int, r Result, warnings []string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.recordDownloadLocked(i, r.DownloadBytes, r.DownloadSeconds)
+	if terminal(t.snapshot.State) || t.ctx.Err() != nil {
+		return
+	}
+	t.snapshot.Results[i] = r
+	t.snapshot.Completed++
+	t.snapshot.Warnings = appendUnique(t.snapshot.Warnings, warnings...)
+}
+
 func (t *task) result(i int) Result {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -185,6 +231,8 @@ func (m *Manager) run(t *task) {
 		}
 	}
 	t.mu.Unlock()
+	t.cancel()
+	t.io.close() // join detached transport dials before releasing the worker slot
 	m.mu.Lock()
 	m.current = ""
 	m.history = append(m.history, t.snapshot.ID)
@@ -324,14 +372,12 @@ func (m *Manager) runTest(t *task) error {
 			if t.ctx.Err() != nil {
 				return t.ctx.Err()
 			}
-			result, warnings := m.ops.download(t.ctx, t.result(i), r.Options, ech, budget)
-			budget -= result.DownloadBytes
-			t.update(func(s *Snapshot) {
-				s.Results[i] = result
-				s.DownloadBytes += result.DownloadBytes
-				s.Completed++
-				s.Warnings = appendUnique(s.Warnings, warnings...)
+			t.recordDownload(i, 0, 0) // attempted, not an untested zero on cancel
+			result, warnings := m.ops.download(t.ctx, t.result(i), r.Options, ech, budget, func(bytes int64, seconds float64) {
+				t.recordDownload(i, bytes, seconds)
 			})
+			budget -= result.DownloadBytes
+			t.finishDownload(i, result, warnings)
 		}
 	}
 	return t.ctx.Err()

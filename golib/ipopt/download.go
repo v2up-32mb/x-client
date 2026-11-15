@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []byte, budget int64) (Result, []string) {
+func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []byte, budget int64, progress func(int64, float64)) (Result, []string) {
 	warnings := []string{}
 	r.DownloadState = "failed"
 	if budget <= 0 {
@@ -45,7 +45,7 @@ func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []
 	if err = validateDownloadResponse(resp); err != nil {
 		return r, []string{r.Address + ": " + err.Error()}
 	}
-	sample := measureBody(ctx, resp.Body, resp.Header, limit, resp.ContentLength, p.now)
+	sample := measureBody(ctx, resp.Body, resp.Header, limit, resp.ContentLength, p.now, progress)
 	r.DownloadBytes = sample.bytes
 	r.DownloadSeconds = sample.seconds
 	r.DownloadMiBS = sample.average
@@ -95,7 +95,7 @@ type bodySample struct {
 // Body accounting is exclusive of DNS/TCP/TLS/header time. Reads cannot exceed
 // the remaining task body budget. Every consumed byte, including a rejected
 // error-page prefix, is charged to that budget; failed samples have no speed.
-func measureBody(ctx context.Context, body io.Reader, header http.Header, limit, expected int64, now func() time.Time) bodySample {
+func measureBody(ctx context.Context, body io.Reader, header http.Header, limit, expected int64, now func() time.Time, progress func(int64, float64)) bodySample {
 	s := bodySample{state: "failed"}
 	start := now()
 	windowStart := start
@@ -114,6 +114,12 @@ func measureBody(ctx context.Context, body io.Reader, header http.Header, limit,
 		n, err := body.Read(buf[:int(want)])
 		if n > 0 {
 			s.bytes += int64(n)
+			at := now()
+			if progress != nil {
+				// Report before validation and even if Read returned bytes along
+				// with a cancellation/error. This is actual consumed body data.
+				progress(s.bytes, at.Sub(start).Seconds())
+			}
 			windowBytes += int64(n)
 			if len(prefix) < 512 {
 				take := n
@@ -126,7 +132,6 @@ func measureBody(ctx context.Context, body io.Reader, header http.Header, limit,
 				s.err = fmt.Errorf("下载正文为HTML/JSON/XML错误页")
 				break
 			}
-			at := now()
 			if seconds := at.Sub(windowStart).Seconds(); seconds >= 0.5 {
 				speed := float64(windowBytes) / (1 << 20) / seconds
 				if speed > s.peak {
@@ -153,6 +158,9 @@ func measureBody(ctx context.Context, body io.Reader, header http.Header, limit,
 		}
 	}
 	s.seconds = now().Sub(start).Seconds()
+	if progress != nil {
+		progress(s.bytes, s.seconds)
+	}
 	// Deadline is the normal duration cap, cancellation is never success.
 	if ctx.Err() == context.Canceled {
 		s.err = context.Canceled

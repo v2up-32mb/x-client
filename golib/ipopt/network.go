@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -17,7 +18,7 @@ var excluded = func() []netip.Prefix {
 	for _, s := range []string{
 		"0.0.0.0/8", "100.64.0.0/10", "192.0.0.0/24", "192.0.2.0/24", "192.88.99.0/24",
 		"198.18.0.0/15", "198.51.100.0/24", "203.0.113.0/24", "240.0.0.0/4",
-		"::/96", "::ffff:0:0/96", "64:ff9b::/96", "64:ff9b:1::/48", "100::/64", "2001::/23", "2001:db8::/32", "2002::/16", "3fff::/20",
+		"::/96", "::ffff:0:0/96", "64:ff9b::/96", "64:ff9b:1::/48", "100::/64", "2001::/23", "2001:db8::/32", "2002::/16", "3fff::/20", "fec0::/10",
 	} {
 		out = append(out, netip.MustParsePrefix(s))
 	}
@@ -42,8 +43,19 @@ func publicIP(ip netip.Addr) bool {
 
 // guardedDial checks every resolved address before dialing a literal. It avoids
 // proxy environment variables, DNS rebinding between validation and connect,
-// and mixed public/private DNS answers. Resolver operations inherit ctx.
+// and mixed public/private DNS answers. DNS never uses Android's getaddrinfo.
 func guardedDial(ctx context.Context, network, address string) (net.Conn, error) {
+	return guardedDialUsing(ctx, network, address, lookupIPs, (&net.Dialer{Timeout: probeTimeout}).DialContext)
+}
+
+func guardedDialUsing(ctx context.Context, network, address string, lookup func(context.Context, string) ([]netip.Addr, error), dial dialFunc) (net.Conn, error) {
+	scope, _ := ctx.Value(ioScopeKey{}).(*ioScope)
+	if scope != nil {
+		if !scope.begin() {
+			return nil, context.Canceled
+		}
+		defer scope.dials.Done()
+	}
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
 		return nil, err
@@ -52,7 +64,7 @@ func guardedDial(ctx context.Context, network, address string) (net.Conn, error)
 	if ip, e := netip.ParseAddr(host); e == nil {
 		ips = []netip.Addr{ip}
 	} else {
-		ips, err = net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		ips, err = lookup(ctx, host)
 		if err != nil {
 			return nil, err
 		}
@@ -65,14 +77,16 @@ func guardedDial(ctx context.Context, network, address string) (net.Conn, error)
 			return nil, fmt.Errorf("阻止连接非公网地址: %s", ip)
 		}
 	}
-	d := net.Dialer{Timeout: probeTimeout}
 	var last error
 	for _, ip := range ips {
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		conn, e := d.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		conn, e := dial(ctx, network, net.JoinHostPort(ip.String(), port))
 		if e == nil {
+			if scope != nil {
+				return scope.track(conn)
+			}
 			return conn, nil
 		}
 		last = e
@@ -83,6 +97,9 @@ func guardedDial(ctx context.Context, network, address string) (net.Conn, error)
 // bindDial also binds Transport's potentially detached dial context to the
 // actual task. The returned socket remains task-owned through TLS/body reads.
 func bindDial(parent context.Context, dial dialFunc, ctx context.Context, network, address string) (net.Conn, error) {
+	if scope, ok := parent.Value(ioScopeKey{}).(*ioScope); ok {
+		ctx = context.WithValue(ctx, ioScopeKey{}, scope)
+	}
 	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
 	stop := context.AfterFunc(parent, cancel)
 	defer stop()
@@ -94,19 +111,32 @@ func bindDial(parent context.Context, dial dialFunc, ctx context.Context, networ
 	if err != nil {
 		return nil, err
 	}
-	owned := &contextConn{Conn: conn}
-	owned.stop = context.AfterFunc(parent, func() { _ = conn.Close() })
-	return owned, nil
+	return ownConn(parent, conn), nil
 }
 
 type contextConn struct {
 	net.Conn
-	stop func() bool
+	stop      func() bool
+	closeOnce sync.Once
+	closeErr  error
+}
+
+func ownConn(ctx context.Context, conn net.Conn) *contextConn {
+	c := &contextConn{Conn: conn}
+	// The callback must not read stop: an already cancelled ctx can run it
+	// before AfterFunc returns. Both close paths join the same actual Close.
+	c.stop = context.AfterFunc(ctx, func() { _ = c.close() })
+	return c
+}
+
+func (c *contextConn) close() error {
+	c.closeOnce.Do(func() { c.closeErr = c.Conn.Close() })
+	return c.closeErr
 }
 
 func (c *contextConn) Close() error {
 	c.stop()
-	return c.Conn.Close()
+	return c.close()
 }
 
 func internetTransport(ctx context.Context) *http.Transport {

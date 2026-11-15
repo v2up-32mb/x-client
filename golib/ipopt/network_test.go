@@ -121,7 +121,7 @@ func TestFetchCancellationBeforeResponseHeaders(t *testing.T) {
 }
 
 func TestGuardedDialRejectsLiteralPrivateBeforeNetworking(t *testing.T) {
-	for _, addr := range []string{"127.0.0.1:80", "[::1]:80", "192.168.1.1:443"} {
+	for _, addr := range []string{"127.0.0.1:80", "[::1]:80", "192.168.1.1:443", "[fec0::1]:443"} {
 		if conn, err := guardedDial(context.Background(), "tcp", addr); err == nil {
 			conn.Close()
 			t.Fatal("private accepted")

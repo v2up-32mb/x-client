@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -39,7 +40,7 @@ func fakeOperations() operations {
 			r.HTTPJitterMS = 5
 			return r, nil
 		},
-		download: func(_ context.Context, r Result, o Options, _ []byte, budget int64) (Result, []string) {
+		download: func(_ context.Context, r Result, o Options, _ []byte, budget int64, progress func(int64, float64)) (Result, []string) {
 			r.DownloadState = "ok"
 			r.DownloadBytes = o.DownloadBytesPerIP
 			if r.DownloadBytes > budget {
@@ -47,6 +48,10 @@ func fakeOperations() operations {
 			}
 			r.DownloadSeconds = 2
 			r.DownloadMiBS = float64(r.DownloadBytes) / (1 << 20) / 2
+			if progress != nil {
+				progress(r.DownloadBytes/2, 1)
+				progress(r.DownloadBytes, r.DownloadSeconds)
+			}
 			return r, nil
 		},
 	}
@@ -90,7 +95,7 @@ func TestTaskPipelineSerialDownloadsBudgetAndJSON(t *testing.T) {
 	var mu sync.Mutex
 	budgets := []int64{}
 	base := ops.download
-	ops.download = func(ctx context.Context, r Result, o Options, ech []byte, budget int64) (Result, []string) {
+	ops.download = func(ctx context.Context, r Result, o Options, ech []byte, budget int64, progress func(int64, float64)) (Result, []string) {
 		n := active.Add(1)
 		if n > peak.Load() {
 			peak.Store(n)
@@ -100,7 +105,7 @@ func TestTaskPipelineSerialDownloadsBudgetAndJSON(t *testing.T) {
 		mu.Lock()
 		budgets = append(budgets, budget)
 		mu.Unlock()
-		return base(ctx, r, o, ech, budget)
+		return base(ctx, r, o, ech, budget, progress)
 	}
 	m := newManager(ops, time.Now)
 	req := testRequest(8)
@@ -135,7 +140,7 @@ func TestTaskPipelineSerialDownloadsBudgetAndJSON(t *testing.T) {
 
 func TestTaskExplicitZeroDownloadAndRecommend(t *testing.T) {
 	ops := fakeOperations()
-	ops.download = func(context.Context, Result, Options, []byte, int64) (Result, []string) {
+	ops.download = func(context.Context, Result, Options, []byte, int64, func(int64, float64)) (Result, []string) {
 		t.Error("download called with download_top=0")
 		return Result{}, nil
 	}
@@ -381,5 +386,111 @@ func TestTaskECHFailureExplicitFallbackAndCancellation(t *testing.T) {
 	s = waitDone(t, m, id)
 	if s.State != "cancelled" {
 		t.Fatal(s)
+	}
+}
+
+func TestTaskCancelRetainsLiveDownloadAccountingWithoutRevival(t *testing.T) {
+	serverClosed := make(chan struct{})
+	_, p, _ := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		_, _ = w.Write([]byte(strings.Repeat("x", 1024)))
+		w.(http.Flusher).Flush()
+		<-r.Context().Done()
+		close(serverClosed)
+	}))
+	read := make(chan struct{})
+	cleaned := make(chan struct{})
+	release := make(chan struct{})
+	var readOnce, releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	defer unblock()
+	ops := fakeOperations()
+	ops.download = func(ctx context.Context, r Result, o Options, ech []byte, budget int64, progress func(int64, float64)) (Result, []string) {
+		r, warnings := p.download(ctx, r, o, ech, budget, func(bytes int64, seconds float64) {
+			progress(bytes, seconds)
+			if bytes == 1024 {
+				readOnce.Do(func() { close(read) })
+			}
+		})
+		close(cleaned)
+		<-release
+		// Even a stale success result must not overwrite a cancelled snapshot.
+		r.Recommended = true
+		r.Status = "failed"
+		r.DownloadState = "ok"
+		r.DownloadMiBS, r.DownloadPeakMiBS = 99, 99
+		return r, warnings
+	}
+	m := newManager(ops, time.Now)
+	req := testRequest(2)
+	req.Options.DownloadURL = "https://speed.example.com/data"
+	id, err := m.Start(requestJSON(t, req))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Cancel(id)
+	select {
+	case <-read:
+	case <-time.After(time.Second):
+		t.Fatal("download did not report body consumption")
+	}
+	live := getSnapshot(t, m, id)
+	if live.State != "running" || live.Phase != "download" || live.DownloadBytes != 1024 || live.Results[0].DownloadBytes != 1024 || live.Results[0].DownloadState == "untested" {
+		t.Fatalf("body consumption absent from live snapshot: %+v", live)
+	}
+	m.Cancel(id)
+	select {
+	case <-cleaned:
+	case <-time.After(time.Second):
+		t.Fatal("download did not return after cancellation")
+	}
+	select {
+	case <-serverClosed:
+	case <-time.After(time.Second):
+		t.Fatal("actual download socket remained open")
+	}
+	partial := getSnapshot(t, m, id)
+	if partial.State != "cancelled" || partial.DownloadBytes != 1024 || partial.Results[0].DownloadSeconds <= 0 || partial.Results[0].DownloadState != "failed" {
+		t.Fatalf("cancelled accounting lost: %+v", partial)
+	}
+	if _, err := m.Start(requestJSON(t, req)); err == nil || !strings.Contains(err.Error(), "busy") {
+		t.Fatalf("download slot released before cleanup: %v", err)
+	}
+	unblock()
+	s := waitDone(t, m, id)
+	r := s.Results[0]
+	if s.State != "cancelled" || s.Phase != "done" || s.Completed != 0 || s.DownloadBytes != 1024 || r.DownloadBytes != 1024 || r.DownloadSeconds < partial.Results[0].DownloadSeconds || r.DownloadState != "failed" || r.Status != "valid" || r.Recommended || r.DownloadMiBS != 0 || r.DownloadPeakMiBS != 0 {
+		t.Fatalf("late result revived/double charged cancellation: %+v", s)
+	}
+	if s.Results[1].DownloadState != "untested" || s.Results[1].DownloadBytes != 0 || s.Results[1].Recommended {
+		t.Fatal("another download was started after cancel", s.Results[1])
+	}
+}
+
+func TestCancelledDownloadSettlementOnlyMergesActualCounters(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	previous := newResult(testCandidate(1), false)
+	previous.DownloadBytes, previous.DownloadState = 20<<20, "ok"
+	current := newResult(testCandidate(2), false)
+	current.Status = "valid"
+	current.DownloadBytes, current.DownloadSeconds = 100, 0.5
+	worker := &task{ctx: ctx, now: time.Now, snapshot: Snapshot{
+		State: "cancelled", Phase: "done", Completed: 1,
+		Results: []Result{previous, current}, DownloadBytes: (20 << 20) + 100,
+	}}
+	// A Read may return additional bytes with its cancellation error; then
+	// cleanup settles elapsed time. Neither should be discarded or doubled.
+	worker.recordDownload(1, 150, 0.75)
+	late := current
+	late.DownloadBytes, late.DownloadSeconds = 200, 1
+	late.Status, late.DownloadState, late.Recommended = "failed", "ok", true
+	late.DownloadMiBS, late.DownloadPeakMiBS = 99, 99
+	worker.finishDownload(1, late, []string{"late warning"})
+	worker.finishDownload(1, late, nil) // cumulative, idempotent settlement
+	s := worker.snapshot
+	r := s.Results[1]
+	if s.State != "cancelled" || s.Phase != "done" || s.Completed != 1 || s.DownloadBytes != (20<<20)+200 || len(s.Warnings) != 0 || r.DownloadBytes != 200 || r.DownloadSeconds != 1 || r.DownloadState != "failed" || r.Status != "valid" || r.Recommended || r.DownloadMiBS != 0 || r.DownloadPeakMiBS != 0 || s.Results[0].DownloadState != "ok" {
+		t.Fatalf("late accounting changed non-accounting fields: %+v", s)
 	}
 }

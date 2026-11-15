@@ -257,21 +257,31 @@ download_state, ech_status, recommended, tested_at
   要求明确二进制 Content-Type（octet-stream/binary/zip/image），自定义不合格URL显示不可用。
   只统计正文读取窗口的 MiB/s，峰值来自≥500ms窗口、不用于主排名；<1秒为short，不自动推荐。
   读出的错误正文也计入预算但不给速度；已知 Content-Length提前 EOF为失败。时长截止可形成部分
-  正文样本，用户取消则永不当成功。HTTPS自定义非标准端口和HTTP显式scheme均按URL处理。
+  正文样本，用户取消则永不当成功。正文每次读取即累计到任务快照；取消后的清理只结算实际
+  `download_bytes/download_seconds`（不重复计费），当前下载标 `failed`，不恢复速度/成功/推荐。
+  HTTPS自定义非标准端口和HTTP显式scheme均按URL处理。
 - 排序先成功次数/稳定性，再真实HTTP延迟；相近组（锚点+max(20ms,20%)）比较有效下载，
   性能接近时优先官方来源。采用锚点分组避免模糊比较违反排序传递性。推荐只取10/10 TCP、5/5 HTTP
   且有效目标结果；启用下载时还须下载`ok`，不足推荐数不凑数。短样本、失败项不自动推荐。
 - 每个任务/请求有 context和期限，UDP deadline+取消关闭，TLS HandshakeContext，HTTP body随取消
   关闭。额外绑定 HTTP Transport可能脱离单次请求的 dial context到真实任务，关闭 idle transports。
-  默认不读取代理环境变量；DNS全部解析地址均须公网，随后拨号字面IP，避免DNS rebinding或混合私网答案。
+  默认不读取代理环境变量；DNS全部解析地址均须公网（包括拒绝 IPv6 site-local `fec0::/10`），
+  随后拨号字面IP，避免DNS rebinding或混合私网答案。辅助URL域名使用私有 `PreferGo` resolver，
+  通过字面公网 `1.1.1.1:53` bootstrap（UDP，截断时TCP），不修改 `net.DefaultResolver`、不调用
+  Android `getaddrinfo`，也不递归使用受保护拨号。每次解析最多5秒且受更短请求期限约束，DNS socket
+  有 deadline并随 context 取消实际关闭；同步 `LookupHost` 等待 A/AAAA 交换退出。公网53端口被阻断
+  时解析会明确失败，不回退系统DNS；IPv6-only且无IPv4可达能力的网络也可能无法访问此bootstrap。
 - 仅1个真实运行/清理中的任务，最近3个已结束快照；取消立即锁定终态、清除推荐，晚结果不能覆盖。
+  任务还跟踪 Transport 脱离请求返回的拨号及存活连接，关闭/等待实际I/O清理后才释放运行槽；连接
+  正常关闭即从跟踪中移除，关闭与取消回调共享幂等关闭路径。
   网络 ID只是结果归属，旧网络/部分结果的UI标记、已选池和原子存储由Android管理；本包不自动保存已选。
 
 ### 测试与交付验证
 
 `ipopt/*_test.go` 包含解析、规范化/来源合并/边界、真实CIDR范围与抽样上限、私网过滤、来源抓取、
 RFC8484/UDP/ECH拒绝回退、非标准TLS端口/SNI/Host、证书失败、真实连接复用、HTTP错页、取消阻塞读取、
-正文budget/short/峰均速、推荐不足、阶段进度、并发上限、历史保留和晚结果隔离。
+正文budget/short/峰均速、推荐不足、阶段进度、并发上限、历史保留和晚结果隔离；另覆盖纯Go DNS
+bootstrap/UDP与TCP framing/解析阶段取消清理、site-local混合答案拒绝，以及正文部分读取后的取消计量。
 测试使用注入 transport/dial/probe/clock 与本地 `httptest` / UDP / `net.Pipe`，无需访问外网；
 生产JSON API没有私网旁路、替换证书或假探测入口。
 

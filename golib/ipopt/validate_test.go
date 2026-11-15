@@ -68,6 +68,9 @@ func TestUnsafeOptionsAndCandidateBoundsRejected(t *testing.T) {
 		func(r *Request) { r.Options.Protocol = "unknown" },
 		func(r *Request) { r.NetworkID = "" },
 		func(r *Request) { r.Candidates[0].Address = "127.0.0.1:443"; r.Candidates[0].IP = "127.0.0.1" },
+		func(r *Request) { r.Candidates[0].Address = "[fec0::1]:443"; r.Candidates[0].IP = "fec0::1" },
+		func(r *Request) { r.Options.DownloadURL = "http://[fec0::1]/" },
+		func(r *Request) { r.Prefixes = []Prefix{{"fec0::/10", 443, "manual", "manual"}} },
 		func(r *Request) { r.Candidates = make([]Candidate, 4097) },
 		func(r *Request) { r.Candidates = nil },
 		func(r *Request) { r.Prefixes = []Prefix{{"10.0.0.0/8", 443, "cf", "official"}} },
@@ -89,7 +92,7 @@ func TestUnsafeOptionsAndCandidateBoundsRejected(t *testing.T) {
 }
 
 func TestPublicAddressBoundary(t *testing.T) {
-	for _, s := range []string{"127.0.0.1", "10.1.1.1", "172.16.0.1", "192.168.1.1", "169.254.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "100.64.0.1", "198.18.0.1", "203.0.113.1", "::", "::1", "fc00::1", "fe80::1", "ff02::1", "2001:db8::1", "64:ff9b::7f00:1", "::ffff:127.0.0.1"} {
+	for _, s := range []string{"127.0.0.1", "10.1.1.1", "172.16.0.1", "192.168.1.1", "169.254.0.1", "0.0.0.0", "224.0.0.1", "255.255.255.255", "100.64.0.1", "198.18.0.1", "203.0.113.1", "::", "::1", "fc00::1", "fe80::1", "fec0::1", "feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff", "ff02::1", "2001:db8::1", "64:ff9b::7f00:1", "::ffff:127.0.0.1"} {
 		if publicIP(netip.MustParseAddr(s)) {
 			t.Fatal("unsafe", s)
 		}
@@ -112,7 +115,7 @@ func TestOfficialProvenanceAndSafeURLs(t *testing.T) {
 			t.Fatal(s)
 		}
 	}
-	for _, s := range []string{"file:///tmp/list", "https://user:pass@example.com/", "https://example.com/#secret", "http://[::1]/", "http://example.com:0/"} {
+	for _, s := range []string{"file:///tmp/list", "https://user:pass@example.com/", "https://example.com/#secret", "http://[::1]/", "http://[fec0::1]/", "http://example.com:0/"} {
 		if _, err := safeURL(s); err == nil {
 			t.Fatal(s)
 		}
