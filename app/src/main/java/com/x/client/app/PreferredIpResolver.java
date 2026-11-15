@@ -1,5 +1,6 @@
 package com.x.client.app;
 
+import android.text.TextUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.net.URI;
@@ -194,7 +195,7 @@ public final class PreferredIpResolver {
             }
         }
         if (relay.isEmpty()) return new Decision(p, merged, mode, false, "未接管：已选地址没有已验证子集，保留原入口");
-        merged.put(key, String.join(",", relay));
+        merged.put(key, TextUtils.join(",", relay));
         return new Decision(p, merged, mode, true, "已采用已保存全局池的兼容子集 " + relay.size() + "/" + selected.length() + " IP");
     }
 

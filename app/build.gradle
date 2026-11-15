@@ -12,6 +12,10 @@ android {
         applicationId "com.x.client.app"
         minSdkVersion 24
         targetSdkVersion 34
+        // Only the non-tag trial CI assembles/runs this dependency-free system runner.
+        if (trialBuild) {
+            testInstrumentationRunner "com.x.client.app.PreferredIpFeedbackInstrumentation"
+        }
         // 从环境变量获取版本号，如果没有则使用默认值
         versionCode project.hasProperty('VERSION_CODE') ? VERSION_CODE.toInteger() : 1
         versionName project.hasProperty('VERSION_NAME') ? VERSION_NAME : "1.0"

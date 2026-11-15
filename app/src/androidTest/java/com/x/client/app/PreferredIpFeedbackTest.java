@@ -4,9 +4,10 @@ import android.content.Context;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** Framework-free device assertions. A CI/device harness can call run(context).
- * No JUnit/AndroidX or optional android.test library dependency. NOT run locally. */
+/** Offline fixtures on real Android JSON/Preferences and app code, not UI/network tests.
+ * Called by the trial CI system Instrumentation; no JUnit/AndroidX/android.test dependency. */
 public final class PreferredIpFeedbackTest {
+    static final int TOTAL = 6;
     private final Context context;
     private Preferences profile;
     private String id;
@@ -14,15 +15,29 @@ public final class PreferredIpFeedbackTest {
     private PreferredIpFeedbackTest(Context context) { this.context = context; }
     private interface Scenario { void run() throws Exception; }
 
+    interface Reporter { void passed(int number, String name); }
+
     public static void run(Context context) throws Exception {
+        run(context, (number, name) -> { });
+    }
+
+    static void run(Context context, Reporter reporter) throws Exception {
         PreferredIpFeedbackTest suite = new PreferredIpFeedbackTest(context);
-        for (Scenario scenario : new Scenario[]{suite::testThreeSavedIpsReplaceSixOnlyAfterValidation,
+        String[] names = {"testThreeSavedIpsReplaceSixOnlyAfterValidation", "testSubsetAndNonAdoptionReasons",
+                "testUnknownChangedTargetAndAdvancedConflictStayOriginal", "testNoDownloadRecommendationFalseIsNotFailure",
+                "testThirdPartyCommentHiddenAndManualProvenanceRecovered", "testReadableLogDeduplicatesAndBounds"};
+        Scenario[] scenarios = {suite::testThreeSavedIpsReplaceSixOnlyAfterValidation,
                 suite::testSubsetAndNonAdoptionReasons, suite::testUnknownChangedTargetAndAdvancedConflictStayOriginal,
                 suite::testNoDownloadRecommendationFalseIsNotFailure,
                 suite::testThirdPartyCommentHiddenAndManualProvenanceRecovered,
-                suite::testReadableLogDeduplicatesAndBounds}) {
-            try { suite.setUp(); scenario.run(); }
+                suite::testReadableLogDeduplicatesAndBounds};
+        assertEquals(TOTAL, scenarios.length);
+        assertEquals(TOTAL, names.length);
+        for (int i = 0; i < scenarios.length; i++) {
+            try { suite.setUp(); scenarios[i].run(); }
             finally { suite.tearDown(); }
+            // A PASS is emitted only after this scenario AND its cleanup actually return.
+            reporter.passed(i + 1, names[i]);
         }
     }
 
@@ -47,7 +62,7 @@ public final class PreferredIpFeedbackTest {
         android.content.SharedPreferences prefs = context.getSharedPreferences(Preferences.PREFS_NAME, 0);
         android.content.SharedPreferences.Editor edit = prefs.edit();
         for (String key : prefs.getAll().keySet()) if (key.endsWith("_" + id)) edit.remove(key);
-        edit.commit();
+        assertTrue(edit.commit());
     }
 
     private JSONObject pool() throws Exception {
@@ -71,6 +86,11 @@ public final class PreferredIpFeedbackTest {
         assertEquals("104.16.1.1:443,104.16.1.2:443,104.16.1.3:443", params.getString("relay_nodes"));
         assertTrue(decision.summary.contains("= 9"));
         assertEquals(6, profile.getXtRelayNodes().split(",").length); // original is untouched
+        pool.getJSONArray("selected").put(pool.getJSONArray("selected").getJSONObject(0));
+        pool.getJSONObject("validations").getJSONObject(id).put("addresses", new JSONArray()
+                .put("104.16.1.3:443").put("104.16.1.2:443").put("104.16.1.1:443"));
+        PreferredIpResolver.apply(profile, params, pool);
+        assertEquals("104.16.1.1:443,104.16.1.2:443,104.16.1.3:443", params.getString("relay_nodes")); // ordered, deduplicated
     }
 
     public void testSubsetAndNonAdoptionReasons() throws Exception {
@@ -129,14 +149,18 @@ public final class PreferredIpFeedbackTest {
                 .put("candidates", new JSONArray().put(manual)));
         assertEquals("我的备注", PreferredIpPresentation.comment(third, data));
         assertEquals("我的备注", PreferredIpPresentation.comment(manual, data));
-        assertTrue(PreferredIpPresentation.sources(third, data).contains("https://list.example/ips.txt"));
+        assertEquals("https://list.example/ips.txt\n手动粘贴", PreferredIpPresentation.sources(third, data));
         assertFalse(PreferredIpPresentation.sources(third, data).contains(id));
         assertEquals("第三方碎片 / 我的备注", third.getString("comment"));
         assertTrue(PreferredIpPresentation.sources(third, PreferredIpStore.empty()).contains("URL 映射已缺失"));
+        data.getJSONArray("sources").getJSONObject(1).getJSONArray("candidates")
+                .put(new JSONObject(manual.toString()).put("comment", "第二条备注")).put(manual);
+        assertEquals("我的备注 / 第二条备注", PreferredIpPresentation.comment(third, data));
     }
 
     public void testReadableLogDeduplicatesAndBounds() throws Exception {
         PreferredIpLog log = new PreferredIpLog();
+        assertEquals("", log.text());
         JSONObject snapshot = new JSONObject().put("id", "task-1").put("operation", "test")
                 .put("phase", "latency").put("state", "running").put("completed", 1).put("total", 3)
                 .put("warnings", new JSONArray().put("ECH fallback"));

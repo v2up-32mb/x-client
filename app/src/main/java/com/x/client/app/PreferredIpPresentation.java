@@ -1,5 +1,6 @@
 package com.x.client.app;
 
+import android.text.TextUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.LinkedHashSet;
@@ -45,7 +46,7 @@ final class PreferredIpPresentation {
             }
             labels.add(found == null ? fallback(id, row.optString("source_kind")) : source(found));
         }
-        return labels.isEmpty() ? "来源未知" : String.join("\n", labels);
+        return labels.isEmpty() ? "来源未知" : TextUtils.join("\n", labels);
     }
 
     static String comment(JSONObject row, JSONObject data) {
@@ -64,7 +65,7 @@ final class PreferredIpPresentation {
                 }
             }
         }
-        return String.join(" / ", notes);
+        return TextUtils.join(" / ", notes);
     }
 
     static JSONObject find(JSONArray rows, String address) {

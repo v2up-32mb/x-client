@@ -124,6 +124,12 @@ jobs:
           restore-keys: |
             gomobile-toolchain-${{ runner.os }}-${{ hashFiles('golib/go.sum') }}-
 
+      - name: Guard API 24 source and instrumentation result protocol (trial)
+        if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
+        run: |
+          python3 app/src/static_checks/preferred_ip_feedback.py
+          python3 app/src/static_checks/preferred_ip_instrumentation.py --self-test
+
       - name: Run Go race tests (trial, never skipped by AAR cache)
         if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
         working-directory: golib
@@ -238,11 +244,111 @@ jobs:
       - name: Build trial debug APK (default debug signing, separate app data)
         if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
         run: |
-          ./gradlew assembleDebug \
+          ./gradlew assembleDebug assembleDebugAndroidTest \
             -PTRIAL_BUILD=true \
             -PVERSION_CODE=${{ needs.meta.outputs.version_code }} \
             -PVERSION_NAME=${{ needs.meta.outputs.version_name }}-trial \
             --no-daemon
+
+      - name: Run six offline feedback scenarios on API 24 emulator (trial)
+        if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
+        timeout-minutes: 20
+        run: |
+          set -euo pipefail
+          # Use the existing SDK tools, not a new emulator action or a physical device.
+          # AOSP image has no Play services/account; tests call only offline app branches.
+          SDK="${ANDROID_HOME:?Android SDK missing}"
+          ADB="$SDK/platform-tools/adb"
+          EMULATOR="$SDK/emulator/emulator"
+          BT="$SDK/build-tools/34.0.0"
+          IMAGE='system-images;android-24;default;x86_64'
+          SERIAL=emulator-5554
+          work=$(mktemp -d "$RUNNER_TEMP/preferred-ip-api24.XXXXXX")
+          export ANDROID_AVD_HOME="$work/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          emulator_pid=''
+          cleanup() {
+            status=$?
+            trap - EXIT
+            if [[ "$status" != 0 ]]; then
+              echo "::error::API 24 offline feedback verification failed (status $status)"
+              if [[ -f "$work/emulator.log" ]]; then tail -n 100 "$work/emulator.log" || true; fi
+              if [[ -f "$work/instrumentation.txt" ]]; then cat "$work/instrumentation.txt" || true; fi
+              # Diagnostics/cleanup alone are best-effort; never change the failing status.
+              timeout 15s "$ADB" -s "$SERIAL" logcat -d -t 200 || true
+            fi
+            if [[ -n "$emulator_pid" ]]; then
+              timeout 10s "$ADB" -s "$SERIAL" emu kill >/dev/null 2>&1 || true
+              kill "$emulator_pid" 2>/dev/null || true
+            fi
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap 'exit 1' INT TERM
+
+          # No KVM / unavailable image / boot timeout is a hard failure, never a skip.
+          [[ -c /dev/kvm ]] || { echo '::error::KVM device is required'; exit 1; }
+          timeout 10s sudo -n chmod a+rw /dev/kvm
+          [[ -r /dev/kvm && -w /dev/kvm ]] || { echo '::error::KVM is not accessible'; exit 1; }
+          timeout 480s sdkmanager --install 'emulator' "$IMAGE"
+          timeout 20s "$EMULATOR" -accel-check
+          printf 'no\n' | timeout 60s avdmanager create avd --force --name preferred-ip-api24 --package "$IMAGE"
+          timeout 20s "$ADB" start-server
+          "$EMULATOR" -avd preferred-ip-api24 -port 5554 -accel on \
+            -no-window -no-audio -no-boot-anim -no-snapshot -wipe-data \
+            -gpu swiftshader_indirect -cores 2 -memory 2048 \
+            -camera-back none -camera-front none > "$work/emulator.log" 2>&1 &
+          emulator_pid=$!
+          booted=false
+          deadline=$((SECONDS + 240))
+          while (( SECONDS < deadline )); do
+            kill -0 "$emulator_pid" 2>/dev/null || { echo '::error::Emulator exited before boot'; exit 1; }
+            # A disconnected/not-yet-booted adb is expected ONLY within this bounded wait.
+            boot=$(timeout 5s "$ADB" -s "$SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)
+            if [[ "$boot" == 1 ]] && timeout 5s "$ADB" -s "$SERIAL" shell pm path android 2>/dev/null | grep -q '^package:'; then
+              booted=true
+              break
+            fi
+            sleep 2
+          done
+          [[ "$booted" == true ]] || { echo '::error::API 24 boot/package manager timed out (240s)'; exit 1; }
+          api=$(timeout 10s "$ADB" -s "$SERIAL" shell getprop ro.build.version.sdk | tr -d '\r')
+          [[ "$api" == 24 ]] || { echo "::error::Expected API 24, got $api"; exit 1; }
+          echo "Offline feedback target: Android API $api emulator ($IMAGE)"
+
+          apk=app/build/outputs/apk/debug/app-universal-debug.apk
+          test_apk=app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+          test -f "$apk" && test -f "$test_apk"
+          "$BT/aapt" dump badging "$apk" | grep -F "package: name='com.x.client.app.trial'"
+          "$BT/aapt" dump badging "$test_apk" > "$work/test-badging.txt"
+          grep -F "package: name='com.x.client.app.trial.test'" "$work/test-badging.txt"
+          if grep -Eq "uses-library(-not-required)?:.*android[.]test[.]" "$work/test-badging.txt"; then
+            echo '::error::The system runner must not depend on optional android.test libraries'
+            exit 1
+          fi
+          timeout 90s "$ADB" -s "$SERIAL" install -r "$apk" | tr -d '\r' | tee "$work/install-app.txt"
+          grep -Fx 'Success' "$work/install-app.txt"
+          timeout 90s "$ADB" -s "$SERIAL" install -r -t "$test_apk" | tr -d '\r' | tee "$work/install-test.txt"
+          grep -Fx 'Success' "$work/install-test.txt"
+          component=com.x.client.app.trial.test/com.x.client.app.PreferredIpFeedbackInstrumentation
+          timeout 15s "$ADB" -s "$SERIAL" shell pm list instrumentation | tr -d '\r' | \
+            grep -Fx "instrumentation:$component (target=com.x.client.app.trial)"
+
+          # am instrument can exit 0 on AssertionError/process crash: require both a
+          # successful command AND six named PASS records + final bundle + code -1.
+          set +e
+          timeout 120s "$ADB" -s "$SERIAL" shell am instrument -w -r "$component" > "$work/instrumentation.txt" 2>&1
+          instrument_status=$?
+          set -e
+          cat "$work/instrumentation.txt"
+          [[ "$instrument_status" == 0 ]] || { echo "::error::Instrumentation command failed/timed out ($instrument_status)"; exit 1; }
+          python3 app/src/static_checks/preferred_ip_instrumentation.py "$work/instrumentation.txt" | tee "$work/verified.txt"
+          {
+            echo '### API 24 emulator 离线反馈断言'
+            echo '真实 Android JSON / SharedPreferences 与 app 代码的六组离线 fixture；不是物理真机、UI 或公网/VPN/WebSocket 验证。'
+            cat "$work/verified.txt"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Test APK/AVD/logs stay on this ephemeral CI runner, never in delivery artifacts.
 
       - name: Verify trial APK and write installation guidance
         if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
@@ -250,14 +356,14 @@ jobs:
           apk=app/build/outputs/apk/debug/app-universal-debug.apk
           test -f "$apk"
           BT=/usr/local/lib/android/sdk/build-tools/34.0.0
-          "$BT/apksigner" verify --verbose "$apk"
+          "$BT/apksigner" verify --verbose --print-certs "$apk"
           "$BT/aapt" dump badging "$apk" | grep -F "package: name='com.x.client.app.trial'"
           {
             echo "### 独立试用 APK"
             echo "下载本次运行的 x-client-trial-debug-universal artifact（保留 7 天）。"
             echo "默认 Android debug 签名，仅供测试；包名 com.x.client.app.trial，可与正式版并存。"
             echo "试用版拥有独立数据，需要通过 URI 导入已有节点，不会迁移或覆盖正式版配置。"
-            echo "已执行仓库依赖与绑定后实际依赖的两轮 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查及 assembleDebug。"
+            echo "已执行仓库依赖与绑定后实际依赖的两轮 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查、assembleDebug/assembleDebugAndroidTest 及 API 24 emulator 六组离线断言（6/6 PASS）。"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload trial universal APK

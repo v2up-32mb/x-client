@@ -1,5 +1,6 @@
 package com.x.client.app;
 
+import android.text.TextUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.nio.charset.StandardCharsets;
@@ -67,5 +68,5 @@ final class PreferredIpLog {
         if (!failure.equals(error)) { error = failure; if (!failure.isEmpty()) add("错误：" + failure); }
     }
 
-    String text() { return String.join("", lines); }
+    String text() { return TextUtils.join("", lines); }
 }

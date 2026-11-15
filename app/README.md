@@ -163,6 +163,7 @@ app/src/main/res/values[-night]/
 
 ```sh
 python3 app/src/static_checks/preferred_ip_feedback.py
+python3 app/src/static_checks/preferred_ip_instrumentation.py --self-test
 git diff --check
 ```
 
@@ -195,10 +196,41 @@ git diff --check
   不回退随机码。第三方COMMENT只隐藏展示；混合来源备注仅从纯manual源记录恢复，避免合并碎片泄漏。
   手工备注、解析及内部comment未删除。UI统一“HTTPS验证/请求延迟”；Go字段仍为 `http_*`。
 
-新增 `app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java` 为无框架依赖的设备断言集，
-通过 `run(Context)` 供后续CI/设备harness调用（未接入自动runner，不增加依赖）：覆盖3/9接管、部分子集、禁用/独立/default/目标变更/高级冲突、
-0-download非推荐仍有效、URL多来源/备注、日志去重和界限。**仅编写，未本地运行或编译，也未运行CI。**
-静态脚本通过只说明源代码守卫/XML/词法括号成立，不证明Android编译或设备行为。
+`app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java` 为无测试框架依赖的六组离线断言，
+保留 `run(Context)`，由 `PreferredIpFeedbackInstrumentation`（系统 `android.app.Instrumentation`）调用。
+覆盖3/9接管、部分子集、禁用/独立/default/目标变更/高级冲突、0-download非推荐仍有效、
+URL多来源/备注、日志去重和界限；补充拼接的地址顺序/去重、备注顺序/去重及空日志检查，不增加功能场景。
+**已接入下述 trial CI；本次修改尚未编译或执行这些 Android 断言，不能沿用旧 CI 结果。**
+静态脚本通过只说明源代码守卫/XML/词法括号及结果解析协议成立，不证明Android编译或设备行为。
+
+### API 24 兼容与 trial 离线 CI
+
+- `PreferredIpResolver` / `PreferredIpLog` / `PreferredIpPresentation` 的四处拼接统一使用
+  API 1 的 `android.text.TextUtils.join`；原逗号/换行/空分隔符/备注分隔符、有序去重集合及空输出不变。
+  [`String.join` 官方参考](https://developer.android.com/reference/java/lang/String#join(java.lang.CharSequence,%20java.lang.Iterable))
+  标为 API 26，本项目 minSdk 24 且未启用 core library desugaring，不能依赖它。
+  `preferred_ip_feedback.py` 静态禁止优选 IP 源码再次引用该方法；不引入依赖或开启 desugaring。
+- 只有非 tag 且 `trial_build=true` 的现有 compile job 使用 `-PTRIAL_BUILD=true` 配置自定义 runner，
+  同时 `assembleDebug` / `assembleDebugAndroidTest`。runner 不依赖 JUnit、AndroidX Test 或可选
+  `android.test` 系统库；test manifest 移除可能合并的这类库，CI 再检查 test APK manifest。
+  普通 manual、tag 构建与 release 签名/发布路径保持不变。
+- 在上传 universal APK 前，使用 runner 现有 Android SDK shell 工具安装 AOSP
+  `system-images;android-24;default;x86_64`，开启 KVM emulator 并安装本次 trial universal APK 和 test APK。
+  不新增 emulator action。镜像安装480秒、boot/PackageManager等待240秒、单次安装90秒、
+  instrumentation120秒、整个步骤20分钟上限；KVM缺失/不可用、镜像安装或启动失败都令 CI 失败，不跳过。
+- 六例在真正 API 24 Android runtime 的 `org.json`、`SharedPreferences` 和 app 离线代码上执行。
+  runner 使用 trial 目标 Context，不替换 Application、不启动 Activity/VPN/测速任务；所有地址/URL/结果均为
+  离线 fixture 输入，不发起公网请求，也不是 UI mock 演示。**这不是物理真机、网络、WS认证或完整服务链路验证。**
+- 每例断言和临时 Preferences 清理返回后才发送 `PASS n/6 testName`；最终必须有 `PASS 6/6`、
+  `passed=6`、`total=6`、`api=24` 和 `INSTRUMENTATION_CODE: -1`。
+  runner 捕获包括 `AssertionError` / `LinkageError` 在内的 `Throwable` 并返回失败。
+  CI 除检查命令退出码，还以 `preferred_ip_instrumentation.py` 严格核对六条有序具名结果及最终 bundle/code，
+  缺例、异常中断、runner/进程崩溃及超时均失败，不能被 `am instrument` 的 exit 0 掩盖。
+  `--self-test` 只验证合成协议文本的拒绝逻辑，不冒充六例执行；真实 PASS 只来自当次 emulator 输出。
+- emulator、test APK、日志仅留在临时 CI runner；唯一试用交付 artifact 仍为
+  `x-client-trial-debug-universal`，仅原 universal APK，安装/验证说明写入 job summary。
+  不上传 test APK、keystore；trial 使用默认 debug 签名，不读取发行密钥。
+  trial 的 `apksigner verify --verbose --print-certs` 打印签名证书，便于交付前对照。
 
 仍需新CI验证AAR API/Android构建，并在设备检查首导入→选择3IP→验证→确认→下次连接9条参数、
 全失败及部分兼容、取消/切网/参数变更、长URL、大字体/暗色/横屏、日志手动历史滚动和旋转。

@@ -2,6 +2,7 @@
 """Source/resource guards only. Does not compile or execute Android/Go code."""
 from pathlib import Path
 import re
+import runpy
 import xml.etree.ElementTree as ET
 
 app = Path(__file__).resolve().parents[2]
@@ -16,12 +17,25 @@ def section(text, start, end):
     return text.split(start, 1)[1].split(end, 1)[0]
 
 
+# String.join is API 26; minSdk 24 has no coreLibraryDesugaring. Keep delimiters,
+# ordered collections and empty output semantics unchanged; TextUtils.join is API 1.
+for file in java.glob("PreferredIp*.java"):
+    text = file.read_text()
+    assert not re.search(r"\bString\s*(?:\.\s*join\s*\(|::\s*join\b)", text), file
+    assert not re.search(r"import\s+static\s+java\.lang\.String\.", text), file
+for text, calls in [(resolver, ['TextUtils.join(",", relay)']),
+                    (log, ['TextUtils.join("", lines)']),
+                    (presentation, ['TextUtils.join("\\n", labels)', 'TextUtils.join(" / ", notes)'])]:
+    assert "import android.text.TextUtils;" in text
+    for call in calls:
+        assert call in text, call
+
 # Original-address safety and final startup precedence (not a runtime integration test).
 apply = section(resolver, "public static Decision apply(", "public static String stripComments")
 assert apply.index("conflict(p)") < apply.index('"default".equals(mode)') < apply.index('pool.optBoolean("enabled")')
 assert 'valid.optString("target_key")' in apply
 assert 'address.equals(addresses.getString(j))' in apply
-assert 'merged.put(key, String.join(",", relay))' in apply
+assert 'merged.put(key, TextUtils.join(",", relay))' in apply
 assert 'java.util.LinkedHashSet' in apply
 assert 'setXtRelayNodes' not in resolver and 'setPrefIp' not in resolver
 start = section(service, "private void startProxy(", "private JSONObject buildGCMParams(")
@@ -110,6 +124,29 @@ for file in (app / "src/main/res").rglob("*.xml"):
 for text in [activity, editor]:
     for kind, name in re.findall(r"(?<!material\.)R\.(string|dimen|id|array)\.(\w+)", text):
         assert name in resources[kind], (kind, name)
+
+# The system-only CI runner must enumerate these six offline scenarios, not just
+# return a success code. These are source guards, NOT execution of those scenarios.
+tests = app / "src/androidTest/java/com/x/client/app"
+suite = (tests / "PreferredIpFeedbackTest.java").read_text()
+runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
+protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
+assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SCENARIOS"]
+assert len(protocol["SCENARIOS"]) == protocol["TOTAL"] == 6
+assert 'static final int TOTAL = 6;' in suite
+assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
+assert 'assertTrue(edit.commit())' in suite
+assert 'extends Instrumentation' in runner and 'import android.app.Instrumentation;' in runner
+assert 'Build.VERSION.SDK_INT != 24' in runner and '"com.x.client.app.trial".equals' in runner
+assert 'catch (Throwable failure)' in runner and 'finish(Activity.RESULT_CANCELED, result)' in runner
+assert 'passed != PreferredIpFeedbackTest.TOTAL' in runner and 'finish(Activity.RESULT_OK, result)' in runner
+for file in tests.glob("*.java"):
+    assert not re.search(r"import (?:org\.junit|androidx\.|android\.test\.)", file.read_text()), file
+manifest = ET.parse(app / "src/androidTest/AndroidManifest.xml").getroot()
+for library in manifest.iter("uses-library"):
+    assert library.attrib["{http://schemas.android.com/tools}node"] == "remove"
+build = (app / "build.gradle").read_text()
+assert 'if (trialBuild) {\n            testInstrumentationRunner "com.x.client.app.PreferredIpFeedbackInstrumentation"' in build
 
 # Lexical delimiter/string sanity only, explicitly not a Java parser/compiler.
 for file in list(java.glob("PreferredIp*.java")) + [java / "ProfileEditActivity.java", java / "ProfileListActivity.java", java / "TProxyService.java"] + list((app / "src/androidTest").rglob("*.java")):
