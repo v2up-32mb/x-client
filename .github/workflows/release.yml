@@ -191,6 +191,22 @@ jobs:
           tail -n 5 /tmp/bind.log
           test -f app/libs/xclient.aar && ls -la app/libs
 
+      - name: Run Go race tests against bind-resolved dependencies (trial)
+        # 原有绑定工具准备会临时改写 runner 的模块图；首轮 race 只验证仓库依赖。
+        # 绑定后再以 readonly 模式验证实际选中集合，不能将首轮结果冒充 APK 的依赖验证。
+        # 不提交/升级仓库 go.mod/go.sum，也不改变普通构建或 tag 发版路径。
+        if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
+        working-directory: golib
+        env:
+          CGO_ENABLED: '1'
+          GOFLAGS: -mod=readonly
+        run: |
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/gcm)" = v0.1.1
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xshared)" = v0.1.5
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xtunnel)" = v0.3.4
+          go list -m all
+          go test -race -count=1 ./...
+
       - name: Verify preferred IP gomobile JSON API (trial)
         if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial == 'true'
         run: |
@@ -233,7 +249,7 @@ jobs:
             echo "下载本次运行的 x-client-trial-debug-universal artifact（保留 7 天）。"
             echo "默认 Android debug 签名，仅供测试；包名 com.x.client.app.trial，可与正式版并存。"
             echo "试用版拥有独立数据，需要通过 URI 导入已有节点，不会迁移或覆盖正式版配置。"
-            echo "已执行 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查及 assembleDebug。"
+            echo "已执行仓库依赖与绑定后实际依赖的两轮 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查及 assembleDebug。"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload trial universal APK
