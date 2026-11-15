@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	shareddns "github.com/v2up-32mb/xshared/dns"
 )
 
 func wireECHResponse(query, config []byte) []byte {
@@ -89,6 +91,43 @@ func TestECHDoHIsRFC8484AndContextBound(t *testing.T) {
 	})
 	if err != nil || calls != 1 || len(warnings) != 0 || !bytes.Equal(got, config) {
 		t.Fatalf("%x %v %v calls=%d", got, warnings, err, calls)
+	}
+}
+
+func TestECHEmptyDNSUsesContextBoundBuiltinList(t *testing.T) {
+	o := defaultOptions()
+	o.EnableECH = true
+	o.DNSServer = ""
+	want := append([]string{}, shareddns.DefaultDoHServers...)
+	if len(want) == 0 {
+		t.Fatal("shared defaults missing")
+	}
+	calls := 0
+	config := []byte{0, 3, 1, 2, 3}
+	rt := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		i := calls
+		calls++
+		if i >= len(want) || req.URL.String() != want[i] {
+			t.Fatalf("default DoH order: %d %s; want %v", i, req.URL, want)
+		}
+		if deadline, ok := req.Context().Deadline(); !ok || time.Until(deadline) > 4*time.Second {
+			t.Fatal("built-in DoH request is not context bound")
+		}
+		if i < len(want)-1 {
+			return nil, errors.New("offline injected failure")
+		}
+		q, err := io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
+		return response(req, 200, "application/dns-message", string(wireECHResponse(q, config))), nil
+	})
+	got, warnings, err := prepareECH(context.Background(), o, rt, func(context.Context, string, string) (net.Conn, error) {
+		t.Error("unexpected UDP after successful default DoH")
+		return nil, errors.New("unexpected UDP")
+	})
+	if err != nil || calls != len(want) || len(warnings) != len(want)-1 || !bytes.Equal(got, config) {
+		t.Fatalf("got=%x warnings=%v err=%v calls=%d", got, warnings, err, calls)
 	}
 }
 

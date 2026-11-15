@@ -118,13 +118,24 @@ func validateOptions(o *Options) error {
 	if _, err := safeURL(o.DownloadURL); err != nil {
 		return fmt.Errorf("download_url: %w", err)
 	}
+	o.ECHDomain = strings.TrimSpace(o.ECHDomain)
+	if o.ECHDomain == "" {
+		o.ECHDomain = defaultOptions().ECHDomain
+	}
+	o.DNSServer = strings.TrimSpace(o.DNSServer)
+	if o.DNSServer == "" && o.Protocol == "xtunnel" {
+		// Pinned xtunnel v0.3.4 default; GCM empty selects xshared's built-in list.
+		o.DNSServer = "https://v.recipes/dns-query"
+	}
 	if o.EnableECH {
 		if !validHost(o.ECHDomain) {
 			return fmt.Errorf("无效的ech_domain")
 		}
-		u, err := safeURL(o.DNSServer)
-		if err != nil || u.Scheme != "https" {
-			return fmt.Errorf("dns_server必须为HTTPS DoH URL")
+		if o.DNSServer != "" {
+			u, err := safeURL(o.DNSServer)
+			if err != nil || u.Scheme != "https" {
+				return fmt.Errorf("dns_server必须为HTTPS DoH URL（GCM空值使用内置列表）")
+			}
 		}
 	}
 	return nil

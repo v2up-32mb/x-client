@@ -86,6 +86,7 @@ public class ProfileEditActivity extends BaseActivity {
     private boolean preferredDraftDirty;
     // Unknown keys and confirmed deletions live here, never reloaded from saved prefs on save.
     private String xtAdvancedDraft;
+    private String pendingPreferredImport;
     private String preferredOriginalMode, restoredPreferredMode;
     private static final String[] PREFERRED_MODES = {"global", "independent", "default"};
 
@@ -99,6 +100,7 @@ public class ProfileEditActivity extends BaseActivity {
             restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
             preferredDraftDirty = savedInstanceState.getBoolean("preferred_dirty_draft");
             xtAdvancedDraft = savedInstanceState.getString("xt_advanced_draft");
+            pendingPreferredImport = savedInstanceState.getString("pending_preferred_import");
         }
 
         prefs = new Preferences(this);
@@ -261,6 +263,7 @@ public class ProfileEditActivity extends BaseActivity {
         preferredMode = findViewById(R.id.preferred_mode_spinner);
         preferredMode.setEnabled(false);
         btn_save.setEnabled(false);
+        btn_import.setEnabled(false);
         preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
                 if (preferredConflict && position != 1) {
@@ -318,8 +321,14 @@ public class ProfileEditActivity extends BaseActivity {
                     preferredLoaded = true;
                     preferredMode.setEnabled(!preferredLocked());
                     btn_save.setEnabled(!preferredLocked());
+                    btn_import.setEnabled(!preferredLocked());
                     ((TextView) findViewById(R.id.preferred_mode_summary)).setText(summary + "\n"
                             + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
+                    if (pendingPreferredImport != null) {
+                        String pending = pendingPreferredImport;
+                        pendingPreferredImport = null;
+                        importFromProtocol(pending);
+                    }
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败，请先修复：" + error.getMessage()));
@@ -337,6 +346,7 @@ public class ProfileEditActivity extends BaseActivity {
         if (preferredMode != null && preferredLoaded) out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
         out.putBoolean("preferred_dirty_draft", preferredDraftDirty);
         out.putString("xt_advanced_draft", xtAdvancedDraft);
+        out.putString("pending_preferred_import", pendingPreferredImport);
         super.onSaveInstanceState(out);
     }
 
@@ -951,7 +961,15 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void importFromProtocol(String protocol) {
-        if (preferredLocked() || !preferredLoaded) return;
+        if (preferredLocked()) {
+            Toast.makeText(this, "当前节点正在运行，不能导入覆盖", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!preferredLoaded) {
+            // A scan result can arrive before asynchronous pool loading after recreation.
+            pendingPreferredImport = protocol;
+            return;
+        }
         // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
         boolean isXtunnel = protocol.startsWith("xtunnel://");
         if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {

@@ -14,8 +14,9 @@ final class PreferredIpNetwork {
         Network network = cm.getActiveNetwork();
         if (network == null) return "offline";
         LinkProperties lp = cm.getLinkProperties(network);
-        return network.getNetworkHandle() + ":" + (lp == null ? "" : lp.getInterfaceName()
+        String description = network.getNetworkHandle() + ":" + (lp == null ? "" : lp.getInterfaceName()
                 + ":" + lp.getLinkAddresses() + ":" + lp.getDnsServers());
+        return PreferredIpIds.opaque("net", description);
     }
 
     static void requireDirect(Context context) {

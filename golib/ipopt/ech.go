@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	shareddns "github.com/v2up-32mb/xshared/dns"
 	"golang.org/x/net/dns/dnsmessage"
 )
 
@@ -32,7 +33,12 @@ func prepareECH(ctx context.Context, o Options, rt http.RoundTripper, udpDial fu
 		return nil, nil, err
 	}
 	warnings := []string{}
-	servers := appendUnique([]string{o.DNSServer}, "https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query")
+	servers := []string{o.DNSServer}
+	if o.DNSServer == "" {
+		// Reuse only the pinned defaults, never the uncancellable shared client/manager.
+		servers = append([]string{}, shareddns.DefaultDoHServers...)
+	}
+	servers = appendUnique(servers, "https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query")
 	client := &http.Client{Transport: rt, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return fmt.Errorf("DoH禁止重定向") }}
 	defer client.CloseIdleConnections()
 	for _, server := range servers {

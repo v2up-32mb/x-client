@@ -158,7 +158,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         button(content, R.string.preferred_fetch_list, () -> {
             String url = sourceUrl.getText().toString().trim();
             if (!url.startsWith("https://")) { sourceUrl.setError("请使用 HTTPS URL"); return; }
-            controller.fetch("list-" + url, url, "list");
+            controller.fetch(PreferredIpIds.opaque("list", url), url, "list");
         }, true);
         heading(content, R.string.preferred_manual);
         text(content, getString(R.string.preferred_format));

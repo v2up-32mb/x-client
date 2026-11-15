@@ -50,6 +50,29 @@ func TestDefaultsAndExplicitDisable(t *testing.T) {
 	}
 }
 
+func TestEmptyECHSettingsUseBackendDefaults(t *testing.T) {
+	for _, protocol := range []string{"gcm", "xtunnel"} {
+		t.Run(protocol, func(t *testing.T) {
+			r := testRequest(1)
+			r.Options.Protocol = protocol
+			r.Options.EnableECH = true
+			r.Options.ECHDomain = "  "
+			r.Options.DNSServer = "  "
+			got, err := decodeRequest(requestJSON(t, r))
+			if err != nil {
+				t.Fatal(err)
+			}
+			wantDNS := "" // GCM uses the shared built-in list.
+			if protocol == "xtunnel" {
+				wantDNS = "https://v.recipes/dns-query"
+			}
+			if got.Options.ECHDomain != "cloudflare-ech.com" || got.Options.DNSServer != wantDNS {
+				t.Fatalf("backend default mismatch: %+v", got.Options)
+			}
+		})
+	}
+}
+
 func TestUnsafeOptionsAndCandidateBoundsRejected(t *testing.T) {
 	mutations := []func(*Request){
 		func(r *Request) { r.Options.TargetHost = "https://node.example.com/path" },

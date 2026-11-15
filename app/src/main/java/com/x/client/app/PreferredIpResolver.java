@@ -8,6 +8,9 @@ import java.util.Locale;
 
 /** One precedence rule for testing, service starts and share snapshots: base -> XT JSON -> mode. */
 public final class PreferredIpResolver {
+    // Match pinned xshared v0.1.5 / xtunnel v0.3.4 empty-value semantics.
+    private static final String DEFAULT_ECH_DOMAIN = "cloudflare-ech.com";
+    private static final String DEFAULT_XT_DNS = "https://v.recipes/dns-query";
     private PreferredIpResolver() { }
 
     public static JSONObject baseParams(Preferences p) throws Exception {
@@ -28,7 +31,25 @@ public final class PreferredIpResolver {
                     .put("enable_ech", !p.getDisableEch()).put("ech_domain", p.getEchDomain())
                     .put("ech_dns", p.getEchDns());
         }
+        resolveDefaults(p, out);
         return out;
+    }
+
+    /** The same final defaults are used by test options, fingerprints, shares and service starts. */
+    public static void resolveDefaults(Preferences p, JSONObject merged) throws Exception {
+        Object domain = merged.opt("ech_domain");
+        if (domain instanceof String) {
+            String value = ((String) domain).trim();
+            merged.put("ech_domain", value.isEmpty() ? DEFAULT_ECH_DOMAIN : value);
+        }
+        boolean xt = Preferences.PROTOCOL_X_TUNNEL.equals(p.getProtocol());
+        String key = xt ? "dns_server" : "ech_dns";
+        Object dns = merged.opt(key);
+        if (dns instanceof String) {
+            String value = ((String) dns).trim();
+            // GCM empty DNS means the shared built-in DoH list, not an arbitrary single server.
+            merged.put(key, xt && value.isEmpty() ? DEFAULT_XT_DNS : value);
+        }
     }
 
     public static void mergeAdvanced(JSONObject out, Preferences p) throws Exception {

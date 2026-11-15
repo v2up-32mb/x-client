@@ -248,7 +248,9 @@ download_state, ech_status, recommended, tested_at
 - 所有目标 HTTPS 证书始终校验，XT的 `insecure` 不传入这里。保留 URL scheme、Host、SNI、
   path/query，**仅把 TCP 目的地址换为 Candidate 的明确 IP+port**，不按端口猜 TLS。
 - ECH直接使用 Go TLS 配置，独立实现任务 context-bound 的 RFC8484 DNS wire POST、HTTPS(type65)
-  ECH key5解析；按用户 DoH、Cloudflare DoH、Google DoH 顺序，每次最多4秒，再 UDP
+  ECH key5解析；空ECH域名恢复 `cloudflare-ech.com`，显式空DoH按既有后端语义处理：GCM复用
+  `xshared` 内置服务器列表，XT使用 `https://v.recipes/dns-query`；未指定选项仍保持原默认值。
+  按用户/内置 DoH、Cloudflare DoH、Google DoH 顺序，每次最多4秒，再 UDP
   `8.8.8.8:53` 最多2秒，总准备15秒。校验DNS响应ID/问题/rcode/截断和记录归属。
   不调用共享manager的 background-context 获取，不启动刷新；配置缺失/获取失败/ECH拒绝均明确
   标 fallback并回退**仍验证证书**的标准TLS。只记录服务模式HTTPS记录和响应内CNAME链，

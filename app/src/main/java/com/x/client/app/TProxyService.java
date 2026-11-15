@@ -287,6 +287,7 @@ public class TProxyService extends VpnService {
             params = buildGCMParams(prefs);
         }
 
+        PreferredIpResolver.resolveDefaults(prefs, params);
         String relayKey = Preferences.PROTOCOL_X_TUNNEL.equals(protocol) ? "relay_nodes" : "relay_ips";
         params.put(relayKey, PreferredIpResolver.stripComments(params.optString(relayKey)));
         // A stable AtomicFile snapshot, read only once after all advanced overrides.

@@ -151,6 +151,10 @@ app/src/main/res/values[-night]/
 | 旧 `PrefIp/XtRelayNodes` 非空，导入GCM/XT链接：不含入口参数，或 `ip=` / `relay_nodes=` | 两种形式都无条件写空输入框，保存为空入口；XT高级relay覆盖必须先确认删除。GCM出口FallbackIp不参与本修复。 |
 | 混合节点：损坏高级JSON、`relay_nodes`覆盖、错误target类型/非法端口，另有正常节点 | `prepareSave` 的逐节点try/catch覆盖这些检查；坏节点independent且scope含具体原因，无探测；正常节点继续校验和保存。全坏时保留旧池并报告各节点原因。 |
 | XT高级connections取 `null/true/{}/[]/"abc"/"3.5"/3.5/0/-1/17`；有效取 `1/16/"3"/3.0` | 前组拒绝且不探测，后组得到1/16/3/3；检查在base+advanced合并后、任何缓存复用及 `run` 前。GCM范围1–64，乘法使用已验证整数。 |
+| 显式default的ws:// XT节点保留旧relay，另一个正常节点保存池 | 不参与接管的节点在目标/连接数检查前跳过，保留default，下次仍传空入口；高级relay冲突仍须单独处理。 |
+| 编辑页重建后扫码结果先于优选库加载返回；加载中再旋转 | URI暂存于 `pendingPreferredImport` 和savedState，加载成功后导入；手动导入按钮加载完成前禁用，不静默丢弃结果。 |
+| 空ECH域名/DoH设置，或XT高级JSON显式空值 | 最终参数共用 `resolveDefaults`：域名恢复内置默认，XT空DoH恢复v0.3.4默认，GCM空DoH仍表示共享内置列表；测试/分享/服务一致。 |
+| 双栈多地址、多DNS；合法长列表URL | 完整描述/URL分别生成带前缀SHA-256 ID，长度小于256字节；原URL保持，网络比较共用同一函数，不直接截断。 |
 | 参数异常时/探测途中/缓存复用结束时取消或切网；预览后修改connections为非法 | 各catch和循环边界仍检查generation/network；整轮中止，不生成/提交新池；`commitPreview`再次检查最终连接数。 |
 
 从仓库根目录执行（仅检查源码结构，不编译、不执行Android/Go代码）：

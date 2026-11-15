@@ -483,13 +483,16 @@ final class PreferredIpController {
                     if (PreferredIpResolver.conflict(p)) {
                         throw new IllegalArgumentException("高级JSON含 relay_nodes 覆盖，请先在编辑页确认清除冲突");
                     }
-                    JSONObject merged = PreferredIpResolver.baseParams(p);
-                    target = PreferredIpResolver.target(p, merged);
-                    connections = PreferredIpResolver.validatedConnections(p, merged);
+                    // Explicit independent/default nodes do not participate in takeover.
+                    // Validate only participating nodes, so an unsupported target cannot
+                    // silently restore a default-mode node's old relay address.
                     if ((!first || modes.has(info.id)) && !"global".equals(PreferredIpStore.mode(next, info.id))) {
                         scope.append(info.name).append("：保留独立/域名默认（用户设置）\n");
                         continue;
                     }
+                    JSONObject merged = PreferredIpResolver.baseParams(p);
+                    target = PreferredIpResolver.target(p, merged);
+                    connections = PreferredIpResolver.validatedConnections(p, merged);
                 } catch (Exception invalid) {
                     check(epoch, net); // never turn cancellation/network loss into a profile error
                     modes.put(info.id, "independent");
