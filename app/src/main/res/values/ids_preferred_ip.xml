@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="preferred_results" type="id" />
+    <item name="preferred_primary" type="id" />
+    <item name="preferred_reference" type="id" />
+    <item name="preferred_sample_input" type="id" />
+    <item name="preferred_concurrency_input" type="id" />
+    <item name="preferred_status" type="id" />
+    <item name="preferred_choice" type="id" />
+    <item name="preferred_row_heading" type="id" />
+    <item name="preferred_row_detail" type="id" />
+    <item name="preferred_row_download" type="id" />
+    <item name="preferred_restart" type="id" />
+    <item name="preferred_new_round" type="id" />
+    <item name="preferred_enable" type="id" />
+    <item name="preferred_disable_action" type="id" />
+</resources>

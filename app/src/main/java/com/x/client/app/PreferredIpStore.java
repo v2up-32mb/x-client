@@ -75,6 +75,17 @@ public final class PreferredIpStore {
         return withLock(() -> writeLocked(data, expectedRevision));
     }
 
+    /** Short read/latest-revision/CAS transaction. Never call network or another store transaction here. */
+    interface Mutation { void apply(JSONObject latest) throws Exception; }
+    JSONObject update(Mutation mutation) throws Exception {
+        return withLock(() -> {
+            JSONObject latest = readLocked();
+            long revision = latest.getLong("revision");
+            mutation.apply(latest);
+            return writeLocked(latest, revision);
+        });
+    }
+
     private JSONObject writeLocked(JSONObject data, long expectedRevision) throws Exception {
         if (readLocked().getLong("revision") != expectedRevision) {
             throw new IllegalStateException("优选库已更新，请重新确认");

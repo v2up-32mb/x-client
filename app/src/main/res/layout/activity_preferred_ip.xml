@@ -12,17 +12,6 @@
         android:id="@+id/preferred_tabs" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:minHeight="@dimen/touch_target_min"
         app:tabMode="fixed" />
-    <FrameLayout android:id="@+id/preferred_page" android:layout_width="match_parent"
-        android:layout_height="0dp" android:layout_weight="1" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:paddingHorizontal="@dimen/spacing_lg" android:text="@string/preferred_log"
-        android:textAppearance="@style/TextAppearance.Material3.LabelLarge" />
-    <ScrollView android:id="@+id/preferred_log_scroll" android:layout_width="match_parent"
-        android:layout_height="@dimen/preferred_log_height" android:fillViewport="true"
-        android:background="?attr/colorSurfaceContainer" android:saveEnabled="true">
-        <TextView android:id="@+id/preferred_log_text" android:layout_width="match_parent"
-            android:layout_height="wrap_content" android:padding="@dimen/spacing_md"
-            android:textAppearance="@style/TextAppearance.Material3.BodySmall"
-            android:textColor="?attr/colorOnSurface" android:textIsSelectable="true" />
-    </ScrollView>
+    <androidx.viewpager.widget.ViewPager android:id="@+id/preferred_pager"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
 </LinearLayout>

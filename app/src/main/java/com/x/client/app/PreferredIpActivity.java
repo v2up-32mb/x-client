@@ -2,16 +2,22 @@ package com.x.client.app;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.Spinner;
-import android.widget.TextView;
+import android.view.accessibility.AccessibilityEvent;
+import android.widget.*;
+import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.ListUpdateCallback;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewpager.widget.PagerAdapter;
+import androidx.viewpager.widget.ViewPager;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.card.MaterialCardView;
@@ -22,494 +28,459 @@ import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-/** Real three-tab front end; only immutable controller snapshots are consumed on the UI thread. */
+/** Native two-page UI. There is no service, fake progress, save preview or selected/log page. */
 public class PreferredIpActivity extends BaseActivity implements PreferredIpController.Listener {
     private static final int OPEN_TXT = 502;
     private PreferredIpController controller;
     private PreferredIpController.State state;
-    private FrameLayout page;
-    private TabLayout tabs;
-    private TextView logText;
-    private ScrollView logScroll;
-    private boolean logTouched;
-    private long logInteraction;
-    private int restoredLogY = -1;
-    private String sourceRenderKey = "", selectedRenderKey = "";
-    private TextView status, sourceSummary, parseSummary, selectedSummary, scope, targetDetail;
-    private TextInputEditText manual, sourceUrl;
-    private LinearLayout selectedRows, sourceRows;
-    private MaterialButton accept, commit;
-    private final List<View> idleOnly = new ArrayList<>();
-    private ResultAdapter results;
-    private int currentTab, resultFilter;
-    private String manualDraft = "", urlDraft = "https://776771.xyz/all.txt";
+    private ViewPager pager;
+    private RecyclerView list;
+    private LinearLayoutManager layout;
+    private ResultAdapter adapter;
+    private TextView status, sourceStatus, sourceSummary, parseSummary, referenceDetail;
+    private TextInputEditText manual, sourceUrl, sample, concurrency;
+    private Spinner reference;
+    private List<Preferences.ProfileInfo> profiles;
+    private LinearLayout sourceRows;
+    private MaterialButton accept, primary;
+    private String sourceKey = "";
+    private final List<View> sourceNetworkButtons = new ArrayList<>();
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService differ = Executors.newSingleThreadExecutor();
+    private boolean touched, destroyed, settingsReady;
+    private String accessibilityAddress = "";
+    private long interaction;
+    private int initialSample = 256, initialConcurrency = 8, initialReference;
+    private android.os.Parcelable pendingScroll;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
-        Object retained = getLastCustomNonConfigurationInstance();
-        controller = retained instanceof PreferredIpController ? (PreferredIpController) retained
-                : new PreferredIpController(this, getIntent().getStringExtra(ProfileEditActivity.EXTRA_PROFILE_ID) == null
-                ? new Preferences(this).getCurrentProfileId() : getIntent().getStringExtra(ProfileEditActivity.EXTRA_PROFILE_ID));
+        String id = getIntent().getStringExtra(ProfileEditActivity.EXTRA_PROFILE_ID);
+        if (id == null) id = new Preferences(this).getCurrentProfileId();
+        controller = PreferredIpRuntime.acquire(this, id);
+        initialSample = controller.uiSample; initialConcurrency = controller.uiConcurrency;
+        if (!controller.uiReference.isEmpty()) id = controller.uiReference;
         if (saved != null) {
-            currentTab = saved.getInt("tab");
-            restoredLogY = saved.getInt("log_y", 0);
-            manualDraft = saved.getString("manual", "");
-            urlDraft = saved.getString("url", urlDraft);
+            controller.tab = saved.getInt("tab", controller.tab);
+            controller.manualDraft = saved.getString("manual", controller.manualDraft);
+            controller.urlDraft = saved.getString("url", controller.urlDraft);
+            ArrayList<String> expanded = saved.getStringArrayList("expanded");
+            if (expanded != null) { controller.expanded.clear(); controller.expanded.addAll(expanded); }
+            initialSample = saved.getInt("sample", 256); initialConcurrency = saved.getInt("concurrency", 8);
+            initialReference = saved.getInt("reference", 0);
+            controller.scroll = saved.getParcelable("scroll");
         }
         setContentView(R.layout.activity_preferred_ip);
-        ((MaterialToolbar) findViewById(R.id.preferred_toolbar)).setNavigationOnClickListener(v -> finish());
-        page = findViewById(R.id.preferred_page);
-        logText = findViewById(R.id.preferred_log_text);
-        logScroll = findViewById(R.id.preferred_log_scroll);
-        logScroll.setOnTouchListener((v, event) -> {
-            int action = event.getActionMasked();
-            if (action == android.view.MotionEvent.ACTION_DOWN || action == android.view.MotionEvent.ACTION_MOVE) { logTouched = true; logInteraction++; }
-            if (action == android.view.MotionEvent.ACTION_UP || action == android.view.MotionEvent.ACTION_CANCEL) logTouched = false;
-            return false;
+        MaterialToolbar toolbar = findViewById(R.id.preferred_toolbar);
+        toolbar.setNavigationOnClickListener(v -> finish());
+        toolbar.getMenu().add(0, R.id.preferred_restart, 0, "重新开始测试");
+        toolbar.getMenu().add(0, R.id.preferred_new_round, 1, "开启新一轮100MiB下载额度");
+        toolbar.getMenu().add(0, R.id.preferred_enable, 2, "启用全局（需实际节点验证）");
+        toolbar.getMenu().add(0, R.id.preferred_disable_action, 3, R.string.preferred_disable);
+        toolbar.setOnMenuItemClickListener(item -> {
+            int action = item.getItemId();
+            if (action == R.id.preferred_restart) confirm("重新开始", "将使用当前来源和设置建立新上下文，旧成绩仅为历史；已选池及下载额度保留。请先暂停并等待退出。", this::startScan);
+            else if (action == R.id.preferred_new_round) confirm("新增100MiB下载额度", "明确开启新的100MiB正文额度（另有协议开销）。旧轮预留/已用仍留审计记录。不会自动下载；计费网络也将消耗流量。", this::newDownloadRound);
+            else if (action == R.id.preferred_enable) controller.enable();
+            else if (action == R.id.preferred_disable_action) confirm(getString(R.string.preferred_disable), getString(R.string.preferred_disable_body), () -> controller.disable());
+            return true;
         });
-        tabs = findViewById(R.id.preferred_tabs);
-        for (int title : new int[]{R.string.preferred_sources, R.string.preferred_test, R.string.preferred_selected}) {
-            tabs.addTab(tabs.newTab().setText(title));
-        }
-        tabs.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override public void onTabSelected(TabLayout.Tab tab) { showPage(tab.getPosition()); }
-            @Override public void onTabUnselected(TabLayout.Tab tab) { }
-            @Override public void onTabReselected(TabLayout.Tab tab) { }
+        View sources = buildSources(), tests = buildTests(id);
+        pager = findViewById(R.id.preferred_pager);
+        pager.setAdapter(new PagerAdapter() {
+            private final View[] pages = {sources, tests};
+            @Override public int getCount() { return 2; }
+            @Override public boolean isViewFromObject(View view, Object object) { return view == object; }
+            @Override public Object instantiateItem(ViewGroup container, int position) { container.addView(pages[position]); return pages[position]; }
+            @Override public void destroyItem(ViewGroup container, int position, Object object) { container.removeView((View) object); }
+            @Override public CharSequence getPageTitle(int position) { return getString(position == 0 ? R.string.preferred_sources : R.string.preferred_test); }
         });
-        tabs.selectTab(tabs.getTabAt(currentTab));
-        showPage(currentTab);
+        ((TabLayout) findViewById(R.id.preferred_tabs)).setupWithViewPager(pager);
+        pager.setCurrentItem(Math.min(1, controller.tab), false);
+        pager.addOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
+            @Override public void onPageSelected(int position) { controller.tab = position; }
+        });
     }
-
     @Override protected void onStart() { super.onStart(); controller.attach(this); }
-    @Override protected void onStop() { controller.detach(isChangingConfigurations()); super.onStop(); }
-    @Override public Object onRetainCustomNonConfigurationInstance() { return controller; }
-    @Override protected void onDestroy() { if (!isChangingConfigurations()) controller.close(); super.onDestroy(); }
+    @Override protected void onStop() { remember(); controller.detach(isChangingConfigurations()); super.onStop(); }
+    @Override protected void onDestroy() { destroyed = true; differ.shutdown(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
+    private void remember() {
+        if (manual != null) controller.manualDraft = manual.getText().toString();
+        if (sourceUrl != null) controller.urlDraft = sourceUrl.getText().toString();
+        if (layout != null) controller.scroll = layout.onSaveInstanceState();
+        if (sample != null) controller.uiSample = number(sample, 256);
+        if (concurrency != null) controller.uiConcurrency = number(concurrency, 8);
+        if (profiles != null && !profiles.isEmpty() && reference.getSelectedItemPosition() >= 0) controller.uiReference = profiles.get(reference.getSelectedItemPosition()).id;
+    }
     @Override protected void onSaveInstanceState(Bundle out) {
-        retainDrafts();
-        out.putInt("log_y", logScroll.getScrollY());
-        out.putInt("tab", currentTab); out.putString("manual", manualDraft); out.putString("url", urlDraft);
-        // Opaque ID only: a killed UI process never silently starts a replacement task.
-        if (state != null) out.putString("task_id", state.taskId);
+        remember(); out.putInt("tab", controller.tab); out.putString("manual", controller.manualDraft); out.putString("url", controller.urlDraft);
+        out.putStringArrayList("expanded", new ArrayList<>(controller.expanded)); out.putParcelable("scroll", controller.scroll);
+        out.putInt("sample", number(sample, 256)); out.putInt("concurrency", number(concurrency, 8)); out.putInt("reference", reference.getSelectedItemPosition());
         super.onSaveInstanceState(out);
     }
-
-    private void retainDrafts() {
-        if (manual != null) manualDraft = manual.getText().toString();
-        if (sourceUrl != null) urlDraft = sourceUrl.getText().toString();
-    }
-
-    private int dimen(int res) { return getResources().getDimensionPixelSize(res); }
+    private int dimen(int id) { return getResources().getDimensionPixelSize(id); }
     private LinearLayout column() {
-        LinearLayout out = new LinearLayout(this);
-        out.setOrientation(LinearLayout.VERTICAL);
-        int p = dimen(R.dimen.spacing_lg); out.setPadding(p, p, p, p);
-        out.setLayoutParams(new ViewGroup.LayoutParams(-1, -2));
-        return out;
+        LinearLayout out = new LinearLayout(this); out.setOrientation(LinearLayout.VERTICAL);
+        int p = dimen(R.dimen.spacing_md); out.setPadding(p, p, p, p);
+        out.setLayoutParams(new ViewGroup.LayoutParams(-1, -2)); return out;
     }
     private TextView text(LinearLayout parent, CharSequence value) {
-        TextView out = new TextView(this);
+        TextView out = new TextView(this); out.setText(value);
         out.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
-        out.setText(value); out.setTextIsSelectable(true);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.bottomMargin = dimen(R.dimen.spacing_md); parent.addView(out, lp);
-        return out;
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2); lp.bottomMargin = dimen(R.dimen.spacing_sm);
+        parent.addView(out, lp); return out;
     }
-    private void heading(LinearLayout parent, int res) {
-        text(parent, getString(res)).setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
-    }
-    private MaterialButton button(LinearLayout parent, int title, Runnable action, boolean needsIdle) {
-        MaterialButton out = new MaterialButton(this);
-        out.setText(title); out.setMinHeight(dimen(R.dimen.touch_target_min));
-        out.setMaxLines(5); out.setOnClickListener(v -> action.run());
-        parent.addView(out, new LinearLayout.LayoutParams(-1, -2));
-        if (needsIdle) idleOnly.add(out);
-        return out;
+    private MaterialButton button(LinearLayout parent, CharSequence label, Runnable run) {
+        MaterialButton out = new MaterialButton(this); out.setText(label); out.setMaxLines(4);
+        out.setMinHeight(dimen(R.dimen.touch_target_min)); out.setOnClickListener(v -> run.run());
+        parent.addView(out, new LinearLayout.LayoutParams(-1, -2)); return out;
     }
     private TextInputEditText input(LinearLayout parent, int label, String value) {
-        TextInputLayout box = new TextInputLayout(this);
-        box.setHint(getString(label)); box.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        TextInputEditText edit = new TextInputEditText(box.getContext());
-        edit.setText(value); edit.setMinHeight(dimen(R.dimen.touch_target_min));
-        box.addView(edit, new LinearLayout.LayoutParams(-1, -2));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.bottomMargin = dimen(R.dimen.spacing_md); parent.addView(box, lp);
-        return edit;
+        TextInputLayout box = new TextInputLayout(this); box.setHint(getString(label)); box.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        TextInputEditText edit = new TextInputEditText(box.getContext()); edit.setText(value); edit.setMinHeight(dimen(R.dimen.touch_target_min));
+        box.addView(edit, new LinearLayout.LayoutParams(-1, -2)); parent.addView(box, new LinearLayout.LayoutParams(-1, -2)); return edit;
     }
-    private LinearLayout scrollPage() {
-        ScrollView scroll = new ScrollView(this); scroll.setFillViewport(true);
-        LinearLayout content = column(); scroll.addView(content);
-        page.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
-        return content;
+    private void confirm(String title, String body, Runnable action) {
+        new MaterialAlertDialogBuilder(this).setTitle(title).setMessage(body).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.ok, (d, w) -> action.run()).show();
     }
-
-    private void showPage(int tab) {
-        retainDrafts(); currentTab = tab; idleOnly.clear();
-        manual = null; sourceUrl = null; results = null;
-        sourceSummary = null; parseSummary = null; selectedSummary = null; scope = null;
-        selectedRows = null; sourceRows = null; accept = null; commit = null;
-        sourceRenderKey = ""; selectedRenderKey = "";
-        page.removeAllViews();
-        if (tab == 0) buildSources(); else if (tab == 1) buildTests(); else buildSelected();
-        render();
-    }
-
-    private void buildSources() {
-        LinearLayout content = scrollPage();
-        text(content, getString(R.string.preferred_intro));
-        status = text(content, ""); status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        sourceSummary = text(content, getString(R.string.preferred_empty_sources));
-        sourceRows = column(); content.addView(sourceRows);
-        heading(content, R.string.preferred_official);
-        button(content, R.string.preferred_fetch_v4, () -> controller.fetch("cf-v4", "https://www.cloudflare.com/ips-v4", "cidr4"), true);
-        button(content, R.string.preferred_fetch_v6, () -> controller.fetch("cf-v6", "https://www.cloudflare.com/ips-v6", "cidr6"), true);
-        text(content, getString(R.string.preferred_v6_hint));
-        heading(content, R.string.preferred_third);
-        sourceUrl = input(content, R.string.preferred_url, urlDraft);
+    private View buildSources() {
+        ScrollView scroll = new ScrollView(this); LinearLayout content = column(); scroll.addView(content);
+        text(content, getString(R.string.preferred_intro)); sourceStatus = text(content, "");
+        sourceSummary = text(content, getString(R.string.preferred_empty_sources)); sourceRows = column(); content.addView(sourceRows);
+        sourceNetworkButtons.add(button(content, getString(R.string.preferred_fetch_v4), () -> controller.fetch("cf-v4", "https://www.cloudflare.com/ips-v4", "cidr4")));
+        sourceNetworkButtons.add(button(content, getString(R.string.preferred_fetch_v6), () -> controller.fetch("cf-v6", "https://www.cloudflare.com/ips-v6", "cidr6")));
+        text(content, getString(R.string.preferred_v6_hint)); text(content, getString(R.string.preferred_third));
+        sourceUrl = input(content, R.string.preferred_url, controller.urlDraft);
         sourceUrl.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
-        button(content, R.string.preferred_fetch_list, () -> {
+        sourceNetworkButtons.add(button(content, getString(R.string.preferred_fetch_list), () -> {
             String url = sourceUrl.getText().toString().trim();
             if (!url.startsWith("https://")) { sourceUrl.setError("请使用 HTTPS URL"); return; }
             controller.fetch(PreferredIpIds.opaque("list", url), url, "list");
-        }, true);
-        heading(content, R.string.preferred_manual);
-        text(content, getString(R.string.preferred_format));
-        manual = input(content, R.string.preferred_content, manualDraft);
-        manual.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        manual.setMinLines(3);
-        button(content, R.string.preferred_parse, () -> controller.parse(manual.getText().toString(), "manual", "manual"), true);
-        button(content, R.string.preferred_import, () -> {
-            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("text/*").addCategory(Intent.CATEGORY_OPENABLE);
-            startActivityForResult(intent, OPEN_TXT);
-        }, true);
-        button(content, R.string.preferred_legacy, () -> controller.legacy(), true);
-        parseSummary = text(content, "");
-        accept = button(content, R.string.preferred_accept, () -> controller.acceptParsed(), true);
-        button(content, R.string.preferred_cancel, () -> controller.cancel("用户取消，保留已保存池"), false);
-        button(content, R.string.preferred_start, () -> tabs.selectTab(tabs.getTabAt(1)), true);
-    }
-
-    private void buildTests() {
-        RecyclerView list = new RecyclerView(this);
-        list.setLayoutManager(new LinearLayoutManager(this));
-        LinearLayout header = column();
-        status = text(header, ""); status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        text(header, getString(R.string.preferred_direct));
-        text(header, getString(R.string.preferred_budget));
-        button(header, R.string.preferred_start, this::testDialog, true);
-        button(header, R.string.preferred_cancel, () -> controller.cancel("用户取消，保留完成的部分结果"), false);
-        button(header, R.string.preferred_recommend, () -> controller.recommend(), true);
-        button(header, R.string.preferred_view_selected, () -> tabs.selectTab(tabs.getTabAt(2)), true);
-        Spinner filter = new Spinner(this);
-        filter.setMinimumHeight(dimen(R.dimen.touch_target_min));
-        filter.setContentDescription("结果筛选");
-        ArrayAdapter<String> filters = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                new String[]{"全部结果", "仅推荐", "仅失败"});
-        filters.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        filter.setAdapter(filters); filter.setSelection(resultFilter); header.addView(filter);
-        filter.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
-                resultFilter = position;
-                if (results != null) results.updateRows();
-            }
-            @Override public void onNothingSelected(android.widget.AdapterView<?> a) { }
-        });
-        results = new ResultAdapter(header); list.setAdapter(results);
-        page.addView(list, new FrameLayout.LayoutParams(-1, -1));
-    }
-
-    private void buildSelected() {
-        LinearLayout content = scrollPage();
-        status = text(content, ""); status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
-        selectedSummary = text(content, "");
-        text(content, getString(R.string.preferred_save_hint));
-        selectedRows = column(); content.addView(selectedRows);
-        button(content, R.string.preferred_save, () -> controller.prepareSave(), true);
-        scope = text(content, "");
-        commit = button(content, R.string.preferred_confirm, () -> {
-            if (state == null || state.preview == null) return;
-            new MaterialAlertDialogBuilder(this).setTitle(R.string.preferred_confirm)
-                    .setMessage(state.preview.optString("scope") + "\n保存后下次连接生效，不自动重连。原节点IP保留，可恢复。")
-                    .setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.ok, (d, w) -> controller.commitPreview()).show();
-        }, true);
-        button(content, R.string.preferred_cancel, () -> controller.cancel("取消兼容检查，不保存"), false);
-        button(content, R.string.preferred_disable, () -> new MaterialAlertDialogBuilder(this)
-                .setTitle(R.string.preferred_disable).setMessage(R.string.preferred_disable_body)
-                .setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.ok, (d, w) -> controller.disable()).show(), true);
-    }
-
-    private void testDialog() {
-        List<Preferences.ProfileInfo> profiles = new Preferences(this).getProfileList();
-        if (profiles.isEmpty()) { showError(getString(R.string.preferred_no_profiles)); return; }
-        try { PreferredIpNetwork.requireDirect(this); } catch (Exception error) { showError(error.getMessage()); return; }
-        LinearLayout body = column();
-        text(body, getString(R.string.preferred_target));
-        Spinner selector = new Spinner(this); selector.setMinimumHeight(dimen(R.dimen.touch_target_min));
-        List<String> names = new ArrayList<>();
-        int selected = 0;
-        for (int i = 0; i < profiles.size(); i++) {
-            names.add(profiles.get(i).name);
-            if (state != null && profiles.get(i).id.equals(state.referenceId)) selected = i;
-        }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        selector.setAdapter(adapter); selector.setSelection(selected); body.addView(selector);
-        targetDetail = text(body, "读取最终目标参数…");
-        selector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
-                controller.inspectReference(profiles.get(position).id);
-            }
-            @Override public void onNothingSelected(android.widget.AdapterView<?> a) { }
-        });
-        TextInputEditText sample = input(body, R.string.preferred_sample, "256"); sample.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        TextInputEditText concurrency = input(body, R.string.preferred_concurrency, "8"); concurrency.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
-        TextInputEditText url = input(body, R.string.preferred_download_url, PreferredIpController.DOWNLOAD);
-        ScrollView scroll = new ScrollView(this); scroll.addView(body);
-        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this).setTitle(R.string.preferred_start)
-                .setView(scroll).setNegativeButton(R.string.cancel, null).setPositiveButton(R.string.preferred_go, null).create();
-        dialog.setOnDismissListener(d -> targetDetail = null);
-        dialog.setOnShowListener(d -> dialog.getButton(-1).setOnClickListener(v -> {
-            int count, workers;
-            try { count = Integer.parseInt(sample.getText().toString()); if (count < 1 || count > 4096) throw new Exception(); }
-            catch (Exception invalid) { sample.setError("请输入1–4096"); return; }
-            try { workers = Integer.parseInt(concurrency.getText().toString()); if (workers < 1 || workers > 32) throw new Exception(); }
-            catch (Exception invalid) { concurrency.setError("请输入1–32"); return; }
-            String download = url.getText().toString().trim();
-            if (!download.startsWith("https://")) { url.setError("请使用 HTTPS URL"); return; }
-            String id = profiles.get(selector.getSelectedItemPosition()).id;
-            Runnable start = () -> controller.test(id, count, workers, download);
-            dialog.dismiss();
-            if (PreferredIpNetwork.metered(this)) new MaterialAlertDialogBuilder(this).setTitle(R.string.preferred_metered)
-                    .setMessage(R.string.preferred_metered_body).setNegativeButton(R.string.cancel, null)
-                    .setPositiveButton(R.string.preferred_go, (dd, w) -> start.run()).show();
-            else start.run();
         }));
-        dialog.show();
+        text(content, getString(R.string.preferred_format)); manual = input(content, R.string.preferred_content, controller.manualDraft);
+        manual.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE); manual.setMinLines(3);
+        button(content, getString(R.string.preferred_parse), () -> controller.parse(manual.getText().toString(), "manual", "manual"));
+        button(content, getString(R.string.preferred_import), () -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("text/*").addCategory(Intent.CATEGORY_OPENABLE), OPEN_TXT));
+        button(content, getString(R.string.preferred_legacy), () -> controller.legacy());
+        parseSummary = text(content, ""); accept = button(content, getString(R.string.preferred_accept), () -> controller.acceptParsed()); accept.setVisibility(View.GONE);
+        return scroll;
     }
-
-    private void showError(String message) {
-        new MaterialAlertDialogBuilder(this).setMessage(message).setPositiveButton(R.string.ok, null).show();
+    private View buildTests(String referenceId) {
+        list = new RecyclerView(this); list.setId(R.id.preferred_results);
+        layout = new LinearLayoutManager(this); list.setLayoutManager(layout); list.setItemAnimator(null);
+        LinearLayout header = column(); profiles = new Preferences(this).getProfileList();
+        text(header, getString(R.string.preferred_target));
+        reference = new Spinner(this); reference.setId(R.id.preferred_reference);
+        reference.setMinimumHeight(dimen(R.dimen.touch_target_min)); reference.setContentDescription(getString(R.string.preferred_target));
+        List<String> names = new ArrayList<>(); int selected = initialReference;
+        for (int i = 0; i < profiles.size(); i++) { names.add(profiles.get(i).name); if (initialReference == 0 && referenceId.equals(profiles.get(i).id)) selected = i; }
+        ArrayAdapter<String> choices = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, names);
+        choices.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item); reference.setAdapter(choices);
+        reference.setSelection(Math.max(0, Math.min(selected, profiles.size() - 1))); header.addView(reference);
+        referenceDetail = text(header, "");
+        // Wrap-content fields (no single-line clipped IPv6 target); header scrolls with the virtualized list.
+        sample = input(header, R.string.preferred_sample, Integer.toString(initialSample)); sample.setId(R.id.preferred_sample_input);
+        concurrency = input(header, R.string.preferred_concurrency, Integer.toString(initialConcurrency)); concurrency.setId(R.id.preferred_concurrency_input);
+        sample.setInputType(android.text.InputType.TYPE_CLASS_NUMBER); concurrency.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        status = text(header, getString(R.string.preferred_not_tested)); status.setId(R.id.preferred_status);
+        status.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        primary = button(header, "开始测试", this::primaryAction); primary.setId(R.id.preferred_primary);
+        text(header, "仅前台直连，请先断开VPN。扫描不下载；勾选即保存。HTTPS检查不等于协议认证。单IP手动50MiB/10秒，下载轮100MiB，另有探测开销。");
+        reference.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            public void onItemSelected(AdapterView<?> a, View v, int pos, long id) {
+                if (pos < profiles.size()) controller.inspectReference(profiles.get(pos).id);
+                settingsChanged();
+            }
+            public void onNothingSelected(AdapterView<?> a) { }
+        });
+        TextWatcher watcher = new TextWatcher() {
+            public void beforeTextChanged(CharSequence s, int st, int count, int after) { }
+            public void onTextChanged(CharSequence s, int st, int before, int count) { settingsChanged(); }
+            public void afterTextChanged(Editable e) { }
+        };
+        sample.addTextChangedListener(watcher); concurrency.addTextChangedListener(watcher); settingsReady = true;
+        adapter = new ResultAdapter(header); list.setAdapter(adapter);
+        list.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
+            @Override public boolean onInterceptTouchEvent(RecyclerView v, MotionEvent e) {
+                if (e.getActionMasked() == MotionEvent.ACTION_DOWN) { touched = true; interaction++; }
+                if (e.getActionMasked() == MotionEvent.ACTION_UP || e.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                    touched = false; interaction++; main.postDelayed(() -> adapter.submitLatest(), 250);
+                }
+                return false;
+            }
+        });
+        list.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override public void onScrollStateChanged(RecyclerView recycler, int value) {
+                interaction++; if (value == RecyclerView.SCROLL_STATE_IDLE) adapter.submitLatest();
+            }
+        });
+        pendingScroll = controller.scroll;
+        return list;
     }
-
+    private void settingsChanged() {
+        if (!settingsReady || profiles.isEmpty() || reference.getSelectedItemPosition() < 0) return;
+        controller.parametersChanged(profiles.get(reference.getSelectedItemPosition()).id, number(sample, -1), number(concurrency, -1));
+    }
+    private static int number(TextInputEditText edit, int fallback) {
+        try { return Integer.parseInt(edit.getText().toString()); } catch (Exception e) { return fallback; }
+    }
+    private void newDownloadRound() {
+        if (profiles.isEmpty() || reference.getSelectedItemPosition() < 0) {
+            confirm("缺少参考节点", getString(R.string.preferred_no_profiles), () -> { }); return;
+        }
+        controller.newDownloadRound(profiles.get(reference.getSelectedItemPosition()).id,
+                number(sample, -1), number(concurrency, -1));
+    }
+    private void primaryAction() {
+        if (state != null && state.busy) { controller.pause("用户暂停，等待网络退出"); return; }
+        if (state != null && !state.sessionId.isEmpty() && !state.stale) controller.resume(); else startScan();
+    }
+    private void startScan() {
+        if (profiles.isEmpty()) { confirm("缺少参考节点", getString(R.string.preferred_no_profiles), () -> { }); return; }
+        int count = number(sample, -1), workers = number(concurrency, -1);
+        if (count < 1 || count > 4096) { sample.setError("请输入1–4096"); return; }
+        if (workers < 1 || workers > 32) { concurrency.setError("请输入1–32"); return; }
+        String id = profiles.get(reference.getSelectedItemPosition()).id;
+        Runnable start = () -> controller.test(id, count, workers, PreferredIpController.PROBE_DOWNLOAD);
+        if (state != null && state.metered) confirm("计费网络确认", "扫描不下载正文测速样本，但TCP/TLS/HTTPS与ECH/DNS检查仍消耗流量。是否继续？", start);
+        else start.run();
+    }
     @Override protected void onActivityResult(int request, int result, Intent data) {
         super.onActivityResult(request, result, data);
         if (request == OPEN_TXT && result == RESULT_OK && data != null && data.getData() != null) controller.importFile(data.getData());
     }
-
-    @Override public void changed(PreferredIpController.State next) { state = next; render(); }
-
-    private void render() {
-        if (state == null || status == null) return;
-        if (targetDetail != null) targetDetail.setText(state.referenceSummary);
-        JSONObject snap = state.snapshot;
-        String progress = snap.length() == 0 ? getString(R.string.preferred_not_tested)
-                : PreferredIpPresentation.phase(snap.optString("phase")) + " · " + PreferredIpPresentation.state(snap.optString("state")) + " · "
-                + snap.optInt("completed") + "/" + snap.optInt("total") + " · 下载正文 "
-                + String.format(Locale.getDefault(), "%.2f MiB", snap.optLong("download_bytes") / 1048576.0);
-        String statusText = state.network + "\n" + progress + (state.stale ? "\n" + getString(R.string.preferred_old_network) : "")
-                + "\n" + state.message;
+    @Override public void changed(PreferredIpController.State next) {
+        state = next;
+        referenceDetail.setText(next.referenceSummary);
+        String statusText = next.phase + " · 已完成 " + next.completed + "/" + next.total + "（成功 " + next.success + " / 失败 " + (next.completed - next.success) + "）"
+                + "\n已选 " + next.selected + (next.saving ? " · 保存中" : "") + " · " + next.network
+                + String.format(Locale.getDefault(), "\n下载已用 %.1f / 100MiB · 预留 %.1fMiB · 剩余 %.1fMiB", next.used / 1048576.0, next.reserved / 1048576.0,
+                Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0)
+                + (next.ledgerBlocked ? " · 未结清/失账，须确认新轮" : "") + (next.stale ? "\n旧上下文仅为历史" : "") + "\n" + next.message;
         if (!statusText.contentEquals(status.getText())) status.setText(statusText);
-        if (!state.logs.contentEquals(logText.getText())) {
-            boolean follow = restoredLogY < 0 && !logTouched && !logScroll.canScrollVertically(1);
-            int oldY = restoredLogY < 0 ? logScroll.getScrollY() : restoredLogY;
-            restoredLogY = -1;
-            long interaction = logInteraction;
-            logText.setText(state.logs);
-            logScroll.post(() -> {
-                if (!logTouched && interaction == logInteraction) {
-                    if (follow) logScroll.fullScroll(View.FOCUS_DOWN);
-                    else logScroll.scrollTo(0, oldY);
-                }
-            });
-        }
-        for (View v : idleOnly) v.setEnabled(!state.busy);
-        if (sourceSummary != null) {
-            JSONArray sources = state.data.optJSONArray("sources");
-            String key = String.valueOf(sources) + state.busy;
-            if (!key.equals(sourceRenderKey)) {
-                sourceRenderKey = key;
-                StringBuilder summary = new StringBuilder();
-                sourceRows.removeAllViews();
-                if (sources != null) for (int i = 0; i < sources.length(); i++) {
-                    JSONObject source = sources.optJSONObject(i);
-                    String id = source.optString("id");
-                    MaterialCheckBox enabled = new MaterialCheckBox(this);
-                    enabled.setText("参与测试：" + PreferredIpPresentation.source(source));
-                    enabled.setMinHeight(dimen(R.dimen.touch_target_min));
-                    enabled.setChecked(source.optBoolean("enabled", true));
-                    enabled.setEnabled(!state.busy);
-                    enabled.setOnCheckedChangeListener((b, on) -> controller.enableSource(id, on));
-                    sourceRows.addView(enabled);
-                    summary.append(PreferredIpPresentation.source(source)).append("：")
-                            .append(source.optJSONArray("candidates").length()).append(" IP / ")
-                            .append(source.optJSONArray("prefixes").length()).append(" 段 · ")
-                            .append(DateFormat.getDateTimeInstance().format(new Date(source.optLong("updated_at")))).append('\n');
-                }
-                sourceSummary.setText(summary.length() == 0 ? getString(R.string.preferred_empty_sources) : summary);
-            }
-            accept.setVisibility(state.parse == null ? View.GONE : View.VISIBLE);
-            if (state.parse != null) {
-                StringBuilder parsed = new StringBuilder("有效行：" + state.parse.optJSONArray("candidates").length() + "\n");
-                JSONArray errors = state.parse.optJSONArray("errors");
-                for (int i = 0; errors != null && i < errors.length(); i++) {
-                    JSONObject error = errors.optJSONObject(i);
-                    parsed.append("第").append(error.optInt("line")).append("行：").append(error.optString("message"))
-                            .append("\n").append(state.parseThirdParty ? error.optString("text").split("#", 2)[0]
-                                    : error.optString("text")).append('\n');
-                }
-                parseSummary.setText(parsed);
-            } else parseSummary.setText("");
-        }
-        if (results != null) results.updateRows();
-        if (selectedSummary != null) {
-            selectedSummary.setText(getString(R.string.preferred_summary, state.data.optLong("revision"),
-                    state.data.optBoolean("enabled") ? "启用" : "未启用", state.data.optJSONArray("selected").length(), state.chosen.length())
-                    + (state.chosen.length() > 3 ? "\n" + getString(R.string.preferred_many) : ""));
-            String key = state.chosen + "|" + state.validation + "|" + state.results + "|" + state.data.optLong("revision") + state.busy + state.stale;
-            if (!key.equals(selectedRenderKey)) {
-                selectedRenderKey = key;
-                selectedRows.removeAllViews();
-                if (state.chosen.length() == 0) text(selectedRows, getString(R.string.preferred_no_selection));
-                for (int i = 0; i < state.chosen.length(); i++) {
-                    String address = state.chosen.optString(i);
-                    renderSelectedAddress(address);
-                    MaterialButton remove = button(selectedRows, R.string.preferred_selected, () -> controller.select(address, false), false);
-                    remove.setText(getString(R.string.preferred_remove, address)); remove.setEnabled(!state.busy);
-                }
-            }
-            String reportScope = state.validation == null ? "尚未验证当前选择" :
-                    ("stale".equals(state.validation.optString("state")) ? state.validation.optString("reason")
-                    : state.validation.optString("scope", "正在验证；未完成结果不可保存"));
-            scope.setText(reportScope + "\n\n" + state.savedScope);
-            commit.setVisibility(state.preview == null ? View.GONE : View.VISIBLE);
-        }
+        sourceStatus.setText(next.message);
+        primary.setText(next.busy ? (next.paused ? "取消 / 等待退出" : "暂停") : next.sessionId.isEmpty() || next.stale ? "开始测试" : "继续测试");
+        for (View view : sourceNetworkButtons) view.setEnabled(!next.busy);
+        renderSources(); adapter.submitLatest();
     }
-
-    private static String time(long value) {
-        return value > 0 ? DateFormat.getDateTimeInstance().format(new Date(value)) : "无测量时间";
-    }
-
-    private void renderSelectedAddress(String address) {
-        JSONObject candidate = PreferredIpPresentation.find(state.selectedCandidates, address);
-        text(selectedRows, address).setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
-        if (candidate != null) {
-            String comment = PreferredIpPresentation.comment(candidate, state.data);
-            text(selectedRows, PreferredIpPresentation.sources(candidate, state.data) + (comment.isEmpty() ? "" : "\n备注：" + comment));
-        }
-        JSONObject original = PreferredIpPresentation.find(state.results.optJSONArray("results"), address);
-        if (original == null) text(selectedRows, "原测速：无结果（不代表兼容验证失败）");
-        else text(selectedRows, "原测速：" + (original.optBoolean("recommended") ? "曾推荐" : "未推荐")
-                + " · " + original.optString("status") + " · CF " + original.optString("colo") + " · " + time(original.optLong("tested_at"))
-                + "\n" + PreferredIpPresentation.target(state.results.optJSONObject("test_target"))
-                + (state.stale ? "\n旧网络结果" : "") + "\n仅为原性能记录，不代表下面各实际节点的最新兼容性");
-        JSONObject report = state.validation;
-        boolean current = report != null && "completed".equals(report.optString("state"));
-        if (!current) {
-            text(selectedRows, report == null ? "当前选择：未做实际目标兼容验证" :
-                    "当前选择：" + ("running".equals(report.optString("state")) ? "验证尚未完整结束" : report.optString("reason"))
-                    + "；不展示旧验证成功，请重新验证");
-            return;
-        }
-        JSONArray profiles = report.optJSONArray("profiles");
-        int valid = 0, failed = 0, untested = 0;
-        StringBuilder details = new StringBuilder();
-        for (int i = 0; profiles != null && i < profiles.length(); i++) {
-            JSONObject profile = profiles.optJSONObject(i);
-            JSONObject result = PreferredIpPresentation.find(profile.optJSONArray("results"), address);
-            details.append(profile.optString("name")).append("：");
-            if (result == null) {
-                untested++;
-                details.append("未测 · ").append(profile.optString("reason", "没有结果"));
-            } else {
-                boolean passed = "valid".equals(result.optString("status"));
-                if (passed) valid++; else failed++;
-                details.append(passed ? "有效（HTTPS / CF trace 通过）" : "失败 · " + result.optString("error"))
-                        .append(" · CF ").append(result.optString("colo").isEmpty() ? "未验证" : result.optString("colo"))
-                        .append("\n").append(time(result.optLong("tested_at")));
+    private void renderSources() {
+        JSONArray sources = state.data.optJSONArray("sources"); String key = String.valueOf(sources) + state.busy + state.sourceMessages;
+        if (!key.equals(sourceKey)) {
+            sourceKey = key; sourceRows.removeAllViews();
+            sourceSummary.setText(sources == null || sources.length() == 0 ? getString(R.string.preferred_empty_sources) : "来源修改不改变本轮冻结队列；重新开始时采用。");
+            for (int i = 0; sources != null && i < sources.length(); i++) {
+                JSONObject source = sources.optJSONObject(i); String id = source.optString("id"), url = source.optString("url"), kind = source.optString("kind");
+                MaterialCheckBox on = new MaterialCheckBox(this); on.setMinHeight(dimen(R.dimen.touch_target_min));
+                on.setText("参与测试：" + PreferredIpPresentation.source(source)); on.setChecked(source.optBoolean("enabled", true));
+                on.setOnCheckedChangeListener((b, checked) -> controller.enableSource(id, checked)); sourceRows.addView(on);
+                text(sourceRows, source.optJSONArray("candidates").length() + " IP / " + source.optJSONArray("prefixes").length() + " 段 · "
+                        + state.sourceMessages.getOrDefault(id, "已有来源快照"));
+                if (!url.isEmpty()) {
+                    MaterialButton refresh = button(sourceRows, "刷新来源", () -> controller.fetch(id, url, kind)); refresh.setEnabled(!state.busy);
+                    if ("list".equals(kind)) button(sourceRows, "编辑 URL", () -> {
+                        LinearLayout body = column(); TextInputEditText editor = input(body, R.string.preferred_url, url);
+                        new MaterialAlertDialogBuilder(this).setTitle("编辑第三方来源 URL").setView(body).setNegativeButton(R.string.cancel, null)
+                                .setPositiveButton("主动更新", (d, w) -> {
+                                    String changed = editor.getText().toString().trim();
+                                    if (changed.startsWith("https://")) controller.fetch(id, changed, kind);
+                                    else confirm("未更新", "只允许 HTTPS URL，保留原来源", () -> { });
+                                }).show();
+                    });
+                } else if ("manual".equals(kind)) button(sourceRows, "编辑手动列表", () -> editManual(source));
+                button(sourceRows, "删除来源", () -> confirm("删除来源", "已选地址仍保留，当前队列不变。是否删除此来源？", () -> controller.deleteSource(id)));
             }
-            details.append("\n").append(PreferredIpPresentation.target(profile.optJSONObject("target"))).append("\n\n");
         }
-        String status = valid > 0 ? (failed + untested > 0 ? "部分目标兼容" : "参与目标均有效") : (failed > 0 ? "已测目标均失败" : "未测");
-        text(selectedRows, "最新实际目标验证：" + status + " · 有效 " + valid + " / 失败 " + failed + " / 未测 " + untested
-                + (report.optBoolean("saved") ? "\n已确认保存；下次连接生效" : "\n未确认保存；尚未改变正在使用的入口")
-                + "\n无下载验证不产生新推荐；单节点失败不表示 IP 对所有节点失效。\n" + details);
+        accept.setVisibility(state.parse == null ? View.GONE : View.VISIBLE);
+        StringBuilder parsed = new StringBuilder();
+        if (state.parse != null) {
+            JSONArray rows = state.parse.optJSONArray("candidates"), errors = state.parse.optJSONArray("errors");
+            parsed.append("有效 IP：").append(rows == null ? 0 : rows.length());
+            for (int i = 0; errors != null && i < errors.length(); i++) {
+                JSONObject error = errors.optJSONObject(i);
+                parsed.append("\n第").append(error.optInt("line")).append("行：").append(error.optString("message"))
+                        .append('\n').append(state.parseThirdParty ? error.optString("text").split("#", 2)[0] : error.optString("text"));
+            }
+        }
+        parseSummary.setText(parsed);
     }
-
+    private void editManual(JSONObject source) {
+        StringBuilder text = new StringBuilder(); JSONArray rows = source.optJSONArray("candidates");
+        for (int i = 0; rows != null && i < rows.length(); i++) {
+            JSONObject row = rows.optJSONObject(i); text.append(row.optString("address"));
+            if (!row.optString("comment").isEmpty()) text.append('#').append(row.optString("comment")); text.append('\n');
+        }
+        LinearLayout body = column(); TextInputEditText editor = input(body, R.string.preferred_content, text.toString()); editor.setMinLines(3);
+        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        new MaterialAlertDialogBuilder(this).setTitle("编辑手动来源").setView(body).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton("解析替换", (d, w) -> controller.parseReplacement(editor.getText().toString(), source.optString("id"))).show();
+    }
+    private boolean deferMoves() {
+        return touched || list.getScrollState() != RecyclerView.SCROLL_STATE_IDLE || !accessibilityAddress.isEmpty();
+    }
+    private void trackAccessibility(View view, ResultHolder holder) {
+        view.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override public void sendAccessibilityEvent(View host, int eventType) {
+                if (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) { accessibilityAddress = holder.address; interaction++; }
+                else if (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED && accessibilityAddress.equals(holder.address)) {
+                    accessibilityAddress = ""; interaction++; main.postDelayed(() -> adapter.submitLatest(), 250);
+                }
+                super.sendAccessibilityEvent(host, eventType);
+            }
+            @Override public void onInitializeAccessibilityNodeInfo(View host, android.view.accessibility.AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                if (host == holder.heading) {
+                    info.setClassName("android.widget.Button");
+                    info.setContentDescription(holder.heading.getContentDescription());
+                }
+            }
+        });
+    }
     private final class ResultAdapter extends RecyclerView.Adapter<ResultHolder> {
         private final LinearLayout header;
-        private JSONArray visible = new JSONArray();
-        private String renderKey = "";
-        ResultAdapter(LinearLayout header) { this.header = header; }
-        private JSONArray rows() { return visible; }
-        void updateRows() {
-            String key = state == null ? "" : state.results + "|" + state.chosen + "|" + state.busy + state.stale + resultFilter + "|" + state.data.optLong("revision");
-            if (key.equals(renderKey)) return;
-            renderKey = key;
-            visible = new JSONArray();
-            JSONArray all = state == null ? null : state.results.optJSONArray("results");
-            if (all != null) for (int i = 0; i < all.length(); i++) {
-                JSONObject row = all.optJSONObject(i);
-                if (resultFilter == 0 || (resultFilter == 1 && row.optBoolean("recommended"))
-                        || (resultFilter == 2 && "failed".equals(row.optString("status")))) visible.put(row);
-            }
-            notifyDataSetChanged();
-        }
-        @Override public int getItemCount() { return 1 + rows().length(); }
+        private List<PreferredIpController.Row> rows = Collections.emptyList();
+        private final Map<String, Long> ids = new HashMap<>();
+        private long nextId = 1;
+        private boolean diffRunning, pending;
+        ResultAdapter(LinearLayout header) { this.header = header; setHasStableIds(true); }
+        @Override public int getItemCount() { return rows.size() + 1; }
         @Override public int getItemViewType(int position) { return position == 0 ? 0 : 1; }
+        @Override public long getItemId(int position) {
+            if (position == 0) return 0;
+            String address = rows.get(position - 1).address;
+            Long id = ids.get(address); if (id == null) { id = nextId++; ids.put(address, id); } return id;
+        }
+        void submitLatest() {
+            if (destroyed || state == null) return;
+            if (diffRunning) { pending = true; return; }
+            List<PreferredIpController.Row> desired = state.rows;
+            if (deferMoves()) {
+                // Update content/check states without moving the touched or TalkBack-focused address.
+                Map<String, PreferredIpController.Row> latest = new LinkedHashMap<>();
+                for (PreferredIpController.Row row : desired) latest.put(row.address, row);
+                List<PreferredIpController.Row> held = new ArrayList<>();
+                for (PreferredIpController.Row row : rows) { PreferredIpController.Row update = latest.remove(row.address); held.add(update == null ? row : update); }
+                // New items wait until interaction ends; retaining removed rows avoids stealing focus.
+                desired = held;
+            }
+            final List<PreferredIpController.Row> before = rows, after = desired;
+            if (sameRows(before, after)) return;
+            final long fence = interaction;
+            diffRunning = true; pending = false;
+            differ.execute(() -> {
+                DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
+                    public int getOldListSize() { return before.size(); }
+                    public int getNewListSize() { return after.size(); }
+                    public boolean areItemsTheSame(int oldPos, int newPos) { return before.get(oldPos).address.equals(after.get(newPos).address); }
+                    public boolean areContentsTheSame(int oldPos, int newPos) { return before.get(oldPos).content().equals(after.get(newPos).content()); }
+                });
+                main.post(() -> {
+                    diffRunning = false; if (destroyed) return;
+                    if (fence != interaction) { submitLatest(); return; }
+                    int first = layout.findFirstVisibleItemPosition(); View anchor = layout.findViewByPosition(first);
+                    int offset = anchor == null ? 0 : anchor.getTop() - list.getPaddingTop();
+                    String address = first > 0 && first <= before.size() ? before.get(first - 1).address : "";
+                    rows = after;
+                    diff.dispatchUpdatesTo(new ListUpdateCallback() {
+                        public void onInserted(int position, int count) { notifyItemRangeInserted(position + 1, count); }
+                        public void onRemoved(int position, int count) { notifyItemRangeRemoved(position + 1, count); }
+                        public void onMoved(int from, int to) { notifyItemMoved(from + 1, to + 1); }
+                        public void onChanged(int position, int count, Object payload) { notifyItemRangeChanged(position + 1, count, payload); }
+                    });
+                    if (pendingScroll != null && !rows.isEmpty()) {
+                        layout.onRestoreInstanceState(pendingScroll); pendingScroll = null;
+                    } else if (!address.isEmpty() && !deferMoves()) {
+                        for (int i = 0; i < rows.size(); i++) if (address.equals(rows.get(i).address)) { layout.scrollToPositionWithOffset(i + 1, offset); break; }
+                    }
+                    if (pending) submitLatest();
+                });
+            });
+        }
+        private boolean sameRows(List<PreferredIpController.Row> a, List<PreferredIpController.Row> b) {
+            if (a.size() != b.size()) return false;
+            for (int i = 0; i < a.size(); i++) if (!a.get(i).address.equals(b.get(i).address) || !a.get(i).content().equals(b.get(i).content())) return false;
+            return true;
+        }
         @Override public ResultHolder onCreateViewHolder(ViewGroup parent, int type) {
             if (type == 0) {
                 if (header.getParent() != null) ((ViewGroup) header.getParent()).removeView(header);
-                return new ResultHolder(header, null, null);
+                return new ResultHolder(header);
             }
             MaterialCardView card = new MaterialCardView(PreferredIpActivity.this);
             RecyclerView.LayoutParams lp = new RecyclerView.LayoutParams(-1, -2);
-            int margin = dimen(R.dimen.spacing_sm); lp.setMargins(margin, margin, margin, margin); card.setLayoutParams(lp);
+            int p = dimen(R.dimen.spacing_sm); lp.setMargins(p, p, p, p); card.setLayoutParams(lp);
             LinearLayout body = column(); card.addView(body);
-            MaterialCheckBox choice = new MaterialCheckBox(PreferredIpActivity.this);
-            choice.setMinHeight(dimen(R.dimen.touch_target_min)); body.addView(choice);
-            TextView detail = text(body, "");
-            return new ResultHolder(card, choice, detail);
+            LinearLayout line = new LinearLayout(PreferredIpActivity.this); line.setGravity(Gravity.CENTER_VERTICAL); body.addView(line);
+            MaterialCheckBox check = new MaterialCheckBox(PreferredIpActivity.this); check.setId(R.id.preferred_choice);
+            check.setMinWidth(dimen(R.dimen.touch_target_min)); check.setMinHeight(dimen(R.dimen.touch_target_min));
+            line.addView(check, new LinearLayout.LayoutParams(dimen(R.dimen.touch_target_min), -2));
+            LinearLayout heading = new LinearLayout(PreferredIpActivity.this); heading.setId(R.id.preferred_row_heading);
+            heading.setGravity(Gravity.CENTER_VERTICAL); heading.setMinimumHeight(dimen(R.dimen.touch_target_min));
+            heading.setClickable(true); heading.setFocusable(true);
+            android.util.TypedValue ripple = new android.util.TypedValue(); getTheme().resolveAttribute(android.R.attr.selectableItemBackground, ripple, true);
+            heading.setBackgroundResource(ripple.resourceId);
+            line.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+            TextView location = new TextView(PreferredIpActivity.this), address = new TextView(PreferredIpActivity.this), score = new TextView(PreferredIpActivity.this);
+            for (TextView text : new TextView[]{location, address, score}) {
+                text.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+                text.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            }
+            location.setGravity(Gravity.START); address.setGravity(Gravity.CENTER); score.setGravity(Gravity.END);
+            location.setMinWidth(dimen(R.dimen.touch_target_min)); score.setMinWidth(dimen(R.dimen.touch_target_min));
+            address.setBreakStrategy(android.text.Layout.BREAK_STRATEGY_SIMPLE);
+            heading.addView(location, new LinearLayout.LayoutParams(-2, -2));
+            heading.addView(address, new LinearLayout.LayoutParams(0, -2, 1));
+            heading.addView(score, new LinearLayout.LayoutParams(-2, -2));
+            LinearLayout expanded = column(); body.addView(expanded);
+            TextView detail = text(expanded, ""); detail.setId(R.id.preferred_row_detail);
+            MaterialButton download = button(expanded, "测速 · 50MiB / 10秒", () -> { }); download.setId(R.id.preferred_row_download);
+            ResultHolder holder = new ResultHolder(card); holder.choice = check; holder.heading = heading; holder.location = location;
+            holder.addressText = address; holder.score = score; holder.detail = detail; holder.download = download; holder.expanded = expanded;
+            trackAccessibility(heading, holder); trackAccessibility(check, holder); trackAccessibility(detail, holder); trackAccessibility(download, holder);
+            heading.setOnClickListener(v -> {
+                String bound = holder.address; if (bound.isEmpty()) return;
+                if (!controller.expanded.remove(bound)) controller.expanded.add(bound);
+                controller.refreshDetails();
+                int position = holder.getBindingAdapterPosition(); if (position != RecyclerView.NO_POSITION) notifyItemChanged(position);
+            });
+            return holder;
         }
         @Override public void onBindViewHolder(ResultHolder holder, int position) {
             if (position == 0) return;
-            JSONObject r = rows().optJSONObject(position - 1);
-            String address = r.optString("address");
-            holder.choice.setOnCheckedChangeListener(null);
-            boolean checked = false;
-            for (int i = 0; i < state.chosen.length(); i++) if (address.equals(state.chosen.optString(i))) checked = true;
-            holder.choice.setChecked(checked);
-            holder.choice.setText(address + (r.optBoolean("recommended") ? " · 推荐" : "") + (state.stale ? " · 旧网络" : ""));
-            holder.choice.setEnabled(!state.busy && "valid".equals(r.optString("status")));
-            holder.choice.setOnCheckedChangeListener((b, selected) -> controller.select(address, selected));
-            String latency = r.optInt("http_success") > 0 ? String.format(Locale.getDefault(), "HTTPS 中位 %.1fms · 波动 %.1fms",
-                    r.optDouble("http_median_ms"), r.optDouble("http_jitter_ms")) : "HTTPS 未验证";
-            String download = r.optString("download_state", "untested");
-            String speed = "ok".equals(download) || "short".equals(download)
-                    ? String.format(Locale.getDefault(), "下载均速 %.2f MiB/s · %.2fs · %s", r.optDouble("download_mib_s"),
-                    r.optDouble("download_seconds"), "short".equals(download) ? "短样本，低置信" : "有效样本")
-                    : "下载：" + ("failed".equals(download) ? "失败" : "未测");
-            holder.detail.setText(PreferredIpPresentation.sources(r, state.data) + " · CF " + (r.optString("colo").isEmpty() ? "未验证" : r.optString("colo"))
-                    + "\n" + PreferredIpPresentation.comment(r, state.data) + "\n" + latency
-                    + "\nTCP 成功 " + r.optInt("tcp_success") + "/" + r.optInt("tcp_attempts")
-                    + " · HTTPS 成功 " + r.optInt("http_success") + "/" + r.optInt("http_attempts")
-                    + (r.optInt("tcp_success") > 0 ? String.format(Locale.getDefault(), "\nTCP 最小/均值/最大 %.1f/%.1f/%.1fms",
-                    r.optDouble("tcp_min_ms"), r.optDouble("tcp_avg_ms"), r.optDouble("tcp_max_ms")) : "")
-                    + (r.optDouble("tls_ms", 0) > 0 ? String.format(Locale.getDefault(), " · TLS %.1fms", r.optDouble("tls_ms")) : " · TLS 未测/失败")
-                    + "\n" + speed
-                    + (r.optLong("download_bytes") > 0 ? String.format(Locale.getDefault(), "\n正文 %.2f MiB · 辅助峰值 %.2f MiB/s",
-                    r.optLong("download_bytes") / 1048576.0, r.optDouble("download_peak_mib_s")) : "") + "\nECH：" + r.optString("ech_status") + " · " + r.optString("status")
-                    + (r.optString("error").isEmpty() ? "" : "\n" + r.optString("error"))
-                    + "\n" + (r.optLong("tested_at") > 0 ? DateFormat.getDateTimeInstance().format(new Date(r.optLong("tested_at"))) : "尚未测量"));
+            PreferredIpController.Row row = rows.get(position - 1); holder.address = row.address;
+            holder.itemView.setTag(row.address); holder.heading.setTag(row.address); holder.choice.setTag(row.address);
+            holder.choice.setOnCheckedChangeListener(null); holder.choice.setChecked(row.checked);
+            holder.choice.setEnabled(row.selectable && !state.saving);
+            holder.choice.setContentDescription("选择 " + row.address);
+            holder.choice.setOnCheckedChangeListener((button, on) -> {
+                if (row.address.equals(holder.address) && holder.getBindingAdapterPosition() != RecyclerView.NO_POSITION) controller.select(row.address, on);
+            });
+            holder.location.setText(row.location); holder.addressText.setText(row.address.replace(":", ":\u200b")); holder.score.setText(row.score);
+            boolean expanded = controller.expanded.contains(row.address);
+            holder.heading.setContentDescription(row.location + "，" + row.address + "，评分 " + row.score + (expanded ? "，已展开，点击收起" : "，已折叠，点击展开"));
+            holder.expanded.setVisibility(expanded ? View.VISIBLE : View.GONE); holder.detail.setText(expanded && row.detail.isEmpty() ? "读取详情…" : row.detail);
+            boolean downloading = row.address.equals(state.activeDownload);
+            holder.download.setText(downloading ? "取消测速" : "测速 · 50MiB / 10秒");
+            holder.download.setEnabled(downloading || row.downloadable);
+            holder.download.setOnClickListener(v -> {
+                if (!row.address.equals(holder.address)) return;
+                if (row.address.equals(state.activeDownload)) { controller.pause("取消测速；等待退出后按实际正文结算"); return; }
+                Runnable download = () -> controller.download(row.address);
+                if (state.metered) confirm("计费网络手动测速", "仅此 IP，最多50MiB/10秒，计入当前100MiB下载轮（另有协议开销）。先暂停扫描，结束保持暂停。是否继续？", download);
+                else download.run();
+            });
         }
     }
     private static final class ResultHolder extends RecyclerView.ViewHolder {
-        final MaterialCheckBox choice; final TextView detail;
-        ResultHolder(View view, MaterialCheckBox choice, TextView detail) { super(view); this.choice = choice; this.detail = detail; }
+        String address = "";
+        MaterialCheckBox choice;
+        LinearLayout heading, expanded;
+        TextView location, addressText, score, detail;
+        MaterialButton download;
+        ResultHolder(View view) { super(view); }
     }
 }
