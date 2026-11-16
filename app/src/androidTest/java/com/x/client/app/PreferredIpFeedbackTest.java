@@ -81,6 +81,11 @@ public final class PreferredIpFeedbackTest {
 
     public void testThreeSavedIpsReplaceSixOnlyAfterValidation() throws Exception {
         JSONObject pool = pool(), params = PreferredIpResolver.baseParams(profile);
+        JSONObject validation = pool.getJSONObject("validations").getJSONObject(id);
+        pool.getJSONObject("validations").remove(id);
+        assertFalse(PreferredIpResolver.apply(profile, params, pool).applied);
+        assertEquals(profile.getXtRelayNodes(), params.getString("relay_nodes"));
+        pool.getJSONObject("validations").put(id, validation);
         PreferredIpResolver.Decision decision = PreferredIpResolver.apply(profile, params, pool);
         assertTrue(decision.applied);
         assertEquals("104.16.1.1:443,104.16.1.2:443,104.16.1.3:443", params.getString("relay_nodes"));
@@ -95,7 +100,7 @@ public final class PreferredIpFeedbackTest {
 
     public void testSubsetAndNonAdoptionReasons() throws Exception {
         JSONObject pool = pool();
-        pool.getJSONObject("validations").getJSONObject(id).put("addresses", new JSONArray().put("104.16.1.2:443"));
+        pool.getJSONObject("validations").getJSONObject(id).put("addresses", new JSONArray().put("104.16.1.2:443").put("8.8.8.8:443"));
         JSONObject params = PreferredIpResolver.baseParams(profile);
         assertTrue(PreferredIpResolver.apply(profile, params, pool).summary.contains("= 3"));
         assertEquals("104.16.1.2:443", params.getString("relay_nodes"));

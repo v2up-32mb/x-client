@@ -2,6 +2,7 @@
 """Source/resource guards only. Does not compile or execute Android/Go code."""
 from pathlib import Path
 import re
+import json
 import runpy
 import xml.etree.ElementTree as ET
 
@@ -53,29 +54,40 @@ assert 'out.putBoolean("preferred_imported_addresses"' in editor
 assert 'preferredInitialImplicit = !pool.optJSONObject("profile_modes").has(profileId)' in editor
 assert 'setMode(this, id, "independent")' not in read("ProfileListActivity")
 
-# Every target/IP outcome is retained; recommendation=false must NOT drive compatibility.
-prepare = section(controller, "void prepareSave()", "void commitPreview()")
-assert 'modes.put(info.id, "independent")' not in prepare
-assert 'row.put("results", outcomes)' in prepare
-assert 'outcomes.put(diagnostic(address, actual, failure))' in prepare
-assert 'Map<String, JSONArray> cache' in prepare and 'fingerprint(target)' in prepare
-assert prepare.index('validation.put("state", "completed")') < prepare.index('if (compatibleProfiles == 0)')
-assert prepare.index('if (compatibleProfiles == 0)') < prepare.index('preview = new JSONObject()')
-assert 'options(target, false, 3, 3, DOWNLOAD)' in prepare
-assert 'generation.compareAndSet(epoch, epoch + 1)' in controller
-assert '测试来源：' in controller and 'PreferredIpPresentation.source(source)' in controller
-compatibility = section(controller, "static boolean compatible(", "private static JSONObject diagnostic(")
+# v2: intent never fabricates proof, validation uses actual profiles and selected subset.
+compatibility = section(controller, "static boolean compatible(", "void select(")
 assert 'optBoolean("recommended")' not in compatibility
 assert 'http_success' in compatibility and '"valid"' in compatibility and 'colo' in compatibility
-for guard in ['validationEpoch != generation.get()', '!selectionKey().equals', '!profilesKey().equals', '"pool_revision"', 'publicationEpoch == generation.get()']:
+eligible = section(controller, "private boolean eligibleResult(", "/** Legacy low-level")
+for guard in ['probe_complete', 'score_ready', 'score_version', '"reference"', 'target_key', 'resultContexts.get(address) == proof']:
+    assert guard in eligible, guard
+select = section(controller, "void select(", "private String profilesKey(")
+assert 'selectionContextCurrent(proof, profileSignature)' in select
+assert 'selectionPending++' in select and 'selectionPending--' in select
+assert 'selection_version' in select and 'if (next.length() == 0) root.put("enabled", false)' in select
+assert '.put("enabled", true)' not in select and '.put("target_key"' not in select
+assert 'publishSelectionSettled(address)' in select
+validation = section(controller, "private void validateSelections(", "void disable()")
+for guard in ['following(data, p)', 'PreferredIpResolver.target(p, merged)', 'storedSelectionVersion != root.optLong("selection_version")',
+              'validationCurrent(proofContext, version, profileSignature)', 'isSelected(root, addresses.getString(i))',
+              '"network_id", proofContext.networkId', '"session_id", proofContext.sessionId', 'validationSeen.size() + seen.size() > 8192']:
+    assert guard in validation, guard
+assert 'if (addresses.length() == 0) return' in validation
+assert 'modes.put(info.id, "independent")' not in validation
+assert 'row.optBoolean("probe_complete")' in controller
+for guard in ['proof.epoch != scanEpoch.get()', '!proof.networkId.equals(net.id())', 'proof != scanContext']:
     assert guard in controller, guard
-commit = section(controller, "void commitPreview()", "void disable()")
-assert commit.index('profilesKey().equals') < commit.index('store.write(next')
-assert commit.index('check(preview.getLong("generation")') < commit.index('store.write(next')
-assert 'invalidateValidation("保存未完成' in commit
-assert 'report.optJSONArray("profiles")' in activity
-assert '"completed".equals(report.optString("state"))' in activity
-assert '原性能记录，不代表' in activity and '单节点失败不表示 IP 对所有节点失效' in activity
+assert controller.index('changedEpoch = scanEpoch.incrementAndGet()') < controller.index('invalidate("网络已变化')
+assert 'private final ExecutorService selectionIO' in controller
+assert 'private final ExecutorService networkIO' in controller
+assert 'private final ExecutorService canceller' in controller
+assert 'snapshot.optBoolean("worker_done")' in controller
+for guard in ['download_round_id', 'download_round_limit', 'download_round_used', 'download_round_remaining', 'download_reserved_bytes']:
+    assert guard in read("PreferredIpLedger"), guard
+assert 'new String[]{"download_bytes", "download_seconds", "download_mib_s", "download_peak_mib_s", "download_state", "download_ech_status"}' in controller
+assert 'download ? 52428800 : 20971520' in controller and 'download ? 10 : 5' in controller
+assert '.put("recommend_count", 0).put("download_top", 0)' in controller
+assert 'original.retryUsed = true' in controller and 'retry.retryUsed = true' in controller
 
 # Display-only provenance, fixed Go/API/storage identifiers and comment preservation.
 assert 'MessageDigest.getInstance("SHA-256")' in read("PreferredIpIds")
@@ -84,25 +96,31 @@ assert 'fallback(id, row.optString("source_kind"))' in presentation
 assert 'hasKind(c, "manual") && !hasKind(c, "third_party")' in presentation
 assert 'return row.optString("comment")' in presentation
 assert '.put("comment"' not in presentation and '.remove("comment"' not in presentation
-assert 'PreferredIpPresentation.sources(r, state.data)' in activity
-assert 'PreferredIpPresentation.comment(r, state.data)' in activity
-assert 'enabled.setText("参与测试：" + PreferredIpPresentation.source(source))' in activity
+assert 'PreferredIpPresentation.sources(candidate, data)' in controller
+assert 'PreferredIpPresentation.comment(candidate, data)' in controller
+assert 'on.setText("参与测试：" + PreferredIpPresentation.source(source))' in activity
 
-# One shared fixed-height history; no raw snapshot JSON, cumulative warnings emitted once.
+# Two native pages, one stable results list; old log is a data-only regression tool.
 layout = ET.parse(app / "src/main/res/layout/activity_preferred_ip.xml").getroot()
 android = "{http://schemas.android.com/apk/res/android}"
-logs = [n for n in layout.iter() if n.attrib.get(android + "id") == "@+id/preferred_log_scroll"]
-assert len(logs) == 1 and logs[0].attrib[android + "layout_height"] == "@dimen/preferred_log_height"
-assert logs[0] in list(layout)  # outside all three pages
-assert 'snapshot.toString' not in log and 'snap.optJSONArray("warnings")' not in activity
+assert 'return 2;' in activity and 'setupWithViewPager(pager)' in activity
+assert 'new RecyclerView(this)' in activity and 'setHasStableIds(true)' in activity
+assert 'PreferredIpLog' not in activity and 'preferred_log_scroll' not in ET.tostring(layout).decode()
+assert 'prepareSave' not in controller and 'commitPreview' not in controller
+assert 'preferred_selected' not in activity and 'preferred_recommend' not in activity
 assert 'MAX_LINES = 160, MAX_BYTES = 24576' in log
 assert 'lines.size() > MAX_LINES || bytes > MAX_BYTES' in log
 assert 'int i = warningsSeen' in log and 'progress.equals(next)' in log
-assert '!logScroll.canScrollVertically(1)' in activity
-assert 'interaction == logInteraction' in activity and 'logScroll.scrollTo(0, oldY)' in activity
-assert 'out.putInt("log_y"' in activity
 assert '"5次 HTTPS 请求延迟"' in presentation
-assert '"HTTP ' not in activity
+assert 'colo = "UKN"' in controller
+assert 'setChecked(selectedAddresses.contains(address))' in activity
+assert 'getBindingAdapterPosition()' in activity and 'RecyclerView.NO_POSITION' in activity
+assert activity.index('adapter.reconcileVisibleSelections(); adapter.submitLatest()') < activity.index('private void renderSources()')
+assert 'addOnPreDrawListener' in activity
+bind = section(activity, 'private void bindChoiceSelection(', 'void rebindSelection(')
+assert bind.index('setOnCheckedChangeListener(null)') < bind.index('setChecked(') < bind.index('setOnCheckedChangeListener((button, on)')
+assert 'address.equals(holder.address)' in bind
+assert 'notifyDataSetChanged' not in activity
 
 # Original persistent OS locking/CAS is still intact.
 assert 'new RandomAccessFile(lockFile, "rw")' in store and 'lock.getChannel().lock()' in store
@@ -115,7 +133,7 @@ resources = {"string": set(), "dimen": set(), "id": set(), "array": set()}
 for file in (app / "src/main/res").rglob("*.xml"):
     root = ET.parse(file).getroot()
     for node in root.iter():
-        kind = "array" if node.tag == "string-array" else node.tag
+        kind = "array" if node.tag == "string-array" else node.attrib.get("type", "item") if node.tag == "item" else node.tag
         if kind in resources and "name" in node.attrib:
             resources[kind].add(node.attrib["name"])
         identifier = node.attrib.get(android + "id", "")
@@ -125,23 +143,39 @@ for text in [activity, editor]:
     for kind, name in re.findall(r"(?<!material\.)R\.(string|dimen|id|array)\.(\w+)", text):
         assert name in resources[kind], (kind, name)
 
-# The system-only CI runner must enumerate these six offline scenarios, not just
-# return a success code. These are source guards, NOT execution of those scenarios.
+# Static registration is compared to the parser, never counted as runtime coverage.
 tests = app / "src/androidTest/java/com/x/client/app"
 suite = (tests / "PreferredIpFeedbackTest.java").read_text()
+v2 = (tests / "PreferredIpV2Test.java").read_text()
 runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
 protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
-assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SCENARIOS"]
-assert len(protocol["SCENARIOS"]) == protocol["TOTAL"] == 6
-assert 'static final int TOTAL = 6;' in suite
+assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARIOS"]
+assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
+names = section(v2, 'static final String[] NAMES = {', '};')
+assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 21
+inventory = json.loads((app / 'src/static_checks/preferred_ip_v2_inventory.json').read_text())
+assert inventory['status'] == 'partial' and inventory['total_registered'] == protocol['TOTAL']
+assert tuple(case['name'] for case in inventory['cases']) == protocol['SCENARIOS']
+assert [case['number'] for case in inventory['cases']] == list(range(1, protocol['TOTAL'] + 1))
+assert inventory['mandatory_not_implemented']
+assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
 assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
 assert 'assertTrue(edit.commit())' in suite
-assert 'extends Instrumentation' in runner and 'import android.app.Instrumentation;' in runner
+assert 'extends Instrumentation' in runner
 assert 'Build.VERSION.SDK_INT != 24' in runner and '"com.x.client.app.trial".equals' in runner
 assert 'catch (Throwable failure)' in runner and 'finish(Activity.RESULT_CANCELED, result)' in runner
-assert 'passed != PreferredIpFeedbackTest.TOTAL' in runner and 'finish(Activity.RESULT_OK, result)' in runner
+assert 'passed != TOTAL' in runner and 'finish(Activity.RESULT_OK, result)' in runner
+assert 'PreferredIpV2Test.run(this, reporter)' in runner
+assert 'startActivitySync' in v2 and 'performClick()' in v2 and 'dispatchTouchEvent' in v2
+assert 'callActivityOnStop(activity)' in v2 and 'callActivityOnRestart(activity)' in v2
+assert 'SettingsActivity.class' in v2 and 'same.isDestroyed()' in v2
+assert 'controller.select(' not in v2 and 'reconcileVisibleSelections' not in v2
+assert 'stopCycle()' in v2 and 'selectionPending' in v2 and 'new ReadFault(f.dir)' in v2
+assert 'getApplicationContext() { return this; }' in v2
+assert 'Thread.sleep' not in v2 and 'String.join' not in v2 and 'java.nio.file' not in v2
 for file in tests.glob("*.java"):
-    assert not re.search(r"import (?:org\.junit|androidx\.|android\.test\.)", file.read_text()), file
+    assert not re.search(r"import (?:org\.junit|android\.test\.|androidx\.test\.)", file.read_text()), file
 manifest = ET.parse(app / "src/androidTest/AndroidManifest.xml").getroot()
 for library in manifest.iter("uses-library"):
     assert library.attrib["{http://schemas.android.com/tools}node"] == "remove"

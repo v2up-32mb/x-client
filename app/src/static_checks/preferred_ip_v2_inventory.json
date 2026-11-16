@@ -1,0 +1,190 @@
+{
+  "status": "partial",
+  "execution": "source-only; no local/CI product execution",
+  "total_registered": 21,
+  "cases": [
+    {
+      "number": 1,
+      "name": "testThreeSavedIpsReplaceSixOnlyAfterValidation",
+      "kind": "pure-data-safety",
+      "assertions": "真实Preferences+Resolver golden：无validation保六旧入口；验证3个后3×3=9，顺序去重且原入口不改。",
+      "trigger_and_boundary": "six-fixture runner；无Activity/新proof资格声称",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 2,
+      "name": "testSubsetAndNonAdoptionReasons",
+      "kind": "pure-data-safety",
+      "assertions": "selected∩validation只取1个/3通道，validation额外未选地址不采用；禁用/independent保原入口/default域名。",
+      "trigger_and_boundary": "six-fixture runner",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 3,
+      "name": "testUnknownChangedTargetAndAdvancedConflictStayOriginal",
+      "kind": "pure-data-safety",
+      "assertions": "真实最终target改变、无validation、高级relay冲突均不接管；保高级入口。",
+      "trigger_and_boundary": "six-fixture runner",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 4,
+      "name": "testNoDownloadRecommendationFalseIsNotFailure",
+      "kind": "pure-data-safety",
+      "assertions": "recommended=false、download_state=untested不判失败；status失败不兼容（仅低层compatible）。",
+      "trigger_and_boundary": "six-fixture runner；不冒称UI新reference资格",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 5,
+      "name": "testThirdPartyCommentHiddenAndManualProvenanceRecovered",
+      "kind": "pure-data-safety",
+      "assertions": "third-party COMMENT隐藏；恢复manual provenance/URL和多个真实手动备注；原JSON未改。",
+      "trigger_and_boundary": "six-fixture runner",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 6,
+      "name": "testReadableLogDeduplicatesAndBounds",
+      "kind": "pure-data-safety",
+      "assertions": "纯日志重复snapshot不新增、1000事件后160行/24576字节上限且保最新项。",
+      "trigger_and_boundary": "six-fixture runner；不是新UI日志页",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 7,
+      "name": "testNativeTabsSwipeHeadingAndIpv6",
+      "kind": "native-ui",
+      "assertions": "launch真实Activity；TabView点击+ViewPager MotionEvent双横滑；checkbox最左、不展开；heading展开/折叠、详情TCP/TLS/HTTPS/ECH/score/未下载；IPv6端口、UKN、按地址stable ID滚回及Y不串选。",
+      "trigger_and_boundary": "真实Factory/Backend prepare/probe→Pause matching drain；RecyclerView原生scrollToPosition+draw闩锁；不证明实时重排或大字/深浅",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 8,
+      "name": "testNativeSelectionValidationAndLastDisable",
+      "kind": "native-ui-transaction",
+      "assertions": "自然reference→真实checkbox保存/validation启用→Resolver真实selected交集；原relay/VPN不改；tab/selection不推进epoch；切网后旧checked可取消、最后取消disable、selection_version及重绑不递归。",
+      "trigger_and_boundary": "真实checkbox+AtomicFile+NetworkAccess同步通知",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 9,
+      "name": "testForegroundAtomicReadAddFailure",
+      "kind": "native-atomic-read",
+      "assertions": "未选X真实click，Store.LOCK→pending0/1/0、case周期future取消，真实AtomicFile base非空目录openRead故障；前台绘制回false、相等Row、selected/validations/enabled/version及旧字节不改，随后真实成功retry。",
+      "trigger_and_boundary": "main/control/selectionIO/main fences；不是写故障；无saving发布仅由取消周期+完成时pending0保证，未逐捕全部State",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 10,
+      "name": "testForegroundAtomicReadRemoveFailure",
+      "kind": "native-atomic-read",
+      "assertions": "已选X通过真实保存建立初态；取消真实openRead失败绘制回true，Row相等、落盘/旧字节保留，随后成功取消disable。",
+      "trigger_and_boundary": "同上双向；不是写故障",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 11,
+      "name": "testStoppedAtomicReadAddFailure",
+      "kind": "native-lifecycle-dispatch",
+      "assertions": "同main Runnable真实click→control fence pending1→Instrumentation pause/stop，listener=null、未destroy；真实read故障后pending0，main FIFO消费完成/settled但Activity缓存State不变；restart/start/resume同实例实际draw核selected/validation/enabled/version、Row相等及成功retry。",
+      "trigger_and_boundary": "Supervisor批准的Instrumentation原生生命周期回调分派；不是ActivityThread/Home窗口停绘；生产pre-draw可在stop时先修正，不能独立证明返回补偿因果或全部无saving帧观测",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 12,
+      "name": "testStoppedAtomicReadRemoveFailure",
+      "kind": "native-lifecycle-dispatch",
+      "assertions": "已选取消失败版本同上：同Runnable临时false，真实read故障保selected=true，same Activity恢复draw true且库一致，随后真实成功取消disable。",
+      "trigger_and_boundary": "与前例对称；同一限制，不证明返回前临时值持续错误",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 13,
+      "name": "testSettingsCoverReturnsSameActivity",
+      "kind": "native-system-lifecycle",
+      "assertions": "真实startActivitySync SettingsActivity覆盖→自然ActivityThread onStop且listener=null/foregroundfalse→finish覆盖页→自然onStart原实例/实际drawchecked与disk一致；无新任务/revision。",
+      "trigger_and_boundary": "独立系统覆盖/返回例；不保证同Runnable快失败窗口；不是旋转",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 14,
+      "name": "testPendingNativeIntentUsesDiskUntilSettled",
+      "kind": "native-pending-render",
+      "assertions": "真实checkbox临时true、Store monitor阻事务后pending1；真实publish saving=true+draw按权威disk显示false，放锁成功再显示true；version只+1无递归。",
+      "trigger_and_boundary": "真实阻Store保存尚未settle窗口；不是伪saving帧",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 15,
+      "name": "testNetworkEpochAndAbaRejectQueuedNativeAdd",
+      "kind": "native-aba",
+      "assertions": "control闩锁先接真实checkbox排intent；同control同步B→A网络callback，invalidate仍排后、stale=false而旧eligible=false；放队后无selected/proof/enabled，widget恢复false。",
+      "trigger_and_boundary": "read-only反射eligible/epoch；真实UI意图；不涵盖异target晚validation/已有池",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 16,
+      "name": "testStoreMonitorRejectsQueuedNativeAdd",
+      "kind": "native-store-race",
+      "assertions": "真实Store.LOCK monitor挡selectionIO新增，control确认pending1后同步B→A；放锁真实Store mutation拒旧proof，selected/validations/version/disabled保持，drawfalse。",
+      "trigger_and_boundary": "不用同JVM重叠FileChannel；不覆盖intent已保存的validation提交竞态",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 17,
+      "name": "testBlockedPollCancelAndWorkerDoneResume",
+      "kind": "native-worker-done",
+      "assertions": "真实poll阻塞，网络wire X已完整而Y/IPv6 partial；tab不断；真实Pause Cancel独立到达；实际消费cancelled+worker_done=false仍busy不开第二槽，partial无分；matching true退出，Continue只发Y/IPv6同session，保X完整。",
+      "trigger_and_boundary": "Backend only网络模拟；reply消费计数+executor/main fences；不覆盖Start阻塞、source fetch或取消同时Store阻塞",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 18,
+      "name": "testDownloadSixFieldsAndDurableBudget",
+      "kind": "native-download",
+      "assertions": "真实heading/行download及取消；Start前真实AtomicFile预留50MiB，cancelled worker_done=false不退预留，matching true计7MiB失败正文；仅六字段merge且proof/score/ECH/time/validation不变；单候选50MiB/10秒URL52428800；prepare/probe20MiB/5秒且0下载/推荐，无VPN启动。",
+      "trigger_and_boundary": "真实Controller/ledger；不涵盖计费确认、新轮菜单、跨IP多次UI下载/预留切网",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 19,
+      "name": "testHistoryAtomicFilesWhitelistAndLimits",
+      "kind": "pure-data-atomic-history",
+      "assertions": "两真实AtomicFile写/读，results[]、白名单排Token/UserId/advanced JSON；API24 .bak恢复旧字节；4097条及16MiB超限明错保旧历史/Root。",
+      "trigger_and_boundary": "History真实文件/序列化；无公网/Controller结果伪装",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 20,
+      "name": "testHistoryMigrationTransferFailurePreservesRoot",
+      "kind": "controller-history-transfer-failure",
+      "assertions": "真实legacy last_test与selected数据fixture；history lock路径非空目录导致转存失败，Controller加载完成后Root字节/selected不变且未伪称历史文件。",
+      "trigger_and_boundary": "纯持久安全fixture（非UI新成功）；实际History.write锁打开失败，不混称AtomicFile写或read故障；成功迁移顺序未覆盖",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 21,
+      "name": "testLedgerUncertainReservationAndExplicitRound",
+      "kind": "pure-data-atomic-ledger",
+      "assertions": "真实Store预留、worker_done=false拒结、wrong round保预留；跨X/Y累加100MiB、余额钳制/耗尽拒续、新scan保用量、显式新round审计previous、dead owner拒自动清零而确认后新轮。",
+      "trigger_and_boundary": "真实Ledger/AtomicFile+合成accounting wire；不是主动菜单确认或多个UI网络任务",
+      "execution": "NOT RUN; Actions only"
+    }
+  ],
+  "mandatory_not_implemented": [
+    "P1首State早于首holder/隐藏页/缓存未rebind恢复/NO_POSITION/held removed row与真正pre-draw补偿因果尚无可靠用例；生命周期分派窗口不会自动停Window，不能代替这些必测项。",
+    "所有State saving帧的完整观测/证明未实现；已有快故障例通过取消case周期future、pending0→1→0及完成State不saving控制窗口，但listener=null的丢弃State未逐项捕获。",
+    "晚diff已算完/仍排队、内容相等/变化/重排/另一Y及实际触摸或TalkBack焦点延期移位、fold/anchor保持未实现；基础stable ID滚回不等价。",
+    "真实旋转、新实例与同实例分离恢复、深浅主题/大字体、列表真实纵滑未实现（仅原生scrollToPosition布局）。",
+    "快速重复意图/新增立即取消与后台成功/早拒通知丢失未实现；故障后成功retry已实现。",
+    "Start阻塞、source fetch drain、选择IO与poll同时阻塞仍可Cancel、错task/session/network worker_done不释放未实现。",
+    "已存intent但validation未落盘的Store首尾竞态、异target真实prepare/probe、selection/Profile最终高级参数变化/晚validation、旧有效池保留正例未实现；queued add+ABA仅其中一部分。",
+    "晚poll/maintenance、reserve前后切网、已入场旧download结算/context拒续未实现。",
+    "真实计费网络主动dialog确认、更多菜单新100MiB确认、重复/换IP/暂停/新scan跨多个真实下载任务预算未实现；直接Ledger数据组不代替UI。",
+    "ECH同session复用请求/消费、TTL0一次维护有界停止、冻结队列/完整时间戳/账本维护保持与sticky fallback调度未实现；不要求新同session强刷按钮。",
+    "History成功legacy迁移先History后轻Root行为未实现；失败保Root、两文件/数组/白名单/4096及16MiB限制已实现。",
+    "AtomicFile真实写失败/旧字节恢复未实现；read故障与History lock失败不冒称写覆盖。"
+  ],
+  "ci": "Existing trial runner now registers 21 ordered cases; strict parser requires all and API24/code=-1. Native timeout 480s; no new dependencies/actions or Go/bind/sign/release changes. A 21/21 report is partial-contract evidence, never full-v2 acceptance."
+}
