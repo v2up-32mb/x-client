@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 55,
+  "total_registered": 62,
   "cases": [
     {
       "number": 1,
@@ -531,17 +531,85 @@
       "assertions": "31候选实际gesture非首尾，首anchor高度不变并真实选中，下一可见secondary真实选中/展开。UiAutomation真实FOCUSED/CLEARED事件、native isAccessibilityFocused及生产address；X更高分只更新内容/不移位；secondary checkbox真ACTION_CLICK只取消不折叠，clear后才排序、exact anchor top/height/ID；heading真click才折叠。3次真实选择事务，无多余写。",
       "trigger_and_boundary": "不sendAccessibilityEvent/普通focus冒充；恢复serviceInfo、node/event及观测器，非TalkBack朗读。 service能力或事件缺失必须fail；普通view focus不能替代。",
       "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 56,
+      "name": "testNativeRotationRetainsSessionAndPartialQueue",
+      "kind": "stage-b-native-configuration",
+      "group": "G4a",
+      "assertions": "13个fixture候选真实startActivitySync；原生ACTION_SET_TEXT改并发；首个probe真实poll阻塞，partial=12后原生setRequestedOrientation触发ActivityThread新实例（old.isDestroyed、retained Controller、首个实际帧），onStop真实Cancel→无worker_done保持slot/paused且startAttempts仍2；matching worker_done不自动Start；selected/validations/enabled/version与旧池一致、V6 fold按地址保留/全文端口；原生Continue只发剩余1个IP且同session/round，完成后行仍checked。",
+      "trigger_and_boundary": "真实ActivityThread recreation与旧实例onDestroy；不手工destroy/dispatchStop/伪造旋转；不直接select/State写。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 57,
+      "name": "testLightNormalFontNativeLayout",
+      "kind": "stage-b-native-configuration",
+      "group": "G4b",
+      "assertions": "21行真实Backend结果；AppCompat Settings Spinner真实亮色选择→Preferences/Configuration.uiMode=NO；系统字体页真实返回原字号；recreated实例按地址保留X选择/V6 fold；48dp choice/heading、IPv6全文、真实纵滑onScrolled>0/RecyclerListener>0、非首尾anchor exact top/height/stableID、下一可见heading真实展开后anchor不变、version不改。",
+      "trigger_and_boundary": "主题只经真实SettingsActivity spinner弹窗；字体只经com.android.settings原生页；不setDefaultNightMode/不放大TextView。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 58,
+      "name": "testDarkNormalFontNativeLayout",
+      "kind": "stage-b-native-configuration",
+      "group": "G4c",
+      "assertions": "同上，真实Spinner切暗色→uiMode=NIGHT_YES与delegate NO/YES一致；系统字体页恢复原字号；recreated实例中48dp/IPv6/真实纵滑回收/anchor/version/fold断言同亮色。",
+      "trigger_and_boundary": "真实深浅×普通字号；不写AppCompatDelegate或Resources。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 59,
+      "name": "testLightLargeFontNativeLayout",
+      "kind": "stage-b-native-configuration",
+      "group": "G4d",
+      "assertions": "真实Spinner亮色+真实API24系统字体页选择最大字号（前置：当前非最大），读回Settings.System.FONT_SCALE与实例Configuration.fontScale严格大于原值；recreated后48dp/IPv6/真实纵滑回收/anchor/version/fold。",
+      "trigger_and_boundary": "不手动改fontScale；最大字号与原值相同则明确fail而非伪过。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 60,
+      "name": "testDarkLargeFontNativeLayout",
+      "kind": "stage-b-native-configuration",
+      "group": "G4e",
+      "assertions": "真实暗色Spinner+原生最大字号，核uiMode NIGHT_YES/fontScale与系统值一致及recreated布局/48dp/IPv6/实际纵滑/anchor/版本。",
+      "trigger_and_boundary": "真实深浅×大字号矩阵最后一格；所有旧字号/主题/方向恢复由guard收尾。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 61,
+      "name": "testPollAndStoreBlockedCancelRemainsIndependent",
+      "kind": "stage-b-native-concurrency",
+      "group": "G6a",
+      "assertions": "真实poll阻塞且持有真实PreferredIpStore LOCK时，原生checkbox点击经control进入selectionPending=1但文件字节/version未变；原生Pause仍独立触发backend.cancel且stopRequested生效，pending仍1；释放Store后短选择事务真实提交version+1，cancelled无worker_done保持busy/paused，matching worker_done释放；原生Continue只发剩余2个且不重试已完成X。",
+      "trigger_and_boundary": "Store阻塞用真实monitor，不使用fake Store/pending写；状态均读真实Controller/文件。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 62,
+      "name": "testAdmittedStartReturnDoesNotBlockSelection",
+      "kind": "stage-b-native-concurrency",
+      "group": "G6b",
+      "assertions": "下载Start已入场但ID被gate延迟返回期间，真实选择Y仍提交version=2/enabled=true且X+Y持久；原生再次点击下载记录stopRequested但无ID可cancel；放行后真实cancel与poll，无worker_done保留50MiB reserved，matching worker_done按3MiB实际正文结算used=3MiB/reserved=0且不改version。",
+      "trigger_and_boundary": "真实Start返回窗口；不写taskId/reserved/ledger，只在gate处延迟真实backend.start返回。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
     }
   ],
   "mandatory_not_implemented": [
-    "G4 — 真实旋转、深浅/系统大字体与真实纵滑配置矩阵未写。",
-    "G6 — 已写Start-return/官网fetch/三wrongdone＋原partial resume；尚缺poll+Store并阻时Cancel、blockedStart期间实际选择短事务。",
     "G7 — stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。",
     "G8 — 晚reference/异target/maintenance/reserve前后切网与已入场旧下载结算矩阵未写。",
     "G9 — 真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。",
     "G10 — 同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
   ],
-  "ci": "55 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded31-row gestures/node/event/gate work plus emulator setup. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; B/C/D and blocking production anchor finding prevent final ready.",
+  "ci": "62 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded31-row gestures, node/event gates, real Settings theme/font pages and ActivityThread rotation. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; C/D and the blocking production anchor finding prevent final ready.",
   "findings_map": [
     {
       "id": "F1",
@@ -576,7 +644,7 @@
     {
       "id": "F7",
       "status": "partial-matrix",
-      "evidence": "Stage A closes source G1/G3; overall F7 remains partial for staged B/C/D (G4/G6 remaining/G7-G10), not 55 PASS."
+      "evidence": "Stage A/B close source G1/G3/G4/G6; overall F7 remains partial for staged C/D (G7-G10), not 62 PASS."
     }
   ],
   "groups": [
@@ -597,8 +665,8 @@
     },
     {
       "id": "G4",
-      "status": "not-implemented",
-      "detail": "真实旋转、深浅/系统大字体与真实纵滑配置矩阵未写。"
+      "status": "source-implemented",
+      "detail": "补真实setRequestedOrientation新旧Activity实例/retained Controller/partial Cancel，真实Settings Spinner深浅与API24系统字体页普通/大字号，48dp/IPv6/真实纵滑/anchor；全Android NOT RUN。"
     },
     {
       "id": "G5",
@@ -607,8 +675,8 @@
     },
     {
       "id": "G6",
-      "status": "partial",
-      "detail": "已写Start-return/官网fetch/三wrongdone＋原partial resume；尚缺poll+Store并阻时Cancel、blockedStart期间实际选择短事务。"
+      "status": "source-implemented",
+      "detail": "保留Start-return/fetch/wrongdone＋partial resume，补poll+Store并阻时独立Cancel及admitted Start返回其间真实短选择事务；全Android NOT RUN。"
     },
     {
       "id": "G7",
@@ -646,14 +714,15 @@
     "115仅Controller.main透明实例引用观察，其余State/proof/listener/Window/Looper/帧钟/main源码不写。",
     "本轮supervisor批准：pending为sameRows早退后sticky诊断位；正常driver不以pending=false单独门禁，differ→main且diffRunning=false和地址/顺序/全部渲染字段精确一致；实际widget/Store仍独立核。",
     "本轮supervisor：anchor.getTop+rowMargin/LLM offset混坐标强静态疑点按显式阻断finding登记；继续测试source_complete但不得称anchor passed或产品ready；exact31-row nonboundary gesture/unchanged-height/public decorated diagnostics不放松。",
-    "父新静态字节/source链把anchor疑点升级为明确坐标缺陷；旧水平报告保留后改纵向$2，全11方法静态decode，不冒称v2运行。保持exact address/top/height/stableID反证，不减margin或额外scroll；Task30 blocks26，main修复未授权。"
+    "父新静态字节/source链把anchor疑点升级为明确坐标缺陷；旧水平报告保留后改纵向$2，全11方法静态decode，不冒称v2运行。保持exact address/top/height/stableID反证，不减margin或额外scroll；Task30 blocks26，main修复未授权。",
+    "阶段B source=24bfd18 baseline=7a2；只补G4+G6剩余，沿用A顺序追加7例；真实主题/字体/旋转，不写main或Resources。"
   ],
   "stage": {
-    "completed_stage": "ui_remaining",
+    "completed_stage": "configuration_cancel_remaining",
     "stage_complete": true,
-    "source_commit": "e7dd17808388ca420688c952b742411e187a73be",
+    "source_commit": "24bfd18b4cab6adf93c6f12c8f7872193b4b7eda",
     "baseline_commit": "7a2d5b27c653fc465b9dd72b9db1f40d68681bdc",
-    "meaning": "A source/registration/cleanup complete only; overall partial. Confirmed frozen-main anchor coordinate defect blocks product static-ready/Task26 pending separately authorized repair and fresh review. All Android NOT RUN."
+    "meaning": "B source/registration/cleanup complete only; overall partial. Confirmed frozen-main anchor coordinate defect still blocks product static-ready/Task26 pending separately authorized repair and fresh review. All Android NOT RUN."
   },
   "blocking_production_findings": [
     {

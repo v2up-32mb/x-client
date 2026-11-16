@@ -150,19 +150,35 @@ v2 = (tests / "PreferredIpV2Test.java").read_text()
 continuation = (tests / "PreferredIpV2ContinuationTest.java").read_text()
 control_tests = (tests / "PreferredIpTestControl.java").read_text()
 ui = (tests / "PreferredIpUiRemainingTest.java").read_text()
+configuration = (tests / "PreferredIpConfigurationCancelTest.java").read_text()
 runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
 protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
 assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARIOS"]
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 55
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 62
 assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
 assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
 assert 'PreferredIpUiRemainingTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpUiRemainingTest::(test\w+)", ui)) == protocol['UI_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(ui, 'static final String[] NAMES = {', '};'))) == protocol['UI_SCENARIOS']
+assert 'PreferredIpConfigurationCancelTest.run(this, reporter)' in runner
+assert tuple(re.findall(r"PreferredIpConfigurationCancelTest::(test\w+)", configuration)) == protocol['CONFIGURATION_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(configuration, 'static final String[] NAMES = {', '};'))) == protocol['CONFIGURATION_SCENARIOS']
+for seam in ['old.setRequestedOrientation(requested)', 'old.isDestroyed()', 'afterActivityCreate',
+             'ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE', 'R.id.spinner_theme_mode', 'SettingsActivity.class',
+             'ACTION_DISPLAY_SETTINGS', 'FONT_SCALE', 'Configuration.fontScale', 'getDisplayMetrics().density',
+             'ACTION_SET_PROGRESS', 'middleByGesture', 'anchor.assertPreserved(f)',
+             'synchronized (storeMonitor())', 'selectionPending', 'startReturn.awaitEnter()',
+             'download_ledger', 'reserved']:
+    assert seam in configuration, seam
+assert 'new PreferredIpController.Row' not in configuration and 'new PreferredIpController.State' not in configuration
+assert 'controller.select(' not in configuration and '.setChecked(' not in configuration
+assert 'dispatchStop' not in configuration and 'callActivityOn' not in configuration
+assert 'setDefaultNightMode' not in configuration and 'Settings.System.put' not in configuration
+assert 'Thread.sleep' not in configuration and 'String.join' not in configuration and 'java.nio.file' not in configuration
 for seam in ['sendPointerSync', 'addRecyclerListener', 'onItemRangeRemoved', 'RecyclerView.NO_POSITION',
              'executeAndWaitForEvent', 'ACTION_ACCESSIBILITY_FOCUS', 'ACTION_CLEAR_ACCESSIBILITY_FOCUS',
              'getBindingAdapterPosition', 'rows(f) == captured', 'captured, address).checked',
@@ -192,13 +208,14 @@ assert [case['number'] for case in inventory['cases']] == list(range(1, protocol
 assert inventory['mandatory_not_implemented']
 assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
 assert len(inventory['findings_map']) == 7 and len(inventory['groups']) == 12
-assert inventory['stage']['completed_stage'] == 'ui_remaining'
+assert inventory['stage']['completed_stage'] == 'configuration_cancel_remaining'
 assert inventory['stage']['stage_complete'] is True
+assert inventory['stage']['source_commit'] == '24bfd18b4cab6adf93c6f12c8f7872193b4b7eda'
 assert inventory['blocking_production_findings'][0]['id'] == 'P-anchor-margin-coordinate'
 assert 'getDecoratedTop' in ui and 'top == v.getTop()' in ui
 assert 'height == v.getHeight()' in ui and 'middleByGesture' in ui
 assert 'holdProbeAddress' in v2
-assert all(group['status'] == 'source-implemented' for group in inventory['groups'] if group['id'] in ('G1', 'G3'))
+assert all(group['status'] == 'source-implemented' for group in inventory['groups'] if group['id'] in ('G1', 'G3', 'G4', 'G6'))
 assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
 assert 'assertTrue(edit.commit())' in suite
 assert 'extends Instrumentation' in runner

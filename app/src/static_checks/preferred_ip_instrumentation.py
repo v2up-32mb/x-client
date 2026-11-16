@@ -71,7 +71,16 @@ UI_SCENARIOS = (
     "testNativeTouchCancelDefersMovesFoldAnchor",
     "testNativeAccessibilityFocusDefersMovesAndClicks",
 )
-SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS
+CONFIGURATION_SCENARIOS = (
+    "testNativeRotationRetainsSessionAndPartialQueue",
+    "testLightNormalFontNativeLayout",
+    "testDarkNormalFontNativeLayout",
+    "testLightLargeFontNativeLayout",
+    "testDarkLargeFontNativeLayout",
+    "testPollAndStoreBlockedCancelRemainsIndependent",
+    "testAdmittedStartReturnDoesNotBlockSelection",
+)
+SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS + CONFIGURATION_SCENARIOS
 TOTAL = len(SCENARIOS)
 
 
