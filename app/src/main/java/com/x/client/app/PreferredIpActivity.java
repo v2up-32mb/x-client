@@ -426,7 +426,9 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                     diffRunning = false; if (destroyed) return;
                     if (fence != interaction) { submitLatest(); return; }
                     int first = layout.findFirstVisibleItemPosition(); View anchor = layout.findViewByPosition(first);
-                    int offset = anchor == null ? 0 : anchor.getTop() - list.getPaddingTop();
+                    int offset = anchor == null ? 0 : layout.getDecoratedTop(anchor)
+                            - ((RecyclerView.LayoutParams) anchor.getLayoutParams()).topMargin
+                            - list.getPaddingTop();
                     String address = first > 0 && first <= before.size() ? before.get(first - 1).address : "";
                     rows = after;
                     diff.dispatchUpdatesTo(new ListUpdateCallback() {
