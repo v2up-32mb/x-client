@@ -9,7 +9,14 @@ import android.util.Log;
 /** System-only API24 runner: six data regressions plus native UI/AtomicFile v2 cases.
  * Network fixture assertions are NOT public-network/ECHAccepted/VPN authentication evidence. */
 public final class PreferredIpFeedbackInstrumentation extends Instrumentation {
-    private static final int TOTAL = PreferredIpFeedbackTest.TOTAL + PreferredIpV2Test.NAMES.length;
+    private static final int TOTAL = PreferredIpFeedbackTest.TOTAL + PreferredIpV2Test.NAMES.length + PreferredIpV2ContinuationTest.NAMES.length;
+    interface Created { void afterCreate(Activity activity); }
+    Created afterActivityCreate;
+    @Override public void callActivityOnCreate(Activity activity, Bundle saved) {
+        super.callActivityOnCreate(activity, saved);
+        Created observer = afterActivityCreate;
+        if (observer != null) observer.afterCreate(activity);
+    }
     private int passed;
 
     @Override
@@ -40,6 +47,7 @@ public final class PreferredIpFeedbackInstrumentation extends Instrumentation {
             };
             PreferredIpFeedbackTest.run(getTargetContext(), reporter);
             PreferredIpV2Test.run(this, reporter);
+            PreferredIpV2ContinuationTest.run(this, reporter);
             if (passed != TOTAL) throw new AssertionError("Incomplete suite");
             result.putInt("preferred_ip_passed", passed);
             result.putString("preferred_ip_result", "PASS " + TOTAL + "/" + TOTAL);

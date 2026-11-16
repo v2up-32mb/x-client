@@ -7,6 +7,7 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.SystemClock;
+import android.os.Looper;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -120,55 +121,115 @@ final class PreferredIpV2Test {
         void change(String id) { value = id; Runnable r = callback; check(r != null, "network is watched"); r.run(); }
     }
     static final class Task {
-        final JSONObject request; final String id;
+        final JSONObject request; final String id, sessionId, networkId, targetKey, roundId;
+        final long usedAtAdmission, reservedAtAdmission;
         final CountDownLatch polled = new CountDownLatch(1), cancelled = new CountDownLatch(1);
         final BlockingQueue<JSONObject> replies = new LinkedBlockingQueue<>();
-        volatile JSONObject automatic, lastReply; volatile boolean consumedDone;
-        final AtomicLong repliesConsumed = new AtomicLong();
-        Task(String id, JSONObject request) { this.id = id; this.request = request; }
+        final AtomicLong pollEntries = new AtomicLong();
+        volatile JSONObject automatic, lastMatchingReply; volatile boolean consumedDone;
+        Task(String id, JSONObject request, String session, String round, long used, String key) throws Exception {
+            this.id = id; this.request = new JSONObject(request.toString());
+            sessionId = session; roundId = round; usedAtAdmission = used; targetKey = key;
+            networkId = request.getString("network_id");
+            reservedAtAdmission = "download".equals(request.getString("operation")) ? Math.min(PreferredIpLedger.PER_IP, PreferredIpLedger.LIMIT - used) : 0;
+        }
+        boolean matches(JSONObject response) {
+            return id.equals(response.optString("id")) && networkId.equals(response.optString("network_id"))
+                && sessionId.equals(response.optString("session_id"));
+        }
+        void awaitPoll(long number) throws Exception {
+            until(() -> pollEntries.get() >= number, "poll entry " + number);
+        }
     }
-    /** Only the network boundary is simulated. Requests come from the actual UI/controller.
-     * Complete result rows are emitted by poll, never installed in Controller or Store. */
+    /** Checked script failures keep the production drain alive; collector failure forbids PASS.
+     * Task identities and accounting freeze at admission, including delayed Start returns. */
     static final class Backend implements PreferredIpRuntime.Backend {
         final BlockingQueue<Task> started = new LinkedBlockingQueue<>();
         final Map<String, Task> tasks = new ConcurrentHashMap<>();
         final List<JSONObject> requests = Collections.synchronizedList(new ArrayList<>());
-        volatile boolean holdProbe, holdDownload;
+        final PreferredIpTestControl.Failures failures;
+        volatile boolean holdProbe, holdDownload, holdFetch, cleaning;
+        volatile PreferredIpTestControl.Gate startReturn;
         volatile String admitted = "", session = "", round = "round-1";
+        final AtomicLong startAttempts = new AtomicLong();
         int serial, sessionSerial; long used;
-        public String parse(String s, String source, String kind) { throw new AssertionError("unexpected parse"); }
-        public synchronized String start(String raw) throws Exception {
-            check(admitted.isEmpty(), "second backend slot before matching worker_done");
-            JSONObject request = new JSONObject(raw); requests.add(new JSONObject(raw));
-            String operation = request.getString("operation");
-            if (operation.equals("prepare") && request.optString("session_id").isEmpty()) session = "session-" + (++sessionSerial);
-            if (request.optBoolean("new_download_round")) { round = "round-" + (++serial); used = 0; }
-            Task task = new Task("task-" + (++serial), request); tasks.put(task.id, task); admitted = task.id;
-            if (!(operation.equals("probe") && holdProbe) && !(operation.equals("download") && holdDownload))
-                task.automatic = snapshot(task, "completed", true, true, 0);
-            started.add(task); return task.id;
+        Backend(PreferredIpTestControl.Failures failures) { this.failures = failures; }
+        void require(boolean value, String message) throws IOException {
+            if (!value) { IOException e = new IOException(message); failures.add(e); throw e; }
+        }
+        public String parse(String text, String source, String kind) throws Exception {
+            JSONArray rows = new JSONArray();
+            for (String line : text.split("[\\r\\n]+")) {
+                if (line.trim().isEmpty()) continue;
+                String[] fields = line.trim().split("#", 2);
+                rows.put(candidate(fields[0]).put("comment", fields.length == 2 ? fields[1] : "")
+                    .put("source_id", source).put("source_kind", kind).put("source_ids", new JSONArray().put(source)).put("source_kinds", new JSONArray().put(kind)));
+            }
+            return new JSONObject().put("candidates", rows).put("prefixes", new JSONArray()).put("errors", new JSONArray()).toString();
+        }
+        public String start(String raw) throws Exception {
+            startAttempts.incrementAndGet(); Task task = null;
+            try {
+                synchronized (this) {
+                    require(admitted.isEmpty(), "second backend slot before matching worker_done");
+                    JSONObject request = new JSONObject(raw); requests.add(new JSONObject(raw));
+                    String operation = request.getString("operation");
+                    if (operation.equals("prepare") && request.optString("session_id").isEmpty()) session = "session-" + (++sessionSerial);
+                    if (request.optBoolean("new_download_round")) { round = "round-" + (++serial); used = 0; }
+                    boolean fetch = operation.equals("fetch");
+                    task = new Task("task-" + (++serial), request, fetch ? "" : session, fetch ? "" : round, fetch ? 0 : used,
+                        fetch ? "" : targetKey(request.getJSONObject("options")));
+                    tasks.put(task.id, task); admitted = task.id;
+                    if (!(operation.equals("probe") && holdProbe) && !(operation.equals("download") && holdDownload) && !(fetch && holdFetch))
+                        task.automatic = snapshot(task, "completed", true, true, 0);
+                    started.add(task);
+                }
+                PreferredIpTestControl.Gate gate = startReturn;
+                if (gate != null && !cleaning) {
+                    try { gate.block(); }
+                    catch (Exception e) { failures.add(e); cleaning = true; } // Return admitted ID so Cancel/drain remain possible.
+                }
+                return task.id;
+            } catch (Exception e) {
+                failures.add(e);
+                if (task != null) { cleaning = true; return task.id; } // Return every admitted ID to the production drain.
+                throw e;
+            }
         }
         public String poll(String id) throws Exception {
-            Task task = tasks.get(id); check(task != null, "known poll id"); task.polled.countDown();
-            JSONObject response = task.automatic;
-            if (response == null) {
-                response = task.replies.poll(10, TimeUnit.SECONDS);
-                check(response != null, "test must supply poll reply (fail closed)");
-            }
-            task.lastReply = new JSONObject(response.toString());
-            task.repliesConsumed.incrementAndGet();
-            if (response.optBoolean("worker_done")) {
-                synchronized (this) {
-                    check(admitted.equals(id), "matching slot exit"); admitted = ""; task.consumedDone = true;
-                    used = response.getLong("download_round_used");
+            Task task = tasks.get(id); require(task != null, "known poll id");
+            task.pollEntries.incrementAndGet(); task.polled.countDown();
+            JSONObject response;
+            try {
+                response = cleaning ? exit(task) : task.automatic;
+                if (response == null) {
+                    response = task.replies.poll(10, TimeUnit.SECONDS);
+                    if (response == null) {
+                        failures.add(new TimeoutException("missing scripted poll reply")); cleaning = true; response = exit(task);
+                    }
                 }
-            }
-            return response.toString();
+                if (task.matches(response)) task.lastMatchingReply = new JSONObject(response.toString());
+                if (response.optBoolean("worker_done") && task.matches(response)) {
+                    synchronized (this) {
+                        require(admitted.equals(id), "matching slot exit"); admitted = ""; task.consumedDone = true;
+                        used = response.getLong("download_round_used");
+                    }
+                }
+                return response.toString();
+            } catch (Exception e) { failures.add(e); cleaning = true; throw e; }
         }
-        public void cancel(String id) { Task task = tasks.get(id); check(task != null, "known cancel id"); task.cancelled.countDown(); }
+        public void cancel(String id) {
+            Task task = tasks.get(id);
+            if (task == null) { failures.add(new IOException("unknown cancel id")); return; }
+            task.cancelled.countDown();
+        }
         Task next(String operation) throws Exception {
             Task task = started.poll(10, TimeUnit.SECONDS); check(task != null, "start " + operation);
             eq(operation, task.request.getString("operation")); return task;
+        }
+        JSONObject exit(Task task) throws Exception {
+            return task.lastMatchingReply == null ? snapshot(task, "cancelled", true, false, 0)
+                : new JSONObject(task.lastMatchingReply.toString()).put("state", "cancelled").put("worker_done", true);
         }
         String targetKey(JSONObject opts) throws Exception {
             JSONObject target = new JSONObject();
@@ -176,9 +237,10 @@ final class PreferredIpV2Test {
             return PreferredIpIds.opaque("wire-target", PreferredIpResolver.fingerprint(target));
         }
         JSONObject snapshot(Task task, String state, boolean done, boolean complete, long body) throws Exception {
-            String operation = task.request.getString("operation"), role = task.request.optString("probe_role", "reference");
-            JSONArray cs = task.request.getJSONArray("candidates"), rows = new JSONArray();
-            String key = targetKey(task.request.getJSONObject("options"));
+            String operation = task.request.getString("operation"), role = task.request.optString("probe_role", "fetch".equals(task.request.getString("operation")) ? "" : "reference");
+            JSONArray cs = task.request.optJSONArray("candidates"), rows = new JSONArray();
+            if (cs == null) cs = new JSONArray();
+            String key = task.targetKey;
             for (int n = 0; n < cs.length(); n++) {
                 JSONObject row = new JSONObject(cs.getJSONObject(n).toString()); String address = row.getString("address");
                 boolean failed = V6.equals(address); boolean download = operation.equals("download");
@@ -205,34 +267,38 @@ final class PreferredIpV2Test {
                     .put("download_seconds", download ? 2 : 0).put("download_mib_s", 0).put("download_peak_mib_s", 0).put("download_ech_status", download ? "fallback" : "disabled");
                 if (!operation.equals("prepare")) rows.put(row);
             }
-            long reserved = operation.equals("download") ? Math.min(PreferredIpLedger.PER_IP, PreferredIpLedger.LIMIT - used) : 0;
-            return new JSONObject().put("id", task.id).put("operation", operation).put("state", state).put("phase", done ? "done" : "connectivity")
-                .put("worker_done", done).put("session_id", session).put("target_key", key).put("probe_role", role)
-                .put("network_id", task.request.getString("network_id")).put("started_at", 1730000001000L).put("updated_at", 1730000002000L)
+            long reserved = task.reservedAtAdmission;
+            long limit = "fetch".equals(operation) ? 0 : PreferredIpLedger.LIMIT;
+            return new JSONObject().put("id", task.id).put("operation", operation).put("state", state).put("phase", done ? "done" : "fetch".equals(operation) ? "fetch" : "connectivity")
+                .put("worker_done", done).put("session_id", task.sessionId).put("target_key", key).put("probe_role", role)
+                .put("network_id", task.networkId).put("started_at", 1730000001000L).put("updated_at", 1730000002000L)
                 .put("completed", complete ? cs.length() : 0).put("total", cs.length()).put("download_bytes", body)
-                .put("download_round_id", round).put("download_round_limit", PreferredIpLedger.LIMIT).put("download_round_used", used + body)
-                .put("download_round_remaining", PreferredIpLedger.LIMIT - used - body).put("download_reserved_bytes", reserved)
-                .put("ech", new JSONObject().put("key", "ech-key").put("state", "disabled").put("prepared_at", 0).put("expires_at", 0).put("cache_hit", false).put("error", ""))
+                .put("download_round_id", task.roundId).put("download_round_limit", limit).put("download_round_used", task.usedAtAdmission + body)
+                .put("download_round_remaining", limit - task.usedAtAdmission - body).put("download_reserved_bytes", reserved)
+                .put("ech", new JSONObject().put("key", "fetch".equals(operation) ? "" : "ech-key").put("state", "fetch".equals(operation) ? "" : "disabled").put("prepared_at", 0).put("expires_at", 0).put("cache_hit", false).put("error", ""))
                 .put("candidates", cs).put("prefixes", new JSONArray()).put("errors", new JSONArray()).put("warnings", new JSONArray()).put("error", "").put("results", rows);
         }
         void drain() throws Exception {
-            for (Task task : tasks.values()) if (!task.consumedDone && task.automatic == null) {
-                JSONObject exit = task.lastReply == null ? snapshot(task, "cancelled", true, false, 0)
-                    : new JSONObject(task.lastReply.toString()).put("state", "cancelled").put("worker_done", true);
-                task.replies.add(exit);
-            }
+            cleaning = true;
+            PreferredIpTestControl.Gate gate = startReturn; if (gate != null) gate.close();
+            for (Task task : tasks.values()) if (!task.consumedDone) task.replies.offer(exit(task));
+            // Future Start/poll calls also see cleaning: a one-time map traversal is not the drain guarantee.
         }
     }
+
     static final class Fixture implements AutoCloseable {
         final Instrumentation i; final Context target, isolated; final File dir;
         final SharedPreferences prefs; final Map<String, ?> original;
-        final Backend backend = new Backend(); final Network network = new Network();
+        final PreferredIpTestControl.Failures failures = new PreferredIpTestControl.Failures();
+        final PreferredIpTestControl.Gates gates = new PreferredIpTestControl.Gates();
+        final Backend backend = new Backend(failures); final Network network = new Network();
         final PreferredIpRuntime.Factory savedFactory;
         final String profileId = "preferred-v2-fixture";
         final PreferredIpStore store;
         PreferredIpActivity activity; Activity cover; PreferredIpController controller;
         ScheduledExecutorService control; ExecutorService selection;
-        boolean dispatchedStop; ReadFault fault;
+        boolean dispatchedStop; ReadFault fault; PreferredIpTestControl.StateTrace trace;
+        final List<AutoCloseable> resources = new ArrayList<>();
         Fixture(Instrumentation i) throws Exception {
             this.i = i; target = i.getTargetContext();
             prefs = target.getSharedPreferences(Preferences.PREFS_NAME, Context.MODE_MULTI_PROCESS);
@@ -268,7 +334,54 @@ final class PreferredIpV2Test {
                 throw new AssertionError(failure);
             }
         }
-        void main(Runnable r) { i.runOnMainSync(r); }
+        void main(Runnable r) { if (Looper.myLooper() == Looper.getMainLooper()) r.run(); else i.runOnMainSync(r); }
+        <T> T onMain(Callable<T> action) throws Exception {
+            final Object[] result = new Object[1]; final Throwable[] error = new Throwable[1];
+            main(() -> { try { result[0] = action.call(); } catch (Throwable e) { error[0] = e; } });
+            if (error[0] instanceof Exception) throw (Exception) error[0];
+            if (error[0] instanceof Error) throw (Error) error[0];
+            @SuppressWarnings("unchecked") T value = (T) result[0]; return value;
+        }
+        View view(int id) throws Exception { return onMain(() -> activity.findViewById(id)); }
+        View rowWidget(String address, int id) throws Exception {
+            return onMain(() -> {
+                for (int n = 0; n < list().getChildCount(); n++) {
+                    View row = list().getChildAt(n);
+                    if (address.equals(row.getTag())) return id == 0 ? row : row.findViewById(id);
+                }
+                throw new AssertionError("missing laid-out address: " + address);
+            });
+        }
+        String rowText(String address) throws Exception { return onMain(() -> textIn(rowWidget(address, 0))); }
+        long stableId(String address) throws Exception { return onMain(() -> list().getChildViewHolder(rowWidget(address, 0)).getItemId()); }
+        void actorDrain() throws Exception {
+            fence(control);
+            check(!(Boolean) field(controller, "preparingDisk") && field(controller, "active") == null, "actorDrain requires matching network exit");
+            for (int round = 0; round < 3; round++) {
+                fence(control);
+                for (String name : new String[]{"selectionIO", "sourceIO", "historyIO", "networkIO", "canceller"}) fence((ExecutorService) field(controller, name));
+                fence(control); main(() -> { });
+            }
+        }
+        void awaitAdapterIdle() throws Exception {
+            ExecutorService differ = (ExecutorService) onMain(() -> field(activity, "differ"));
+            until(() -> {
+                fence(differ); main(() -> { });
+                return onMain(() -> {
+                    Object adapter = list().getAdapter();
+                    if ((Boolean) field(adapter, "diffRunning")) return false;
+                    // pending is sticky after sameRows early-return; read for diagnosis, never write it.
+                    field(adapter, "pending");
+                    List<?> rows = (List<?>) field(adapter, "rows"); PreferredIpController.State current = (PreferredIpController.State) field(activity, "state");
+                    if (current == null || rows.size() != current.rows.size()) return false;
+                    for (int n = 0; n < rows.size(); n++) {
+                        PreferredIpController.Row row = (PreferredIpController.Row) rows.get(n), expected = current.rows.get(n);
+                        if (!sameRender(row, expected)) return false;
+                    }
+                    return true;
+                });
+            }, "adapter differ/main apply matches published State");
+        }
         void launch() throws Exception {
             activity = (PreferredIpActivity) i.startActivitySync(new Intent(target, PreferredIpActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(ProfileEditActivity.EXTRA_PROFILE_ID, profileId));
@@ -283,11 +396,11 @@ final class PreferredIpV2Test {
         void settle() throws Exception { fence(control); fence(selection); fence(control); fence(selection); fence(control); main(() -> { }); }
         void pausedComplete() throws Exception {
             backend.holdProbe = true;
-            launch(); tab(1); click(activity.findViewById(R.id.preferred_primary));
+            launch(); tab(1); click(view(R.id.preferred_primary));
             backend.next("prepare"); Task probe = backend.next("probe"); await(probe.polled, "natural probe poll");
             probe.replies.add(backend.snapshot(probe, "running", false, true, 0));
             until(() -> { publish(); return state().completed == 3 && state().busy; }, "complete results while workers still own slot");
-            click(activity.findViewById(R.id.preferred_primary)); // Native Pause, not a direct controller call.
+            click(view(R.id.preferred_primary)); // Native Pause, not a direct controller call.
             await(probe.cancelled, "real pause Cancel");
             probe.replies.add(backend.snapshot(probe, "cancelled", true, true, 0));
             until(() -> { publish(); return !state().busy && state().paused; }, "matching drain before selection");
@@ -303,16 +416,18 @@ final class PreferredIpV2Test {
             i.waitForIdleSync();
         }
         void click(View view) { main(() -> check(view != null && view.isEnabled() && view.performClick(), "real enabled widget click")); }
-        RecyclerView list() { return activity.findViewById(R.id.preferred_results); }
+        RecyclerView list() {
+            final RecyclerView[] found = new RecyclerView[1]; main(() -> found[0] = activity.findViewById(R.id.preferred_results)); return found[0];
+        }
         View widget(String address, int id) throws Exception {
             final View[] found = new View[1];
             main(() -> { for (int n = 0; n < list().getChildCount(); n++) {
                 View row = list().getChildAt(n); if (address.equals(row.getTag())) found[0] = row.findViewById(id);
             } });
-            check(found[0] != null, "attached widget by address: " + address); eq(address, found[0].getTag()); return found[0];
+            check(found[0] != null, "attached widget by address: " + address); main(() -> eq(address, found[0].getTag())); return found[0];
         }
         void show(String address) throws Exception {
-            publish(); final int[] position = {-1};
+            publish(); awaitAdapterIdle(); final int[] position = {-1};
             main(() -> { try {
                 Object adapter = list().getAdapter(); List<?> rows = (List<?>) field(adapter, "rows");
                 for (int n = 0; n < rows.size(); n++) if (address.equals(field(rows.get(n), "address"))) position[0] = n + 1;
@@ -324,7 +439,8 @@ final class PreferredIpV2Test {
         boolean checked(String address) throws Exception {
             View view = widget(address, R.id.preferred_choice); final boolean[] b = {false}; main(() -> b[0] = ((CompoundButton) view).isChecked()); return b[0];
         }
-        void draw() throws Exception {
+        void draw() throws Exception { awaitAdapterIdle(); drawWithoutAdapterDrain(); }
+        void drawWithoutAdapterDrain() throws Exception {
             CountDownLatch rendered = new CountDownLatch(1);
             main(() -> {
                 View decor = activity.getWindow().getDecorView();
@@ -362,38 +478,73 @@ final class PreferredIpV2Test {
             settle(); publish(); draw();
         }
         @Override public void close() throws Exception {
-            // Release fault/queued polls before dispose; no executor/Factory leaks into next case.
-            Throwable error = null;
-            try {
-                if (fault != null) fault.close(); backend.drain();
-                if (controller != null) {
+            // Each cleanup stage runs independently. Shared data is restored only after all live actors exit.
+            failures.attempt(() -> gates.releaseAll());
+            for (int n = resources.size() - 1; n >= 0; n--) {
+                AutoCloseable resource = resources.get(n); failures.attempt(resource::close);
+            }
+            failures.attempt(() -> { if (fault != null) fault.close(); });
+            failures.attempt(backend::drain);
+            boolean drained = controller == null, actorsIdle = controller == null;
+            if (controller != null) {
+                failures.attempt(() -> {
                     if (control == null) control = (ScheduledExecutorService) field(controller, "control");
                     if (selection == null) selection = (ExecutorService) field(controller, "selectionIO");
                     controller.pause("case cleanup");
-                    until(() -> { fence(control); return field(controller, "active") == null && !(Boolean) field(controller, "preparingDisk"); }, "cleanup matching worker_done");
+                });
+                try {
+                    until(() -> control.submit(() -> field(controller, "active") == null
+                        && !(Boolean) field(controller, "preparingDisk") && ((Integer) field(controller, "selectionPending")) == 0).get(10, TimeUnit.SECONDS), "cleanup matching done and pending zero");
+                    drained = true;
+                } catch (Throwable e) { failures.add(e); }
+                if (drained) {
+                    try { actorDrain(); actorsIdle = true; } catch (Throwable e) { failures.add(e); }
                 }
-                if (cover != null) main(cover::finish);
-                if (activity != null) {
-                    if (dispatchedStop) dispatchReturn(); main(activity::finish); i.waitForIdleSync();
-                }
-                PreferredIpRuntime.forget();
-                if (controller != null) {
-                    for (String name : new String[]{"control", "networkIO", "canceller", "selectionIO", "historyIO", "sourceIO"}) {
-                        ExecutorService executor = (ExecutorService) field(controller, name);
-                        check(executor.awaitTermination(10, TimeUnit.SECONDS), "executor terminated: " + name);
-                    }
-                }
-                check(backend.admitted.isEmpty(), "no backend slot leak"); check(network.callback == null, "network unwatch");
-            } catch (Throwable e) { error = e; }
-            finally {
-                PreferredIpRuntime.factory = savedFactory;
-                try { restorePreferences(prefs, original); } finally { delete(dir); }
             }
-            if (error instanceof Exception) throw (Exception) error;
-            if (error instanceof Error) throw (Error) error;
-            if (error != null) throw new AssertionError(error);
+            List<Activity> windows = new ArrayList<>(); if (cover != null) windows.add(cover); if (activity != null) windows.add(activity);
+            for (Activity window : windows) failures.attempt(() -> main(() -> {
+                if (window == activity && dispatchedStop) {
+                    i.callActivityOnRestart(activity); i.callActivityOnStart(activity); i.callActivityOnResume(activity); dispatchedStop = false;
+                }
+                if (!window.isDestroyed() && !window.isFinishing()) window.finish();
+            }));
+            boolean windowsExited = true;
+            for (Activity window : windows) {
+                try {
+                    until(() -> onMain(window::isDestroyed), "real Activity onDestroy");
+                    if (window instanceof PreferredIpActivity) {
+                        ExecutorService differ = onMain(() -> (ExecutorService) field(window, "differ"));
+                        check(differ.awaitTermination(10, TimeUnit.SECONDS), "Activity differ terminated after onDestroy");
+                    }
+                } catch (Throwable e) { failures.add(e); windowsExited = false; }
+            }
+            boolean traceRestored = trace == null, controllersExited = controller == null;
+            if (drained && actorsIdle && windowsExited) {
+                if (trace != null) {
+                    try { trace.close(); traceRestored = true; } catch (Throwable e) { failures.add(e); traceRestored = trace.restored(); }
+                }
+                if (traceRestored) {
+                    failures.attempt(PreferredIpRuntime::forget);
+                    boolean terminated = true;
+                    if (controller != null) for (String name : new String[]{"control", "networkIO", "canceller", "selectionIO", "historyIO", "sourceIO"}) {
+                        try { check(((ExecutorService) field(controller, name)).awaitTermination(10, TimeUnit.SECONDS), "Controller terminated: " + name); }
+                        catch (Throwable e) { failures.add(e); terminated = false; }
+                    }
+                    controllersExited = terminated;
+                    main(() -> { }); // Drain all final same-Looper publications, never remove them ourselves.
+                }
+            }
+            if (controllersExited && windowsExited && traceRestored) {
+                failures.attempt(() -> check(backend.admitted.isEmpty(), "no admitted fixture slot"));
+                failures.attempt(() -> check(network.callback == null, "network unwatched"));
+                PreferredIpRuntime.factory = savedFactory;
+                failures.attempt(() -> restorePreferences(prefs, original));
+                failures.attempt(() -> delete(dir));
+            } else failures.add(new IllegalStateException("fail closed: live case resources retained; no Preferences/factory/file reset"));
+            failures.assertEmpty(); // Collector errors can never yield a scenario PASS, even if drain recovered.
         }
     }
+
     @SuppressWarnings("unchecked") static void restorePreferences(SharedPreferences prefs, Map<String, ?> original) {
         SharedPreferences.Editor e = prefs.edit().clear();
         for (Map.Entry<String, ?> entry : original.entrySet()) {
@@ -405,6 +556,11 @@ final class PreferredIpV2Test {
         }
         check(e.commit(), "restore real Preferences"); eq(original, prefs.getAll());
     }
+    static boolean sameRender(PreferredIpController.Row a, PreferredIpController.Row b) {
+        return a.address.equals(b.address) && a.location.equals(b.location) && a.score.equals(b.score)
+            && a.detail.equals(b.detail) && a.checked == b.checked && a.selectable == b.selectable
+            && a.downloadable == b.downloadable && a.interactionKey.equals(b.interactionKey);
+    }
     static boolean selected(JSONObject root, String address) { return PreferredIpPresentation.find(root.optJSONArray("selected"), address) != null; }
     static Object storeMonitor() throws Exception { Field f = PreferredIpStore.class.getDeclaredField("LOCK"); f.setAccessible(true); return f.get(null); }
     /** Real API24 AtomicFile.openRead fault, NOT a write fault or fake Store response. */
@@ -413,10 +569,17 @@ final class PreferredIpV2Test {
         ReadFault(File dir) throws Exception {
             base = new File(dir, "preferred-ip-v1.json"); bak = new File(base + ".bak");
             saved = new File(dir, "saved-root"); savedBak = new File(dir, "saved-bak");
-            check(base.renameTo(saved), "safely move real root");
-            if (bak.exists()) check(bak.renameTo(savedBak), "safely move .bak");
-            check(base.mkdir(), "nonempty base directory"); writeBytes(new File(base, "block"), new byte[]{1});
+            try {
+                check(base.renameTo(saved), "safely move real root");
+                if (bak.exists()) check(bak.renameTo(savedBak), "safely move .bak");
+                check(base.mkdir(), "nonempty base directory"); writeBytes(new File(base, "block"), new byte[]{1});
+            } catch (Throwable failure) {
+                try { close(); } catch (Throwable rollback) { failure.addSuppressed(rollback); }
+                if (failure instanceof Exception) throw (Exception) failure;
+                throw (Error) failure;
+            }
         }
+
         public void close() throws Exception {
             if (!saved.exists()) return;
             delete(base); check(saved.renameTo(base), "restore exact root bytes");
@@ -425,7 +588,7 @@ final class PreferredIpV2Test {
     }
     static void testNativeTabsSwipeHeadingAndIpv6(Fixture f) throws Exception {
         f.pausedComplete(); f.show(X); RecyclerView list = f.list();
-        check(list.getAdapter().hasStableIds(), "address stable IDs");
+        f.main(() -> check(list.getAdapter().hasStableIds(), "address stable IDs"));
         final long[] identity = {-1}; f.main(() -> identity[0] = list.getChildViewHolder(list.findViewWithTag(X)).getItemId());
         View heading = f.widget(X, R.id.preferred_row_heading), choice = f.widget(X, R.id.preferred_choice);
         f.main(() -> {
@@ -436,19 +599,18 @@ final class PreferredIpV2Test {
         check(!f.controller.expanded.contains(X), "default collapsed"); f.click(choice); f.settle(); f.publish(); f.draw();
         check(!f.controller.expanded.contains(X), "checkbox does not expand");
         f.click(heading); f.settle(); f.publish(); f.draw(); check(f.controller.expanded.contains(X), "native heading expands");
-        TextView detail = (TextView) f.list().findViewWithTag(X).findViewById(R.id.preferred_row_detail);
-        String text = detail.getText().toString();
+        String text = f.onMain(() -> ((TextView) f.rowWidget(X, R.id.preferred_row_detail)).getText().toString());
         for (String part : new String[]{"TCP", "TLS", "HTTPS", "参考 ECH", "基础评分", "手动下载", "未手动测速"}) check(text.contains(part), "detail: " + part);
         f.click(f.widget(X, R.id.preferred_row_heading)); f.settle(); f.publish(); f.draw(); check(!f.controller.expanded.contains(X), "heading folds");
-        f.show(V6); View v6row = f.list().findViewWithTag(V6);
-        check(textIn(v6row).contains("UKN"), "unknown location strict UKN");
-        check(textIn(v6row).replace("\u200b", "").contains(V6), "IPv6 address includes port");
+        f.show(V6); String v6text = f.rowText(V6);
+        check(v6text.contains("UKN"), "unknown location strict UKN");
+        check(v6text.replace("\u200b", "").contains(V6), "IPv6 address includes port");
         long cancellations = ((AtomicLong) field(f.controller, "cancelVersion")).get();
         f.tab(0); f.tab(1); eq(cancellations, ((AtomicLong) field(f.controller, "cancelVersion")).get());
         // Native MotionEvents traverse ViewPager, not setCurrentItem or controller.tab.
-        swipe(f, f.activity.findViewById(R.id.preferred_pager), true);
+        swipe(f, f.view(R.id.preferred_pager), true);
         until(() -> f.controller.tab == 0, "right swipe to source tab");
-        swipe(f, f.activity.findViewById(R.id.preferred_pager), false);
+        swipe(f, f.view(R.id.preferred_pager), false);
         until(() -> f.controller.tab == 1, "left swipe to tests tab");
         f.show(X); f.main(() -> eq(identity[0], list.getChildViewHolder(list.findViewWithTag(X)).getItemId()));
         eq(true, f.checked(X)); f.show(Y); eq(false, f.checked(Y));
@@ -491,6 +653,7 @@ final class PreferredIpV2Test {
     static void atomicReadFailure(Fixture f, boolean initiallySelected, boolean stopped) throws Exception {
         f.pausedComplete(); if (initiallySelected) f.selectX(true);
         f.stopCycle(); f.show(X); JSONObject before = f.store.read(); byte[] oldBytes = bytes(new File(f.dir, "preferred-ip-v1.json"));
+        f.trace = new PreferredIpTestControl.StateTrace(f);
         PreferredIpController.State initial = f.state(); check(!initial.saving, "initial saving false");
         List<String> rowContent = new ArrayList<>(); for (PreferredIpController.Row row : initial.rows) rowContent.add(row.content());
         PreferredIpActivity same = f.activity; View checkBox = f.widget(X, R.id.preferred_choice);
@@ -514,9 +677,14 @@ final class PreferredIpV2Test {
         if (stopped) {
             eq(null, field(f.controller, "listener"));
             check(f.state() == initial, "no saving/completion frame delivered while detached");
+            f.trace.noSavingAndLostCompletion(X);
             // Instrumentation lifecycle dispatch does not hide the real Window. Production
             // pre-draw may already repair native checked while stopped; no return-only causality claim.
-        } else { f.draw(); eq(initiallySelected, f.checked(X)); check(!f.state().saving, "completion saving false"); }
+        } else {
+            f.draw(); eq(initiallySelected, f.checked(X)); check(!f.state().saving, "completion saving false");
+            for (PreferredIpTestControl.Event event : f.trace.snapshot()) if (event.state != null) check(!event.state.saving, "all real fast-failure frames saving=false");
+            f.failures.assertEmpty();
+        }
         f.fault.close(); f.fault = null; check(Arrays.equals(oldBytes, bytes(new File(f.dir, "preferred-ip-v1.json"))), "read fault never wrote bytes");
         eq(before.toString(), f.store.read().toString());
         if (stopped) f.dispatchReturn(); else { f.publish(); f.draw(); }
@@ -545,14 +713,19 @@ final class PreferredIpV2Test {
         eq(revision, f.store.read().getLong("revision")); eq(2, f.backend.requests.size());
     }
     static void testPendingNativeIntentUsesDiskUntilSettled(Fixture f) throws Exception {
-        f.pausedComplete(); f.stopCycle(); f.show(X); long version = f.store.read().optLong("selection_version");
+        f.pausedComplete(); f.stopCycle(); f.show(X); f.trace = new PreferredIpTestControl.StateTrace(f);
+        long version = f.store.read().optLong("selection_version");
         synchronized (storeMonitor()) {
-            f.click(f.widget(X, R.id.preferred_choice)); fence(f.control); eq(1, field(f.controller, "selectionPending"));
-            eq(true, f.checked(X)); // temporary native intent, not disk acknowledgement
+            View checkbox = f.widget(X, R.id.preferred_choice);
+            f.main(() -> {
+                check(checkbox.performClick(), "native pending intent click"); eq(true, ((CompoundButton) checkbox).isChecked());
+                try { fence(f.control); eq(1, field(f.controller, "selectionPending")); } catch (Exception e) { throw new AssertionError(e); }
+            }); // Never require the temporary checked value to survive a Window frame.
             f.publish(); f.draw(); eq(false, f.checked(X)); check(f.state().saving, "actual pending State saving true");
         }
         f.settle(); f.publish(); f.draw(); eq(true, f.checked(X)); eq(version + 1, f.store.read().getLong("selection_version"));
         f.settle(); eq(version + 1, f.store.read().getLong("selection_version"));
+        check(f.trace.snapshot().stream().anyMatch(event -> event.state != null && event.state.saving), "observer saw the actual saving=true publication");
     }
     static void testNetworkEpochAndAbaRejectQueuedNativeAdd(Fixture f) throws Exception {
         f.pausedComplete(); f.stopCycle(); f.show(X); JSONObject before = f.store.read();
@@ -585,24 +758,24 @@ final class PreferredIpV2Test {
         eq(before.optLong("selection_version"), f.store.read().optLong("selection_version")); eq(false, f.store.read().getBoolean("enabled"));
     }
     static void testBlockedPollCancelAndWorkerDoneResume(Fixture f) throws Exception {
-        f.backend.holdProbe = true; f.launch(); f.tab(1); f.click(f.activity.findViewById(R.id.preferred_primary)); f.backend.next("prepare");
+        f.backend.holdProbe = true; f.launch(); f.tab(1); f.click(f.view(R.id.preferred_primary)); f.backend.next("prepare");
         Task probe = f.backend.next("probe"); await(probe.polled, "poll actually blocked"); f.publish();
         JSONObject first = f.backend.snapshot(probe, "running", false, false, 0);
         JSONObject completedX = f.backend.snapshot(probe, "running", false, true, 0).getJSONArray("results").getJSONObject(0);
         first.getJSONArray("results").put(0, completedX); first.put("completed", 1); probe.replies.add(first);
         until(() -> { f.publish(); return f.state().completed == 1; }, "first complete reference while others remain partial");
         f.tab(0); f.tab(1); eq(1L, probe.cancelled.getCount());
-        f.click(f.activity.findViewById(R.id.preferred_primary)); await(probe.cancelled, "independent Cancel while poll blocked");
+        f.click(f.view(R.id.preferred_primary)); await(probe.cancelled, "independent Cancel while poll blocked");
         JSONObject cancelled = f.backend.snapshot(probe, "cancelled", false, false, 0);
         cancelled.getJSONArray("results").put(0, completedX); cancelled.put("completed", 1); probe.replies.add(cancelled);
-        until(() -> probe.repliesConsumed.get() >= 2, "cancelled worker_done=false actually polled");
+        probe.awaitPoll(3); // next poll entry happens after parsing/posting the preceding false reply
         f.settle();
         until(() -> { f.publish(); return f.state().busy && f.state().paused; }, "cancelled remains busy without worker_done");
         eq(2, f.backend.requests.size()); eq(1, f.state().completed); eq("—", f.state().rows.get(1).score);
-        f.click(f.activity.findViewById(R.id.preferred_primary)); fence(f.control); eq(2, f.backend.requests.size());
+        f.click(f.view(R.id.preferred_primary)); fence(f.control); eq(2, f.backend.requests.size());
         JSONObject exited = new JSONObject(cancelled.toString()).put("worker_done", true); probe.replies.add(exited);
         until(() -> { f.publish(); return !f.state().busy; }, "matching worker_done releases slot");
-        eq(1, f.state().completed); f.backend.holdProbe = false; f.click(f.activity.findViewById(R.id.preferred_primary));
+        eq(1, f.state().completed); f.backend.holdProbe = false; f.click(f.view(R.id.preferred_primary));
         Task resumed = f.backend.next("probe"); JSONArray remaining = resumed.request.getJSONArray("candidates");
         eq(2, remaining.length()); eq(Y, remaining.getJSONObject(0).getString("address")); eq(V6, remaining.getJSONObject(1).getString("address"));
         eq(probe.request.getString("session_id"), resumed.request.getString("session_id"));
@@ -612,14 +785,13 @@ final class PreferredIpV2Test {
         f.pausedComplete(); f.selectX(true); f.backend.holdDownload = true;
         JSONObject before = new JSONObject(f.state().rows.get(0).result.toString()); JSONObject validations = f.store.read().getJSONObject("validations");
         f.show(X); f.click(f.widget(X, R.id.preferred_row_heading)); f.settle(); f.publish(); f.draw();
-        f.click(f.list().findViewWithTag(X).findViewById(R.id.preferred_row_download)); Task task = f.backend.next("download"); await(task.polled, "download poll");
+        f.click(f.rowWidget(X, R.id.preferred_row_download)); Task task = f.backend.next("download"); await(task.polled, "download poll");
         JSONObject opts = task.request.getJSONObject("options"); eq(52428800, opts.getInt("download_bytes_per_ip")); eq(10, opts.getInt("download_seconds"));
         eq(PreferredIpController.DOWNLOAD, opts.getString("download_url")); eq(1, task.request.getJSONArray("candidates").length());
         eq(52428800L, f.store.read().getJSONObject("download_ledger").getLong("reserved")); f.publish(); f.draw();
-        f.click(f.list().findViewWithTag(X).findViewById(R.id.preferred_row_download)); await(task.cancelled, "native row download cancel");
+        f.click(f.rowWidget(X, R.id.preferred_row_download)); await(task.cancelled, "native row download cancel");
         task.replies.add(f.backend.snapshot(task, "cancelled", false, false, 7 * 1048576L));
-        until(() -> task.repliesConsumed.get() >= 1, "download cancelled false consumed");
-        fence(f.control); eq(52428800L, f.store.read().getJSONObject("download_ledger").getLong("reserved"));
+        task.awaitPoll(2); f.settle(); eq(52428800L, f.store.read().getJSONObject("download_ledger").getLong("reserved"));
         task.replies.add(f.backend.snapshot(task, "cancelled", true, false, 7 * 1048576L));
         until(() -> { f.publish(); return !f.state().busy; }, "download drain and bill actual cancelled bytes");
         JSONObject ledger = f.store.read().getJSONObject("download_ledger"); eq(7 * 1048576L, ledger.getLong("used")); eq(0L, ledger.getLong("reserved"));
@@ -630,7 +802,7 @@ final class PreferredIpV2Test {
         eq(0.0, result.getDouble("download_mib_s")); eq(0.0, result.getDouble("download_peak_mib_s"));
         eq("failed", result.getString("download_state")); eq("fallback", result.getString("download_ech_status"));
         f.show(X); f.draw();
-        String displayed = textIn(f.list().findViewWithTag(X));
+        String displayed = f.rowText(X);
         for (String part : new String[]{"failed", "辅助峰值", "秒", "下载 ECH fallback"}) check(displayed.contains(part), "download detail rendered: " + part);
         eq(validations.toString(), f.store.read().getJSONObject("validations").toString());
         for (JSONObject request : f.backend.requests) if (!request.getString("operation").equals("download")) {

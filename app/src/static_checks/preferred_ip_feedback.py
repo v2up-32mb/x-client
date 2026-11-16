@@ -147,19 +147,36 @@ for text in [activity, editor]:
 tests = app / "src/androidTest/java/com/x/client/app"
 suite = (tests / "PreferredIpFeedbackTest.java").read_text()
 v2 = (tests / "PreferredIpV2Test.java").read_text()
+continuation = (tests / "PreferredIpV2ContinuationTest.java").read_text()
+control_tests = (tests / "PreferredIpTestControl.java").read_text()
 runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
 protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
 assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARIOS"]
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 21
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 41
+assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
+assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
+assert 'read_bytes().decode("utf-8")' in (app / 'src/static_checks/preferred_ip_instrumentation.py').read_text()
+assert 'super.dispatchMessage(message)' in control_tests
+assert control_tests.count('super.dispatchMessage(message)') == 1
+assert 'reference.set(fixture.controller, this)' in control_tests and 'reference.set(fixture.controller, original)' in control_tests
+assert 'task.awaitPoll(2)' in v2 and 'repliesConsumed' not in v2
+assert 'new TimeoutException("missing scripted poll reply")' in v2
+assert 'Task task = null' in v2 and 'return task.id' in v2
+assert 'windowsExited && traceRestored' in v2 and 'fail closed: live case resources retained' in v2
+assert 'list.getLayoutManager().detachView(view)' in control_tests
+assert 'attachMismatch' in continuation and 'notifications.get()' in continuation
+assert 'Os.chmod' in continuation and 'f.store.read()' in continuation
 inventory = json.loads((app / 'src/static_checks/preferred_ip_v2_inventory.json').read_text())
 assert inventory['status'] == 'partial' and inventory['total_registered'] == protocol['TOTAL']
 assert tuple(case['name'] for case in inventory['cases']) == protocol['SCENARIOS']
 assert [case['number'] for case in inventory['cases']] == list(range(1, protocol['TOTAL'] + 1))
 assert inventory['mandatory_not_implemented']
 assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
+assert len(inventory['findings_map']) == 7 and len(inventory['groups']) == 12
 assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
 assert 'assertTrue(edit.commit())' in suite
 assert 'extends Instrumentation' in runner

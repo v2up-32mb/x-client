@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 21,
+  "total_registered": 41,
   "cases": [
     {
       "number": 1,
@@ -9,7 +9,8 @@
       "kind": "pure-data-safety",
       "assertions": "真实Preferences+Resolver golden：无validation保六旧入口；验证3个后3×3=9，顺序去重且原入口不改。",
       "trigger_and_boundary": "six-fixture runner；无Activity/新proof资格声称",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 2,
@@ -17,7 +18,8 @@
       "kind": "pure-data-safety",
       "assertions": "selected∩validation只取1个/3通道，validation额外未选地址不采用；禁用/independent保原入口/default域名。",
       "trigger_and_boundary": "six-fixture runner",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 3,
@@ -25,7 +27,8 @@
       "kind": "pure-data-safety",
       "assertions": "真实最终target改变、无validation、高级relay冲突均不接管；保高级入口。",
       "trigger_and_boundary": "six-fixture runner",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 4,
@@ -33,7 +36,8 @@
       "kind": "pure-data-safety",
       "assertions": "recommended=false、download_state=untested不判失败；status失败不兼容（仅低层compatible）。",
       "trigger_and_boundary": "six-fixture runner；不冒称UI新reference资格",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 5,
@@ -41,7 +45,8 @@
       "kind": "pure-data-safety",
       "assertions": "third-party COMMENT隐藏；恢复manual provenance/URL和多个真实手动备注；原JSON未改。",
       "trigger_and_boundary": "six-fixture runner",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 6,
@@ -49,7 +54,8 @@
       "kind": "pure-data-safety",
       "assertions": "纯日志重复snapshot不新增、1000事件后160行/24576字节上限且保最新项。",
       "trigger_and_boundary": "six-fixture runner；不是新UI日志页",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpFeedbackTest.java"
     },
     {
       "number": 7,
@@ -57,7 +63,8 @@
       "kind": "native-ui",
       "assertions": "launch真实Activity；TabView点击+ViewPager MotionEvent双横滑；checkbox最左、不展开；heading展开/折叠、详情TCP/TLS/HTTPS/ECH/score/未下载；IPv6端口、UKN、按地址stable ID滚回及Y不串选。",
       "trigger_and_boundary": "真实Factory/Backend prepare/probe→Pause matching drain；RecyclerView原生scrollToPosition+draw闩锁；不证明实时重排或大字/深浅",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 8,
@@ -65,39 +72,44 @@
       "kind": "native-ui-transaction",
       "assertions": "自然reference→真实checkbox保存/validation启用→Resolver真实selected交集；原relay/VPN不改；tab/selection不推进epoch；切网后旧checked可取消、最后取消disable、selection_version及重绑不递归。",
       "trigger_and_boundary": "真实checkbox+AtomicFile+NetworkAccess同步通知",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 9,
       "name": "testForegroundAtomicReadAddFailure",
       "kind": "native-atomic-read",
       "assertions": "未选X真实click，Store.LOCK→pending0/1/0、case周期future取消，真实AtomicFile base非空目录openRead故障；前台绘制回false、相等Row、selected/validations/enabled/version及旧字节不改，随后真实成功retry。",
-      "trigger_and_boundary": "main/control/selectionIO/main fences；不是写故障；无saving发布仅由取消周期+完成时pending0保证，未逐捕全部State",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "115 case-local同Looper透明Handler捕获实际State/settled、消费前后listener，原dispatch一次；快故障全帧saving=false，stopped还要求actual null消费。未知捕获/旧Handler漏发布/ART替换失效必fail。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 10,
       "name": "testForegroundAtomicReadRemoveFailure",
       "kind": "native-atomic-read",
       "assertions": "已选X通过真实保存建立初态；取消真实openRead失败绘制回true，Row相等、落盘/旧字节保留，随后成功取消disable。",
-      "trigger_and_boundary": "同上双向；不是写故障",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "115 case-local同Looper透明Handler捕获实际State/settled、消费前后listener，原dispatch一次；快故障全帧saving=false，stopped还要求actual null消费。未知捕获/旧Handler漏发布/ART替换失效必fail。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 11,
       "name": "testStoppedAtomicReadAddFailure",
       "kind": "native-lifecycle-dispatch",
       "assertions": "同main Runnable真实click→control fence pending1→Instrumentation pause/stop，listener=null、未destroy；真实read故障后pending0，main FIFO消费完成/settled但Activity缓存State不变；restart/start/resume同实例实际draw核selected/validation/enabled/version、Row相等及成功retry。",
-      "trigger_and_boundary": "Supervisor批准的Instrumentation原生生命周期回调分派；不是ActivityThread/Home窗口停绘；生产pre-draw可在stop时先修正，不能独立证明返回补偿因果或全部无saving帧观测",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "115 case-local同Looper透明Handler捕获实际State/settled、消费前后listener，原dispatch一次；快故障全帧saving=false，stopped还要求actual null消费。未知捕获/旧Handler漏发布/ART替换失效必fail。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 12,
       "name": "testStoppedAtomicReadRemoveFailure",
       "kind": "native-lifecycle-dispatch",
       "assertions": "已选取消失败版本同上：同Runnable临时false，真实read故障保selected=true，same Activity恢复draw true且库一致，随后真实成功取消disable。",
-      "trigger_and_boundary": "与前例对称；同一限制，不证明返回前临时值持续错误",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "115 case-local同Looper透明Handler捕获实际State/settled、消费前后listener，原dispatch一次；快故障全帧saving=false，stopped还要求actual null消费。未知捕获/旧Handler漏发布/ART替换失效必fail。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 13,
@@ -105,15 +117,17 @@
       "kind": "native-system-lifecycle",
       "assertions": "真实startActivitySync SettingsActivity覆盖→自然ActivityThread onStop且listener=null/foregroundfalse→finish覆盖页→自然onStart原实例/实际drawchecked与disk一致；无新任务/revision。",
       "trigger_and_boundary": "独立系统覆盖/返回例；不保证同Runnable快失败窗口；不是旋转",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 14,
       "name": "testPendingNativeIntentUsesDiskUntilSettled",
       "kind": "native-pending-render",
       "assertions": "真实checkbox临时true、Store monitor阻事务后pending1；真实publish saving=true+draw按权威disk显示false，放锁成功再显示true；version只+1无递归。",
-      "trigger_and_boundary": "真实阻Store保存尚未settle窗口；不是伪saving帧",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "临时true及click/control入队确认同main Runnable；后续实际saving State+draw分开，G2捕获真实saving=true；不跨帧要求临时值存活。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 15,
@@ -121,7 +135,8 @@
       "kind": "native-aba",
       "assertions": "control闩锁先接真实checkbox排intent；同control同步B→A网络callback，invalidate仍排后、stale=false而旧eligible=false；放队后无selected/proof/enabled，widget恢复false。",
       "trigger_and_boundary": "read-only反射eligible/epoch；真实UI意图；不涵盖异target晚validation/已有池",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 16,
@@ -129,23 +144,26 @@
       "kind": "native-store-race",
       "assertions": "真实Store.LOCK monitor挡selectionIO新增，control确认pending1后同步B→A；放锁真实Store mutation拒旧proof，selected/validations/version/disabled保持，drawfalse。",
       "trigger_and_boundary": "不用同JVM重叠FileChannel；不覆盖intent已保存的validation提交竞态",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 17,
       "name": "testBlockedPollCancelAndWorkerDoneResume",
       "kind": "native-worker-done",
       "assertions": "真实poll阻塞，网络wire X已完整而Y/IPv6 partial；tab不断；真实Pause Cancel独立到达；实际消费cancelled+worker_done=false仍busy不开第二槽，partial无分；matching true退出，Continue只发Y/IPv6同session，保X完整。",
-      "trigger_and_boundary": "Backend only网络模拟；reply消费计数+executor/main fences；不覆盖Start阻塞、source fetch或取消同时Store阻塞",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "false响应后next-poll-enter→control→main happens-before消费屏障；Task冻结身份/round/used/reserved；fixture slot仅匹配done释放。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 18,
       "name": "testDownloadSixFieldsAndDurableBudget",
       "kind": "native-download",
       "assertions": "真实heading/行download及取消；Start前真实AtomicFile预留50MiB，cancelled worker_done=false不退预留，matching true计7MiB失败正文；仅六字段merge且proof/score/ECH/time/validation不变；单候选50MiB/10秒URL52428800；prepare/probe20MiB/5秒且0下载/推荐，无VPN启动。",
-      "trigger_and_boundary": "真实Controller/ledger；不涵盖计费确认、新轮菜单、跨IP多次UI下载/预留切网",
-      "execution": "NOT RUN; Actions only"
+      "trigger_and_boundary": "false响应后next-poll-enter→control→main happens-before消费屏障；Task冻结身份/round/used/reserved；fixture slot仅匹配done释放。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 19,
@@ -153,7 +171,8 @@
       "kind": "pure-data-atomic-history",
       "assertions": "两真实AtomicFile写/读，results[]、白名单排Token/UserId/advanced JSON；API24 .bak恢复旧字节；4097条及16MiB超限明错保旧历史/Root。",
       "trigger_and_boundary": "History真实文件/序列化；无公网/Controller结果伪装",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 20,
@@ -161,7 +180,8 @@
       "kind": "controller-history-transfer-failure",
       "assertions": "真实legacy last_test与selected数据fixture；history lock路径非空目录导致转存失败，Controller加载完成后Root字节/selected不变且未伪称历史文件。",
       "trigger_and_boundary": "纯持久安全fixture（非UI新成功）；实际History.write锁打开失败，不混称AtomicFile写或read故障；成功迁移顺序未覆盖",
-      "execution": "NOT RUN; Actions only"
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
     },
     {
       "number": 21,
@@ -169,22 +189,323 @@
       "kind": "pure-data-atomic-ledger",
       "assertions": "真实Store预留、worker_done=false拒结、wrong round保预留；跨X/Y累加100MiB、余额钳制/耗尽拒续、新scan保用量、显式新round审计previous、dead owner拒自动清零而确认后新轮。",
       "trigger_and_boundary": "真实Ledger/AtomicFile+合成accounting wire；不是主动菜单确认或多个UI网络任务",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2Test.java"
+    },
+    {
+      "number": 22,
+      "name": "testStoppedAbsentHolderReadFailureAdd",
+      "kind": "continuation-source-only",
+      "group": "G1",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "同一自然reference/真实click→pending1→公开suppressLayout+LayoutManager.detach旧X→原生pause/stop；真实AtomicFile read故障/G2全帧null消费；同实例onStart State在X缺席消费，attach同一有效holder仍mismatch、零notify/新State、第一实际pre-draw修正；核fold/top/heading/Y/库/version。",
+      "trigger_and_boundary": "公开未rebind holder因果；任一identity/mismatch/notify前提失败则case失败，不称系统停Window。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 23,
+      "name": "testStoppedAbsentHolderReadFailureRemove",
+      "kind": "continuation-source-only",
+      "group": "G1",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "已选取消失败的同旧holder因果对称：临时false，read故障保真实pool true，null期间通知消费，原holder第一pre-draw true；地址/Y/version/fold/top不变。",
+      "trigger_and_boundary": "同上公开受控缺席；非普通bind/recycle。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 24,
+      "name": "testHiddenCachedHolderReturnAdd",
+      "kind": "continuation-source-only",
+      "group": "G1",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "未选add read故障后旧holder缺席，真实TabView来源隐藏消费onStart State，再真实测试tab/同holderattach，第一可见pre-draw回false。",
+      "trigger_and_boundary": "同holder/mismatch/有效position/零notify/新State硬断言；不替代普通回收组。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 25,
+      "name": "testHiddenCachedHolderReturnRemove",
+      "kind": "continuation-source-only",
+      "group": "G1",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "已选remove read故障的隐藏页同holder对称，onStart State早于原holder恢复，第一可见pre-draw回true且库不改。",
+      "trigger_and_boundary": "同上。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 26,
+      "name": "testRapidNativeAddThenCancel",
+      "kind": "continuation-source-only",
+      "group": "G5",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "selectionIO gate下同main真实双click native true→false；pending2，放行selected空/disabled/version恰+2，Y与后续重绑无额外事务。",
+      "trigger_and_boundary": "真实两意图，不强制setChecked。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 27,
+      "name": "testRepeatedNativeAddIntent",
+      "kind": "continuation-source-only",
+      "group": "G5",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "第一次真实add阻IO；普通pre-draw按旧disk false修正后第二次真实add；pending2，落盘去重1地址/version恰+2。",
+      "trigger_and_boundary": "不发布伪saving；临时checked只在click同Runnable断言。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 28,
+      "name": "testLostBackgroundSuccess",
+      "kind": "continuation-source-only",
+      "group": "G5/G2",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "真实add→同Runnable stop，放selectionIO成功；State与settled真正listener=null消费，全帧savingfalse；背景只存intent不凭空validation/enable，同实例返回draw与库一致且无自动网络。",
+      "trigger_and_boundary": "未强称背景成功已启用。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 29,
+      "name": "testLostBackgroundEarlyReject",
+      "kind": "continuation-source-only",
+      "group": "G5/G2",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "control gate排真实click→stop，已捕获Network callback同步B→A撤epoch后放select；早拒pending0/Root不变，G2 null消费，返回实际draw false。",
+      "trigger_and_boundary": "捕获的真实fixture callback可晚到，不反射listener或直接select。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 30,
+      "name": "testBlockedStartReturnsIdThenCancels",
+      "kind": "continuation-source-only",
+      "group": "G6",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "Start已登记入场Task但ID return gate阻塞；真实Pause立即stopRequested/cancelVersion/control有响应，ID未知不要求先cancel，放return后真正补发Cancel，matching exit且无第二Start。",
+      "trigger_and_boundary": "尚不覆盖阻Start同时真实选择短事务。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 31,
+      "name": "testNativeFetchWorkerDoneDrain",
+      "kind": "continuation-source-only",
+      "group": "G6",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "真实来源官网按钮→实际fetch wire无options；onStop Cancel，false后nextPoll entry→control→main仍占槽，matching true保旧sources，返回不自动续。",
+      "trigger_and_boundary": "实际fetch session/target/round为空，预算0；不是probe套模板。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 32,
+      "name": "testWrongTaskDoneKeepsSlot",
+      "kind": "continuation-source-only",
+      "group": "G6",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "入场download错task done=true；等下一poll后同一Job/admitted/reserved50MiB/Start数保持，最后合法身份done按3bytes结算。",
+      "trigger_and_boundary": "fixture也不能被wrong done释放。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 33,
+      "name": "testWrongSessionDoneKeepsSlot",
+      "kind": "continuation-source-only",
+      "group": "G6",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "错session done=true同上精确身份/预留/单槽断言，合法done才计费退出。",
+      "trigger_and_boundary": "Task身份/round/used/reserved在admission冻结。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 34,
+      "name": "testWrongNetworkDoneKeepsSlot",
+      "kind": "continuation-source-only",
+      "group": "G6",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "错network done=true同上；后台poll错包处理屏障是next poll entry，不是返回前计数。",
+      "trigger_and_boundary": "所有Backend脚本错误collector拒PASS而合法cleanup drain可达。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 35,
+      "name": "testSuccessfulCompleteHistoryMigrationOrder",
+      "kind": "continuation-source-only",
+      "group": "G11",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "真实legacy completed safety fixture；独立History monitor gate→初Root读→持Store monitor放History：真实complete AtomicFile先存在/白名单/results[]，Root仍完整legacy；放Store后轻Root仅last_test/revision变，池字段不改。",
+      "trigger_and_boundary": "先History后Root反证窗口；无重叠FileChannel。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 36,
+      "name": "testSuccessfulCheckpointHistoryMigrationOrder",
+      "kind": "continuation-source-only",
+      "group": "G11",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "paused legacy同上顺序，目标checkpoint文件；Root轻引用、selected/modes/validation/enabled保持。",
+      "trigger_and_boundary": "不是新UI成功proof。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 37,
+      "name": "testAtomicWriteAddFailurePreservesPool",
+      "kind": "continuation-source-only",
+      "group": "G12/G2",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "普通app UID、永久lock/base read成功而base0444+dir0555阻AtomicFile.startWrite；真实add保存失败/pending0、drawfalse，Root/version/旧字节保持，恢复权限后真实retry成功。",
+      "trigger_and_boundary": "是生产startWrite权限故障，不冒称openRead、lock故障或半途断电。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 38,
+      "name": "testAtomicWriteRemoveFailurePreservesPool",
+      "kind": "continuation-source-only",
+      "group": "G12/G2",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "已选取消真实write故障对称drawtrue/旧pool字节/version保留，权限恢复后成功取消。",
+      "trigger_and_boundary": "故障guard构造失败内部回滚、close分阶段恢复所有mode。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 39,
+      "name": "testAtomicHistoryWriteFailurePreservesBytes",
+      "kind": "continuation-source-only",
+      "group": "G12",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "独立History AtomicFile权限write故障，read/lock正常，替换失败旧字节/可读旧state保持；恢复权限后写成功。",
+      "trigger_and_boundary": "纯AtomicFile数据组，不替代UI选择。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 40,
+      "name": "testFirstStateBeforeFirstHolder",
+      "kind": "continuation-source-only",
+      "group": "G1",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "自然真实保存X后旧Activity实际finish/onDestroy+differ退出；同retainedController新Activity标准Instrumentation onCreate之后、首traversal之前公开suppressLayout；真实onStart State selected X在childCount0消费，解除后第一bind/draw X/Y/IPv6正确、无新网络。",
+      "trigger_and_boundary": "明确正常首次bind路径，不冒称未rebind pre-draw因果或旋转。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 41,
+      "name": "testLegacyMigrationAtomicWriteFailure",
+      "kind": "continuation-source-only",
+      "group": "G12/G11",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpV2ContinuationTest.java",
+      "assertions": "旧approved pool纯迁移fixture含selected/modes/validations/enabled；History存在但真实startWrite权限故障、Root read/lock可行；Controller迁移后legacy Root/full pool/旧History字节保持。",
+      "trigger_and_boundary": "纯旧库安全，非伪造新UI验证；实际AtomicFile迁移write失败区别于旧lock失败。",
       "execution": "NOT RUN; Actions only"
     }
   ],
   "mandatory_not_implemented": [
-    "P1首State早于首holder/隐藏页/缓存未rebind恢复/NO_POSITION/held removed row与真正pre-draw补偿因果尚无可靠用例；生命周期分派窗口不会自动停Window，不能代替这些必测项。",
-    "所有State saving帧的完整观测/证明未实现；已有快故障例通过取消case周期future、pending0→1→0及完成State不saving控制窗口，但listener=null的丢弃State未逐项捕获。",
-    "晚diff已算完/仍排队、内容相等/变化/重排/另一Y及实际触摸或TalkBack焦点延期移位、fold/anchor保持未实现；基础stable ID滚回不等价。",
-    "真实旋转、新实例与同实例分离恢复、深浅主题/大字体、列表真实纵滑未实现（仅原生scrollToPosition布局）。",
-    "快速重复意图/新增立即取消与后台成功/早拒通知丢失未实现；故障后成功retry已实现。",
-    "Start阻塞、source fetch drain、选择IO与poll同时阻塞仍可Cancel、错task/session/network worker_done不释放未实现。",
-    "已存intent但validation未落盘的Store首尾竞态、异target真实prepare/probe、selection/Profile最终高级参数变化/晚validation、旧有效池保留正例未实现；queued add+ABA仅其中一部分。",
-    "晚poll/maintenance、reserve前后切网、已入场旧download结算/context拒续未实现。",
-    "真实计费网络主动dialog确认、更多菜单新100MiB确认、重复/换IP/暂停/新scan跨多个真实下载任务预算未实现；直接Ledger数据组不代替UI。",
-    "ECH同session复用请求/消费、TTL0一次维护有界停止、冻结队列/完整时间戳/账本维护保持与sticky fallback调度未实现；不要求新同session强刷按钮。",
-    "History成功legacy迁移先History后轻Root行为未实现；失败保Root、两文件/数组/白名单/4096及16MiB限制已实现。",
-    "AtomicFile真实写失败/旧字节恢复未实现；read故障与History lock失败不冒称写覆盖。"
+    "G1 — 已写Absent/Hidden双向因果＋FirstState正常首bind；未写普通回收复用与HeldRemoved/NO_POSITION。",
+    "G3 — queued/calculated late Diff、native touch/A11y/fold/anchor/焦点矩阵未写。",
+    "G4 — 真实旋转、深浅/系统大字体与真实纵滑配置矩阵未写。",
+    "G6 — 已写Start-return/官网fetch/三wrongdone＋原partial resume；尚缺poll+Store并阻时Cancel、blockedStart期间实际选择短事务。",
+    "G7 — stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。",
+    "G8 — 晚reference/异target/maintenance/reserve前后切网与已入场旧下载结算矩阵未写。",
+    "G9 — 真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。",
+    "G10 — 同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
   ],
-  "ci": "Existing trial runner now registers 21 ordered cases; strict parser requires all and API24/code=-1. Native timeout 480s; no new dependencies/actions or Go/bind/sign/release changes. A 21/21 report is partial-contract evidence, never full-v2 acceptance."
+  "ci": "Existing runner registers 41 ordered cases (original 6+15 retained, 20 continuation). Strict raw parser requires exact report/API24/-1. Original 480s native timeout retained; only count/summary updated, no new actions/deps/Go/bind/sign/publish changes. All Android NOT RUN; partial matrix cannot claim complete v2.",
+  "findings_map": [
+    {
+      "id": "F1",
+      "status": "corrected-source-only",
+      "evidence": "同main click/临时checked/短control确认，实际saving帧另测。"
+    },
+    {
+      "id": "F2",
+      "status": "corrected-source-only",
+      "evidence": "Backend.checked require/timeout collector，every admitted ID returned，cleanup-mode matching reply；collector非空清理后仍FAIL。"
+    },
+    {
+      "id": "F3",
+      "status": "corrected-source-only",
+      "evidence": "独立分阶段cleanup/gates/构造回滚；late Start也drain，pending/actors/main/Activity.onDestroy/differ/Controller termination/Handler恢复后才复位共享资源；无法drain保活资源fail closed。"
+    },
+    {
+      "id": "F4",
+      "status": "corrected-source-only",
+      "evidence": "Task.freeze＋false/wrong响应后的nextPoll-entry barrier→control→main；wrong身份fixture也保槽。"
+    },
+    {
+      "id": "F5",
+      "status": "corrected-source-only",
+      "evidence": "正常differ/main FIFO+最新State逐渲染字段精确比对+实际layout；pending仅只读诊断（supervisor批准sticky位解释），故意交错不走正常driver。"
+    },
+    {
+      "id": "F6",
+      "status": "corrected-source-only",
+      "evidence": "仅CRLF规范后按LF split，拒其他分行符；CLI read_bytes UTF8 decode，synthetic negatives扩展。"
+    },
+    {
+      "id": "F7",
+      "status": "partial-matrix",
+      "evidence": "已补G1/G2/G5/G6/G11/G12若干，但G1c/G3/G4/G6并阻/G7-G10等仍未实现，不将41例当完整Task25。"
+    }
+  ],
+  "groups": [
+    {
+      "id": "G1",
+      "status": "partial",
+      "detail": "已写Absent/Hidden双向因果＋FirstState正常首bind；未写普通回收复用与HeldRemoved/NO_POSITION。"
+    },
+    {
+      "id": "G2",
+      "status": "source-implemented",
+      "detail": "真实捕获全State/settled/null消费/无saving、实际saving正例；115同Looper透明Main Handler only，全部NOT RUN。"
+    },
+    {
+      "id": "G3",
+      "status": "not-implemented",
+      "detail": "queued/calculated late Diff、native touch/A11y/fold/anchor/焦点矩阵未写。"
+    },
+    {
+      "id": "G4",
+      "status": "not-implemented",
+      "detail": "真实旋转、深浅/系统大字体与真实纵滑配置矩阵未写。"
+    },
+    {
+      "id": "G5",
+      "status": "source-implemented",
+      "detail": "两真实快速意图/同向重复/后台成功/早拒＋原双向失败后成功；全部NOT RUN。"
+    },
+    {
+      "id": "G6",
+      "status": "partial",
+      "detail": "已写Start-return/官网fetch/三wrongdone＋原partial resume；尚缺poll+Store并阻时Cancel、blockedStart期间实际选择短事务。"
+    },
+    {
+      "id": "G7",
+      "status": "not-implemented",
+      "detail": "stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。"
+    },
+    {
+      "id": "G8",
+      "status": "not-implemented",
+      "detail": "晚reference/异target/maintenance/reserve前后切网与已入场旧下载结算矩阵未写。"
+    },
+    {
+      "id": "G9",
+      "status": "not-implemented",
+      "detail": "真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。"
+    },
+    {
+      "id": "G10",
+      "status": "not-implemented",
+      "detail": "同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
+    },
+    {
+      "id": "G11",
+      "status": "source-implemented",
+      "detail": "完整与checkpoint的先History后Root顺序＋旧失败组；全部NOT RUN。"
+    },
+    {
+      "id": "G12",
+      "status": "source-implemented",
+      "detail": "真实read可行startWrite权限失败：双向选择/独立History/迁移保池＋原read及.bak；不冒称流中途failWrite/断电。"
+    }
+  ],
+  "authority_notes": [
+    "续工source=b48 baseline=7a2；保留b48追加直父b48一提交。",
+    "115仅Controller.main透明实例引用观察，其余State/proof/listener/Window/Looper/帧钟/main源码不写。",
+    "本轮supervisor批准：pending为sameRows早退后sticky诊断位；正常driver不以pending=false单独门禁，differ→main且diffRunning=false和地址/顺序/全部渲染字段精确一致；实际widget/Store仍独立核。"
+  ]
 }

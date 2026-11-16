@@ -33,17 +33,39 @@ V2_SCENARIOS = (
     "testHistoryMigrationTransferFailurePreservesRoot",
     "testLedgerUncertainReservationAndExplicitRound",
 )
-SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS
+CONTINUATION_SCENARIOS = (
+    "testStoppedAbsentHolderReadFailureAdd",
+    "testStoppedAbsentHolderReadFailureRemove",
+    "testHiddenCachedHolderReturnAdd",
+    "testHiddenCachedHolderReturnRemove",
+    "testRapidNativeAddThenCancel",
+    "testRepeatedNativeAddIntent",
+    "testLostBackgroundSuccess",
+    "testLostBackgroundEarlyReject",
+    "testBlockedStartReturnsIdThenCancels",
+    "testNativeFetchWorkerDoneDrain",
+    "testWrongTaskDoneKeepsSlot",
+    "testWrongSessionDoneKeepsSlot",
+    "testWrongNetworkDoneKeepsSlot",
+    "testSuccessfulCompleteHistoryMigrationOrder",
+    "testSuccessfulCheckpointHistoryMigrationOrder",
+    "testAtomicWriteAddFailurePreservesPool",
+    "testAtomicWriteRemoveFailurePreservesPool",
+    "testAtomicHistoryWriteFailurePreservesBytes",
+    "testFirstStateBeforeFirstHolder",
+    "testLegacyMigrationAtomicWriteFailure",
+)
+SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS
 TOTAL = len(SCENARIOS)
 
 
 def validate(text):
     text = text.replace("\r\n", "\n")
-    if "\r" in text or re.search(r"INSTRUMENTATION_(?:FAILED|ABORTED)|\bshortMsg=|\bFAIL(?:URE)?\b|FATAL EXCEPTION", text):
+    if any(c in text for c in "\r\v\f\x85\x1c\x1d\x1e\u2028\u2029") or re.search(r"INSTRUMENTATION_(?:FAILED|ABORTED)|\bshortMsg=|\bFAIL(?:URE)?\b|FATAL EXCEPTION", text):
         raise ValueError("instrumentation reported failure/crash/invalid line endings")
     expected = [f"PASS {i}/{TOTAL} {name}" for i, name in enumerate(SCENARIOS, 1)]
     cases, result, pending, ended = [], {}, None, False
-    for line in text.splitlines():
+    for line in text.split("\n"):
         if ended:
             if line.strip():
                 raise ValueError("trailing output after final code")
@@ -110,6 +132,9 @@ def self_test():
            "".join(blocks[1:2] + blocks[0:1] + blocks[2:]),
            good.replace("INSTRUMENTATION_RESULT: preferred_ip_api=24\n", ""),
            good.replace("INSTRUMENTATION_RESULT: preferred_ip_api=24", "INSTRUMENTATION_RESULT: preferred_ip_api=24\nINSTRUMENTATION_RESULT: preferred_ip_api=24")]
+    for separator in ("\v", "\f", "\x85", "\r", "\x1c", "\x1d", "\x1e", "\u2028", "\u2029"):
+        bad.append(good.replace("\n", separator))
+        bad.append(good + separator)
     for i in range(TOTAL):
         bad += ["".join(blocks[:2*i] + blocks[2*i+2:]),
                 "".join(blocks[:2*i] + blocks[2*i:2*i+2] + blocks[2*i:])]
@@ -127,8 +152,8 @@ if __name__ == "__main__":
         self_test()
     elif len(sys.argv) == 2:
         try:
-            cases = validate(Path(sys.argv[1]).read_text(encoding="utf-8"))
-        except (OSError, ValueError) as failure:
+            cases = validate(Path(sys.argv[1]).read_bytes().decode("utf-8"))
+        except (OSError, UnicodeError, ValueError) as failure:
             sys.exit(f"::error::API24 instrumentation report rejected: {failure}")
         print("\n".join(cases))
         print(f"PASS {TOTAL}/{TOTAL}: registered API24 safety/native-widget cases only; incomplete v2 contract, no public-network/VPN evidence")
