@@ -80,7 +80,18 @@ CONFIGURATION_SCENARIOS = (
     "testPollAndStoreBlockedCancelRemainsIndependent",
     "testAdmittedStartReturnDoesNotBlockSelection",
 )
-SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS + CONFIGURATION_SCENARIOS
+CONTEXT_SCENARIOS = (
+    "testStoredIntentSurvivesLateValidationHeadClock",
+    "testCommittedPoolSurvivesTailClockNetworkRevoke",
+    "testDifferentTargetRealValidationPrepareProbeIsNotGrafted",
+    "testFollowingProfilesShareCanonicalReferenceSubset",
+    "testExistingValidationSubsetAccumulatesNewProof",
+    "testLateReferenceReplyAfterNetworkRevokeIsNotMerged",
+    "testDownloadRevokedAroundReserveNeverStarts",
+    "testAdmittedOldRoundDownloadSettlesAndRefusesContinue",
+    "testPrepareRequiredMaintenanceStopsAfterNetworkRevoke",
+)
+SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS
 TOTAL = len(SCENARIOS)
 
 

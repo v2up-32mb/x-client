@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 62,
+  "total_registered": 71,
   "cases": [
     {
       "number": 1,
@@ -601,15 +601,103 @@
       "trigger_and_boundary": "真实Start返回窗口；不写taskId/reserved/ledger，只在gate处延迟真实backend.start返回。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpConfigurationCancelTest.java"
+    },
+    {
+      "number": 63,
+      "name": "testStoredIntentSurvivesLateValidationHeadClock",
+      "kind": "stage-c-native-clock",
+      "group": "G7a",
+      "assertions": "真实Clock在validation事务head阻塞：intent version先+1并落盘X、enabled/validations尚未写；第二个原生Y intent仅入队（selectionPending=1、磁盘仍version+1）；放行后旧head因version不匹配不覆盖，Y提交后最新validation写X+Y子集/tested_at=固定Clock值/version=2/revision=+3。",
+      "trigger_and_boundary": "Clock只在真实commitValidation store.update内部的clock.now阻塞；head/tail字节由AtomicFile直接read，不写State/Row/proof/Job。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 64,
+      "name": "testCommittedPoolSurvivesTailClockNetworkRevoke",
+      "kind": "stage-c-native-clock",
+      "group": "G7b",
+      "assertions": "已提交含X的validation后，真实Clock在下一validation事务tail阻塞；Y intent先落盘version+1且旧validation字节/tested_at/enabled原样；切网后放行，validationCurrent失败不写，旧池X仍在、Y意图保留、revision仅+1、无新Start。",
+      "trigger_and_boundary": "切网发生在真实Store LOCK持有后的tail；只读旧validation对象比较，不伪造证明。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 65,
+      "name": "testDifferentTargetRealValidationPrepareProbeIsNotGrafted",
+      "kind": "stage-c-native-target",
+      "group": "G7c",
+      "assertions": "following节点最终target与reference不同时，真实validation prepare+probe均指向other.example.com且role=validation；只写该节点自身target_key与X子集、固定Clock tested_at，reference profile不获得该证明；intent version=1、独立mode保持、共4个真实Go请求。",
+      "trigger_and_boundary": "真实目标差异来自Profile XT server；断言写盘validation的target_key等于Resolver对最终Profile的fingerprint。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 66,
+      "name": "testFollowingProfilesShareCanonicalReferenceSubset",
+      "kind": "stage-c-native-target",
+      "group": "G7d",
+      "assertions": "无显式mode且canonical target相同的节点共享同一target_key/X子集与tested_at；显式independent节点和advanced relay_nodes冲突节点不写入；profile_modes不新增reference/follower键；Resolver对reference与follower均实际adopt X，冲突节点不adopt；仅有prepare+probe两个真实请求。",
+      "trigger_and_boundary": "同target复用reference proof，不发送validation prepare；通过真实checkbox保存触发。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 67,
+      "name": "testExistingValidationSubsetAccumulatesNewProof",
+      "kind": "stage-c-native-target",
+      "group": "G7e",
+      "assertions": "旧池X/Y+旧validation(X)/selection_version=4下真实四candidate扫描：旧X与enabled保留、自然同key子集仅收敛到当前选择、未知ghost validation字节不变；真实勾选新Z后version=5、子集X/Y/Z、tested_at=固定Clock、无显式mode，Resolver adopt三地址。",
+      "trigger_and_boundary": "四candidate含V6失败边界；旧validation由fixture按真实schema预置，选择与提交均走真实控件/逻辑。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 68,
+      "name": "testLateReferenceReplyAfterNetworkRevokeIsNotMerged",
+      "kind": "stage-c-native-late",
+      "group": "G8a",
+      "assertions": "真实reference poll先并入1个complete结果；切网后旧admission的晚complete回复不并入（completed仍1），selected/validations不变；matching worker_done释放后不自动在新网络Start，旧池X仍选中/历史stale。",
+      "trigger_and_boundary": "晚回复用Task脚本在切网后注入；身份/网络不匹配由真实relevant判定，不写State。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 69,
+      "name": "testDownloadRevokedAroundReserveNeverStarts",
+      "kind": "stage-c-native-reserve",
+      "group": "G8b",
+      "assertions": "真实下载Job已active但reservation事务被真实Store LOCK阻塞（磁盘reserved=0）；切网并释放后rejectedBeforeStart清账，reserved/used不变、无新Go Start/task、selected/validations/ledger id不变、activeDownload为空。",
+      "trigger_and_boundary": "Store阻塞用真实PreferredIpStore LOCK；不写reserved/used/taskId。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 70,
+      "name": "testAdmittedOldRoundDownloadSettlesAndRefusesContinue",
+      "kind": "stage-c-native-reserve",
+      "group": "G8c",
+      "assertions": "旧轮下载Start已入场但ID返回被gate延迟时真实reservation=50MiB；切网放行后真实cancel；false/done=false正文7MiB仍保留50MiB，matching worker_done按实际正文结算used=7MiB/reserved=0且id不变；旧池enabled保留，再次点击下载不产生新Start。",
+      "trigger_and_boundary": "Start返回窗口由gate延迟真实backend.start；账本字段只读，结算走真实ledger.settle。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 71,
+      "name": "testPrepareRequiredMaintenanceStopsAfterNetworkRevoke",
+      "kind": "stage-c-native-maintenance",
+      "group": "G8d",
+      "assertions": "真实prepare_required同步拒绝后仅一次maintenance prepare入场（第3次Start）并在Start返回窗口切网；放行后cancel/drain，无retry/无validation probe、startAttempts仍3、tasks仅2、selected空/enabled=false。",
+      "trigger_and_boundary": "prepare_required为真实Go Start同步拒绝路径；maintenance gate只延迟已admission的Start返回。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     }
   ],
   "mandatory_not_implemented": [
-    "G7 — stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。",
-    "G8 — 晚reference/异target/maintenance/reserve前后切网与已入场旧下载结算矩阵未写。",
     "G9 — 真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。",
     "G10 — 同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
   ],
-  "ci": "62 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded31-row gestures, node/event gates, real Settings theme/font pages and ActivityThread rotation. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; C/D and the blocking production anchor finding prevent final ready.",
+  "ci": "71 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded40-row gestures, node/event gates, real Settings theme/font pages and ActivityThread rotation. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; D and the blocking production anchor finding prevent final ready.",
   "findings_map": [
     {
       "id": "F1",
@@ -644,7 +732,7 @@
     {
       "id": "F7",
       "status": "partial-matrix",
-      "evidence": "Stage A/B close source G1/G3/G4/G6; overall F7 remains partial for staged C/D (G7-G10), not 62 PASS."
+      "evidence": "Stage A/B close source G1/G3/G4/G6; Stage C closes source G7/G8. Overall F7 remains partial for staged D (G9/G10), not 71 PASS."
     }
   ],
   "groups": [
@@ -680,13 +768,13 @@
     },
     {
       "id": "G7",
-      "status": "not-implemented",
-      "detail": "stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。"
+      "status": "source-implemented",
+      "detail": "真实Clock transaction head/tail：intent先落盘、异target真实prepare/probe只写自身target_key子集、同canonical引用正例、following/independent/advanced conflict、多candidate旧validation子集累积；全Android NOT RUN。"
     },
     {
       "id": "G8",
-      "status": "not-implemented",
-      "detail": "晚reference/异target/maintenance/reserve前后切网与已入场旧下载结算矩阵未写。"
+      "status": "source-implemented",
+      "detail": "晚reference complete回复不并入新网络、reserve前Store阻塞切网不Start、已入场旧下载false保留50MiB且matching worker_done按正文结算、拒绝旧池续下、prepare_required maintenance在Start返回窗口切网后不重试；全Android NOT RUN。"
     },
     {
       "id": "G9",
@@ -715,14 +803,15 @@
     "本轮supervisor批准：pending为sameRows早退后sticky诊断位；正常driver不以pending=false单独门禁，differ→main且diffRunning=false和地址/顺序/全部渲染字段精确一致；实际widget/Store仍独立核。",
     "本轮supervisor：anchor.getTop+rowMargin/LLM offset混坐标强静态疑点按显式阻断finding登记；继续测试source_complete但不得称anchor passed或产品ready；exact31-row nonboundary gesture/unchanged-height/public decorated diagnostics不放松。",
     "父新静态字节/source链把anchor疑点升级为明确坐标缺陷；旧水平报告保留后改纵向$2，全11方法静态decode，不冒称v2运行。保持exact address/top/height/stableID反证，不减margin或额外scroll；Task30 blocks26，main修复未授权。",
-    "阶段B source=24bfd18 baseline=7a2；只补G4+G6剩余，沿用A顺序追加7例；真实主题/字体/旋转，不写main或Resources。"
+    "阶段B source=24bfd18 baseline=7a2；只补G4+G6剩余，沿用A顺序追加7例；真实主题/字体/旋转，不写main或Resources。",
+    "阶段C source=3e98dfb baseline=7a2；仅androidTest新9例+inventory/parser；真实Clock hook与Backend同步Start拒绝/指定admission gate只观真实事务窗口，不写State/Row/proof/Job。异target最终target的validation只写该最终Profile自身target_key子集（reference不嫁接），C以真实prepare/probe正例覆盖；锚点静态阻断仍独立未解。"
   ],
   "stage": {
-    "completed_stage": "configuration_cancel_remaining",
+    "completed_stage": "context_remaining",
     "stage_complete": true,
-    "source_commit": "24bfd18b4cab6adf93c6f12c8f7872193b4b7eda",
+    "source_commit": "3e98dfb3739f5d6f71a218094c022ecb673b73b4",
     "baseline_commit": "7a2d5b27c653fc465b9dd72b9db1f40d68681bdc",
-    "meaning": "B source/registration/cleanup complete only; overall partial. Confirmed frozen-main anchor coordinate defect still blocks product static-ready/Task26 pending separately authorized repair and fresh review. All Android NOT RUN."
+    "meaning": "C source/registration/cleanup complete only; overall partial (G9/G10 remain). Confirmed frozen-main anchor coordinate defect still blocks product static-ready/Task30 pending separately authorized repair and fresh review. All Android NOT RUN."
   },
   "blocking_production_findings": [
     {

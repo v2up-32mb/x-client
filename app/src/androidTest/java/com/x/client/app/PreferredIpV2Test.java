@@ -152,6 +152,8 @@ final class PreferredIpV2Test {
         volatile boolean holdProbe, holdDownload, holdFetch, cleaning;
         volatile String holdProbeAddress = "";
         volatile PreferredIpTestControl.Gate startReturn;
+        volatile String rejectStartWith; // Scripted synchronous Go Start rejection (no worker admitted).
+        volatile long holdStartAt = -1; // Admission ordinal held after Start is admitted; -1 holds every start like startReturn.
         volatile String admitted = "", session = "", round = "round-1";
         final AtomicLong startAttempts = new AtomicLong();
         int serial, sessionSerial; long used;
@@ -173,7 +175,10 @@ final class PreferredIpV2Test {
             } catch (Exception failure) { failures.add(failure); throw failure; }
         }
         public String start(String raw) throws Exception {
-            startAttempts.incrementAndGet(); Task task = null;
+            startAttempts.incrementAndGet();
+            String rejection = rejectStartWith; // Synchronous API rejection before any worker is admitted.
+            if (rejection != null) { rejectStartWith = null; throw new IOException(rejection); }
+            Task task = null;
             try {
                 synchronized (this) {
                     require(admitted.isEmpty(), "second backend slot before matching worker_done");
@@ -192,7 +197,7 @@ final class PreferredIpV2Test {
                     started.add(task);
                 }
                 PreferredIpTestControl.Gate gate = startReturn;
-                if (gate != null && !cleaning) {
+                if (gate != null && !cleaning && (holdStartAt < 0 || holdStartAt == startAttempts.get())) {
                     try { gate.block(); }
                     catch (Exception e) { failures.add(e); cleaning = true; } // Return admitted ID so Cancel/drain remain possible.
                 }
@@ -305,6 +310,7 @@ final class PreferredIpV2Test {
         PreferredIpActivity activity; Activity cover; PreferredIpController controller;
         ScheduledExecutorService control; ExecutorService selection;
         boolean dispatchedStop; ReadFault fault; PreferredIpTestControl.StateTrace trace;
+        volatile PreferredIpRuntime.Clock clockHook; // Case-local real scheduling gate; default keeps the fixed production-style clock.
         final List<AutoCloseable> resources = new ArrayList<>();
         Fixture(Instrumentation i) throws Exception {
             this.i = i; target = i.getTargetContext();
@@ -331,7 +337,8 @@ final class PreferredIpV2Test {
                 .put("url", "").put("enabled", true).put("candidates", cs).put("prefixes", new JSONArray()));
             store.write(root, 0);
             PreferredIpRuntime.factory = (unused, reference) -> {
-                controller = new PreferredIpController(isolated, reference, backend, network, () -> 1730000003000L);
+                controller = new PreferredIpController(isolated, reference, backend, network,
+                    () -> clockHook == null ? 1730000003000L : clockHook.now());
                 return controller;
             };
             } catch (Throwable failure) {

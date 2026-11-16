@@ -335,7 +335,7 @@ jobs:
             grep -Fx "instrumentation:$component (target=com.x.client.app.trial)"
 
           # am instrument can exit 0 on AssertionError/process crash: require both a
-          # successful command AND 62 ordered named PASS records + final bundle + code -1.
+          # successful command AND 71 ordered named PASS records + final bundle + code -1.
           set +e
           timeout 900s "$ADB" -s "$SERIAL" shell am instrument -w -r "$component" > "$work/instrumentation.txt" 2>&1
           instrument_status=$?
@@ -363,7 +363,7 @@ jobs:
             echo "下载本次运行的 x-client-trial-debug-universal artifact（保留 7 天）。"
             echo "默认 Android debug 签名，仅供测试；包名 com.x.client.app.trial，可与正式版并存。"
             echo "试用版拥有独立数据，需要通过 URI 导入已有节点，不会迁移或覆盖正式版配置。"
-            echo "已执行仓库依赖与绑定后实际依赖的两轮 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查、assembleDebug/assembleDebugAndroidTest 及 API 24 emulator 登记的62组数据/原生控件断言（62/62 PASS，仅登记用例；完整v2契约仍有缺口）。"
+            echo "已执行仓库依赖与绑定后实际依赖的两轮 Go race 测试、真实 gomobile bind、固定 JSON API 签名检查、assembleDebug/assembleDebugAndroidTest 及 API 24 emulator 登记的71组数据/原生控件断言（71/71 PASS，仅登记用例；完整v2契约仍有缺口）。"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload trial universal APK

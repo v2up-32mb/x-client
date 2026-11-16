@@ -151,13 +151,14 @@ continuation = (tests / "PreferredIpV2ContinuationTest.java").read_text()
 control_tests = (tests / "PreferredIpTestControl.java").read_text()
 ui = (tests / "PreferredIpUiRemainingTest.java").read_text()
 configuration = (tests / "PreferredIpConfigurationCancelTest.java").read_text()
+context = (tests / "PreferredIpContextRemainingTest.java").read_text()
 runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
 protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
 assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARIOS"]
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 62
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 71
 assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
 assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
@@ -167,6 +168,15 @@ assert tuple(re.findall(r'"(test\w+)"', section(ui, 'static final String[] NAMES
 assert 'PreferredIpConfigurationCancelTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpConfigurationCancelTest::(test\w+)", configuration)) == protocol['CONFIGURATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(configuration, 'static final String[] NAMES = {', '};'))) == protocol['CONFIGURATION_SCENARIOS']
+assert 'PreferredIpContextRemainingTest.run(this, reporter)' in runner
+assert tuple(re.findall(r"PreferredIpContextRemainingTest::(test\w+)", context)) == protocol['CONTEXT_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(context, 'static final String[] NAMES = {', '};'))) == protocol['CONTEXT_SCENARIOS']
+for forbidden in ['controller.select(', '.setChecked(', 'new PreferredIpController.Row', 'new PreferredIpController.State',
+                  'Thread.sleep', 'String.join', 'java.nio.file']:
+    assert forbidden not in context, forbidden
+for seam in ['clockHook', 'persisted(f)', 'startAttempts', 'rejectStartWith', 'holdStartAt', 'storeMonitor()',
+             'download_round_id', 'prepare_required']:
+    assert seam in context, seam
 for seam in ['old.setRequestedOrientation(requested)', 'old.isDestroyed()', 'afterActivityCreate',
              'ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE', 'R.id.spinner_theme_mode', 'SettingsActivity.class',
              'ACTION_DISPLAY_SETTINGS', 'FONT_SCALE', 'Configuration.fontScale', 'getDisplayMetrics().density',
@@ -208,14 +218,14 @@ assert [case['number'] for case in inventory['cases']] == list(range(1, protocol
 assert inventory['mandatory_not_implemented']
 assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
 assert len(inventory['findings_map']) == 7 and len(inventory['groups']) == 12
-assert inventory['stage']['completed_stage'] == 'configuration_cancel_remaining'
+assert inventory['stage']['completed_stage'] == 'context_remaining'
 assert inventory['stage']['stage_complete'] is True
-assert inventory['stage']['source_commit'] == '24bfd18b4cab6adf93c6f12c8f7872193b4b7eda'
+assert inventory['stage']['source_commit'] == '3e98dfb3739f5d6f71a218094c022ecb673b73b4'
 assert inventory['blocking_production_findings'][0]['id'] == 'P-anchor-margin-coordinate'
 assert 'getDecoratedTop' in ui and 'top == v.getTop()' in ui
 assert 'height == v.getHeight()' in ui and 'middleByGesture' in ui
 assert 'holdProbeAddress' in v2
-assert all(group['status'] == 'source-implemented' for group in inventory['groups'] if group['id'] in ('G1', 'G3', 'G4', 'G6'))
+assert all(group['status'] == 'source-implemented' for group in inventory['groups'] if group['id'] in ('G1', 'G3', 'G4', 'G6', 'G7', 'G8'))
 assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
 assert 'assertTrue(edit.commit())' in suite
 assert 'extends Instrumentation' in runner
