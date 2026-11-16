@@ -207,6 +207,12 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         };
         sample.addTextChangedListener(watcher); concurrency.addTextChangedListener(watcher); settingsReady = true;
         adapter = new ResultAdapter(header); list.setAdapter(adapter);
+        // A returned/hidden page may acquire cached holders only after its first State.
+        // Check controls before drawing too; no positions or missed-holder events are retained.
+        list.getViewTreeObserver().addOnPreDrawListener(() -> {
+            adapter.reconcileVisibleSelections();
+            return true;
+        });
         list.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
             @Override public boolean onInterceptTouchEvent(RecyclerView v, MotionEvent e) {
                 if (e.getActionMasked() == MotionEvent.ACTION_DOWN) { touched = true; interaction++; }
@@ -272,7 +278,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         sourceStatus.setText(next.message);
         primary.setText(next.busy ? (next.paused ? "取消 / 等待退出" : "暂停") : next.sessionId.isEmpty() || next.stale ? "开始测试" : "继续测试");
         for (View view : sourceNetworkButtons) view.setEnabled(!next.busy);
-        renderSources(); adapter.submitLatest();
+        renderSources(); adapter.reconcileVisibleSelections(); adapter.submitLatest();
     }
     @Override public void selectionSettled(String address) {
         if (!destroyed) adapter.rebindSelection(address);
@@ -362,6 +368,28 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             if (position == 0) return 0;
             String address = rows.get(position - 1).address;
             Long id = ids.get(address); if (id == null) { id = nextId++; ids.put(address, id); } return id;
+        }
+        void reconcileVisibleSelections() {
+            if (destroyed || state == null) return;
+            // Bounded by attached children, not the candidate list. No row bind/move/focus change.
+            for (int i = 0; i < list.getChildCount(); i++) {
+                ResultHolder holder = (ResultHolder) list.getChildViewHolder(list.getChildAt(i));
+                int position = holder.getBindingAdapterPosition();
+                if (position <= 0 || position > rows.size()) continue;
+                String address = rows.get(position - 1).address;
+                if (address.equals(holder.address)
+                        && holder.choice.isChecked() != selectedAddresses.contains(address))
+                    bindChoiceSelection(holder, address);
+            }
+        }
+        private void bindChoiceSelection(ResultHolder holder, String address) {
+            holder.choice.setOnCheckedChangeListener(null);
+            // Also used after detach/attach when equal Row models need no DiffUtil bind.
+            holder.choice.setChecked(selectedAddresses.contains(address));
+            holder.choice.setOnCheckedChangeListener((button, on) -> {
+                if (address.equals(holder.address) && holder.getBindingAdapterPosition() != RecyclerView.NO_POSITION)
+                    controller.select(address, on);
+            });
         }
         void rebindSelection(String address) {
             // Native checkbox state can differ even when sameRows/DiffUtil sees equal models.
@@ -469,15 +497,10 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             if (position == 0) return;
             PreferredIpController.Row row = rows.get(position - 1); holder.address = row.address;
             holder.itemView.setTag(row.address); holder.heading.setTag(row.address); holder.choice.setTag(row.address);
-            holder.choice.setOnCheckedChangeListener(null);
-            // A late diff may bind an older Row after settlement (including held removed rows).
-            // Only the latest published Store selection is authoritative for the native control.
-            holder.choice.setChecked(selectedAddresses.contains(row.address));
+            // A late diff must also use the newest published Store selection.
+            bindChoiceSelection(holder, row.address);
             holder.choice.setEnabled(row.selectable && !state.saving);
             holder.choice.setContentDescription("选择 " + row.address);
-            holder.choice.setOnCheckedChangeListener((button, on) -> {
-                if (row.address.equals(holder.address) && holder.getBindingAdapterPosition() != RecyclerView.NO_POSITION) controller.select(row.address, on);
-            });
             holder.location.setText(row.location); holder.addressText.setText(row.address.replace(":", ":\u200b")); holder.score.setText(row.score);
             boolean expanded = controller.expanded.contains(row.address);
             holder.heading.setContentDescription(row.location + "，" + row.address + "，评分 " + row.score + (expanded ? "，已展开，点击收起" : "，已折叠，点击展开"));

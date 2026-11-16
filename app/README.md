@@ -319,6 +319,48 @@ holder.address / binding position guard。旧 diff 即使晚到，也不能用�
 
 以上仅源码层设计与静态推演；API24 原生操作、真实 AtomicFile 故障和晚 diff 尚未执行。
 
+#### 同实例后台返回的选择协调（后续 API24 lane；仅设计，未执行）
+
+`onStop` 会 detach 并清空 Controller listener；此时 main 消费的完成 State/地址通知可以全部丢弃。
+不能把一次性通知当持久确认。Activity 现在在每份权威 State 更新 selectedAddresses 后，仅遍历
+RecyclerView 当前 attached children，核对当前 binding position 对应的地址与 holder.address，
+**只对 checked 不一致的控件**解绑 listener、设置最新 Store selected、恢复带地址/position guard
+的 listener。没有整行 bind、排序或焦点/展开/anchor 修改，更没有全列表通知或落盘 ack。
+
+同样的有界检查还放在列表 pre-draw：首次 State 可能早于 layout/holder 就绪，测试 tab 也可能隐藏，
+仅一次遍历空列表不能消费掉补偿机会。后续显示、缓存 holder 重新进入视口或晚 diff 后，每次实际
+绘制前都会按当前地址重核；无有效 position/地址不匹配的 holder 本次跳过，后续 bind/pre-draw
+仍按最新 Store 协调，不保存旧 position/checked、不依赖延时或启动网络。普通帧只比较可见控件，
+不每500ms重绑全列表。前台完成通知和晚 diff 的最新 Store 绑定仍保留。
+
+下一 API24 lane 追加真实生命周期回归，沿用既有 package-private factory/网络 fixture 和隔离
+AtomicFile，不增加公开 fake/私网开关，也不直接改 State/proof：
+
+1. **双向失败漏通知**：稳定 A、完整 reference、真实暂停并 drain 后，X 折叠；分别以真实保存
+   建立未选和已选初态。按上一节暂停测试实例周期任务，建立初帧；main 栅栏确认 native checked。
+   测试线程持 Store.LOCK，在同一 main Runnable 内真实点击 X、用 control 栅栏确认 intent 已进
+   selectionIO，随后在返回绘制前真实执行同一 Activity 的 onStop（未 onDestroy）；main 栅栏
+   核 listener=null、实例身份未变且 native checked 仍是点击后的临时值。
+   在同一隔离目录安全移存 base/.bak、制造真实 AtomicFile openRead 故障后放 Store 锁；
+   selectionIO→control 栅栏确认失败完成、pending 0→1→0；main 栅栏确认发布和通知已在
+   listener=null 时消费，初帧至完成没有 saving=true。不要在 main/control 持锁等待彼此而死锁。
+2. **同实例返回**：恢复故障文件，真实 onStart 返回原实例；control/selectionIO→control→main
+   栅栏确认 attach 的快照和真实读库更新都已到达，再等待实际 layout/pre-draw。断言即使
+   sameRows 为 true，新增失败回 false、取消失败回 true，selected/validations/enabled/
+   selection_version 与恢复后的真实库一致；监听重设未新增任何 Store 事务或递归 select。
+3. **holder 未就绪与晚 diff**：用 main 和 differ 闩锁分别建立 State 先于首轮 layout、tab 隐藏、
+   holder 回收/缓存复用、NO_POSITION 后恢复、held removed row，以及旧 diff 已算完/仍排队的窗口。
+   返回时先消费权威 State，再放 layout/differ，或反序交错；不能因为首遍无 holder 就通过断言。
+   真正显示并绘制后核 X，与另一地址 Y 的 tag/holder 身份一致、不误改 Y；fold/TalkBack 焦点、
+   触控延期移位和 anchor 保持。pre-draw 只修 checked 差异，不得视为执行了整行 bind。
+4. **正例/拒绝/旋转**：补成功完成通知在后台丢弃、早期拒绝通知在后台丢弃及失败后成功的正反例；
+   最后取消仍 disable，无自动 I/O。另做真实旋转，新 Activity 从 retained Controller 最新 State
+   绑定，与未销毁返回分开计数。原前台快失败/重复意图/晚 diff/地址 guard 用例继续保留。
+5. **清理与报告**：finally 放开 main/differ/selectionIO/control 各闩锁、恢复真实文件与 Preferences，
+   按既定 worker_done drain→forget→恢复 factory 顺序清理；不复用被暂停周期任务的实例。
+   报告分别说明真实 AtomicFile 读故障与写故障覆盖，具名记录真实生命周期和绘制断言，不能用
+   sleep、直接 select 或伪 Store 成功/失败替代。本节未编写/执行测试，不代表编译或运行通过。
+
 ### 验证边界
 
 本次 checkbox 修复仅改 Controller 完成/拒绝通知、Activity 地址重绑及最新 Store 选择绑定，
