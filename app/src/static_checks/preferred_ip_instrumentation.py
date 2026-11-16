@@ -91,7 +91,18 @@ CONTEXT_SCENARIOS = (
     "testAdmittedOldRoundDownloadSettlesAndRefusesContinue",
     "testPrepareRequiredMaintenanceStopsAfterNetworkRevoke",
 )
-SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS
+BUDGET_ECH_SCENARIOS = (
+    "testMeteredScanConfirmationGatesNativeStart",
+    "testPerIpDownloadDialogCancelBackAndConfirm",
+    "testUiDownloadTasksAccumulateSameRoundBudget",
+    "testOverflowNewRoundCancelAndConfirmNoAutoDownload",
+    "testLostLedgerRefusesDownloadUntilConfirmedRound",
+    "testSameSessionBatchesReuseEchQueueAndBudget",
+    "testPrepareRequiredMaintenanceBoundedOnceAtTtlZero",
+    "testSuccessfulMaintenanceKeepsProofQueueAndStickyFallback",
+)
+SCENARIOS = (SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS
+             + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS + BUDGET_ECH_SCENARIOS)
 TOTAL = len(SCENARIOS)
 
 

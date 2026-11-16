@@ -155,6 +155,7 @@ final class PreferredIpV2Test {
         volatile String rejectStartWith; // Scripted synchronous Go Start rejection (no worker admitted).
         volatile long holdStartAt = -1; // Admission ordinal held after Start is admitted; -1 holds every start like startReturn.
         volatile String admitted = "", session = "", round = "round-1";
+        volatile JSONObject ech; // Scripted real wire ECH metadata; null keeps the default disabled block.
         final AtomicLong startAttempts = new AtomicLong();
         int serial, sessionSerial; long used;
         Backend(PreferredIpTestControl.Failures failures) { this.failures = failures; }
@@ -281,13 +282,16 @@ final class PreferredIpV2Test {
             }
             long reserved = task.reservedAtAdmission;
             long limit = "fetch".equals(operation) ? 0 : PreferredIpLedger.LIMIT;
+            JSONObject echState = ech == null ? new JSONObject().put("key", "fetch".equals(operation) ? "" : "ech-key")
+                .put("state", "fetch".equals(operation) ? "" : "disabled").put("prepared_at", 0).put("expires_at", 0)
+                .put("cache_hit", false).put("error", "") : new JSONObject(ech.toString());
             return new JSONObject().put("id", task.id).put("operation", operation).put("state", state).put("phase", done ? "done" : "fetch".equals(operation) ? "fetch" : "connectivity")
                 .put("worker_done", done).put("session_id", task.sessionId).put("target_key", key).put("probe_role", role)
                 .put("network_id", task.networkId).put("started_at", 1730000001000L).put("updated_at", 1730000002000L)
                 .put("completed", complete ? cs.length() : 0).put("total", cs.length()).put("download_bytes", body)
                 .put("download_round_id", task.roundId).put("download_round_limit", limit).put("download_round_used", task.usedAtAdmission + body)
                 .put("download_round_remaining", limit - task.usedAtAdmission - body).put("download_reserved_bytes", reserved)
-                .put("ech", new JSONObject().put("key", "fetch".equals(operation) ? "" : "ech-key").put("state", "fetch".equals(operation) ? "" : "disabled").put("prepared_at", 0).put("expires_at", 0).put("cache_hit", false).put("error", ""))
+                .put("ech", echState)
                 .put("candidates", cs).put("prefixes", new JSONArray()).put("errors", new JSONArray()).put("warnings", new JSONArray()).put("error", "").put("results", rows);
         }
         void drain() throws Exception {

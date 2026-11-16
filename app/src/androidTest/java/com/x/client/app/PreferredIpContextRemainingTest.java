@@ -349,7 +349,7 @@ final class PreferredIpContextRemainingTest {
     }
 
     static void testAdmittedOldRoundDownloadSettlesAndRefusesContinue(Fixture f) throws Exception {
-        f.pausedComplete(); f.selectX(true); f.stopCycle();
+        f.pausedComplete(); f.selectX(true); f.stopCycle(); f.backend.holdDownload = true;
         f.show(X); f.click(f.widget(X, R.id.preferred_row_heading)); f.settle(); f.publish(); f.draw();
         JSONObject pool = f.store.read(); String round = pool.getJSONObject("download_ledger").getString("id");
         long attempts = f.backend.startAttempts.get();

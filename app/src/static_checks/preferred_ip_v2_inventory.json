@@ -1,7 +1,7 @@
 {
-  "status": "partial",
+  "status": "implemented",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 71,
+  "total_registered": 79,
   "cases": [
     {
       "number": 1,
@@ -691,13 +691,90 @@
       "trigger_and_boundary": "prepare_required为真实Go Start同步拒绝路径；maintenance gate只延迟已admission的Start返回。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
+    },
+    {
+      "number": 72,
+      "name": "testMeteredScanConfirmationGatesNativeStart",
+      "kind": "stage-d-native-budget",
+      "group": "G9a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "计量网络下真实primary点击弹出Material计费确认；原生cancel与系统Back均0 Start、空session、无请求；正按钮后真实prepare+probe启动3候选且无自动download；scan本身不选择地址。",
+      "trigger_and_boundary": "真实dialog android:id/button1/2与UiAutomation GLOBAL_ACTION_BACK；metered仅来自Network fixture。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 73,
+      "name": "testPerIpDownloadDialogCancelBackAndConfirm",
+      "kind": "stage-d-native-budget",
+      "group": "G9b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "真实展开X行点击下载，计量网络弹手动测速确认；cancel/Back不预留不Start；确认后真实reserve 50MiB并启动download；真实行按钮取消，false worker_done保预留，matching true按7MiB结算；仅六字段变化，tested_at/score/target_key/validations不变。",
+      "trigger_and_boundary": "真实行按钮与三个dialog动作；账本字段只读，结算走真实ledger.settle。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 74,
+      "name": "testUiDownloadTasksAccumulateSameRoundBudget",
+      "kind": "stage-d-native-budget",
+      "group": "G9c",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "跨多个真实UI任务：X取消7MiB、Y完成50MiB累计57；真实overflow restart新scan保同round/id/used57；X再次下载reserve=min(50,43)=43并完成43→used100/reserved0；额度耗尽后真实点击不再Start；每个download前后非六字段与当时validations/startedAt保持（restart会合法重验证，故以其后基线比较）。",
+      "trigger_and_boundary": "所有下载经真实行按钮、真实Store账本与matching worker_done；新scan由真实菜单确认触发。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 75,
+      "name": "testOverflowNewRoundCancelAndConfirmNoAutoDownload",
+      "kind": "stage-d-native-budget",
+      "group": "G9d",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "真实下载7MiB后overflow菜单打开新100MiB轮dialog；cancel保持旧ledger/0 Start；确认后真实prepare携带new_download_round、空candidates/prefixes、同session，Go新round used0且previous审计7MiB；无自动download并保持paused。",
+      "trigger_and_boundary": "真实toolbar overflow与dialog正负按钮；不直接调用newDownloadRound/Runnable。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 76,
+      "name": "testLostLedgerRefusesDownloadUntilConfirmedRound",
+      "kind": "stage-d-native-budget",
+      "group": "G9e",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "真实7MiB后把磁盘owner置为已死亡fixture，真实行下载在reserve前拒Start且used/ledger不变，status显示未结清/失账；overflow cancel仍不清账；再次确认才清零used=0、previous保留7MiB，无自动download。",
+      "trigger_and_boundary": "失账经真实AtomicFile owner变化；确认路径仍走真实菜单/dialog/prepare.ledger.prepared。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 77,
+      "name": "testSameSessionBatchesReuseEchQueueAndBudget",
+      "kind": "stage-d-native-budget",
+      "group": "G10a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "11候选/concurrency8真实自然两批：prepare发布sticky ECH fallback(key固定/expires_at=0)，两批probe同session/round/options且同时保持ECH；第二批仅余3个冻结地址；startedAt/ledger不变，全部请求无download。",
+      "trigger_and_boundary": "Backend ech只为合法wire字段，两批均由真实schedule与worker_done驱动，不直改controller.ech。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 78,
+      "name": "testPrepareRequiredMaintenanceBoundedOnceAtTtlZero",
+      "kind": "stage-d-native-budget",
+      "group": "G10b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "真实prepare后首probe Start同步prepare_required TTL0；仅一次maintenance prepare(空candidates/prefixes、同session/round、无new_download_round)，其retry probe再次被拒后有界停止；startAttempts4/tasks2/prepare2/probe0，round/used/selected/enabled不变。",
+      "trigger_and_boundary": "TTL0为真实Go Start同步拒绝路径；maintenance gate只延迟已admission的Start返回，不写Job。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 79,
+      "name": "testSuccessfulMaintenanceKeepsProofQueueAndStickyFallback",
+      "kind": "stage-d-native-budget",
+      "group": "G10c",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
+      "assertions": "11候选首批8完成后真实Pause/Cancel；Continue首probe被TTL0拒，maintenance成功后再retry仅余3 IP；X proof/tested_at/score/validation/ledger/startedAt保持，ECH fallback且expires_at=0不强刷；全程仅一次maintenance/两次probe、无download。",
+      "trigger_and_boundary": "真实继续按钮触发拒绝与成功维护；ECH metadata只经真实poll合并，不伪造proof。",
+      "execution": "NOT RUN; Actions only"
     }
   ],
-  "mandatory_not_implemented": [
-    "G9 — 真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。",
-    "G10 — 同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
-  ],
-  "ci": "71 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded40-row gestures, node/event gates, real Settings theme/font pages and ActivityThread rotation. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; D and the blocking production anchor finding prevent final ready.",
+  "mandatory_not_implemented": [],
+  "ci": "79 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded dialogs, 11-row ECH batches, refresh/theme/font/rotation and touch/a11y gates. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; the blocking production anchor finding still prevents final ready.",
   "findings_map": [
     {
       "id": "F1",
@@ -731,8 +808,8 @@
     },
     {
       "id": "F7",
-      "status": "partial-matrix",
-      "evidence": "Stage A/B close source G1/G3/G4/G6; Stage C closes source G7/G8. Overall F7 remains partial for staged D (G9/G10), not 71 PASS."
+      "status": "source-only-complete",
+      "evidence": "Stage A/B close G1/G3/G4/G6; C closes G7/G8; D closes G9/G10 source and registers 79 cases. No Android execution, no public-network/VPN proof; blocking anchor production finding remains separate."
     }
   ],
   "groups": [
@@ -778,13 +855,13 @@
     },
     {
       "id": "G9",
-      "status": "not-implemented",
-      "detail": "真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。"
+      "status": "source-implemented",
+      "detail": "真实计费scan dialog cancel/Back/confirm、每IP下载dialog cancel/Back/confirm、跨UI task 7/57/100MiB、min(50,left)预留、false不结算/true归零、新scan不重置、失账拒续与显式新轮；全Android NOT RUN。"
     },
     {
       "id": "G10",
-      "status": "not-implemented",
-      "detail": "同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
+      "status": "source-implemented",
+      "detail": "同session两批自然probe复用ECH/queue/time/budget、TTL0仅一次maintenance与有界停止、成功维护保持proof与sticky fallback expires0不强刷；全Android NOT RUN。"
     },
     {
       "id": "G11",
@@ -804,14 +881,17 @@
     "本轮supervisor：anchor.getTop+rowMargin/LLM offset混坐标强静态疑点按显式阻断finding登记；继续测试source_complete但不得称anchor passed或产品ready；exact31-row nonboundary gesture/unchanged-height/public decorated diagnostics不放松。",
     "父新静态字节/source链把anchor疑点升级为明确坐标缺陷；旧水平报告保留后改纵向$2，全11方法静态decode，不冒称v2运行。保持exact address/top/height/stableID反证，不减margin或额外scroll；Task30 blocks26，main修复未授权。",
     "阶段B source=24bfd18 baseline=7a2；只补G4+G6剩余，沿用A顺序追加7例；真实主题/字体/旋转，不写main或Resources。",
-    "阶段C source=3e98dfb baseline=7a2；仅androidTest新9例+inventory/parser；真实Clock hook与Backend同步Start拒绝/指定admission gate只观真实事务窗口，不写State/Row/proof/Job。异target最终target的validation只写该最终Profile自身target_key子集（reference不嫁接），C以真实prepare/probe正例覆盖；锚点静态阻断仍独立未解。"
+    "阶段C source=3e98dfb baseline=7a2；仅androidTest新9例+inventory/parser；真实Clock hook与Backend同步Start拒绝/指定admission gate只观真实事务窗口，不写State/Row/proof/Job。异target最终target的validation只写该最终Profile自身target_key子集（reference不嫁接），C以真实prepare/probe正例覆盖；锚点静态阻断仍独立未解。",
+    "阶段D source=0a94704 baseline=7a2；仅新增androidTest 8例+inventory/parser/runner/CI计数；真实metered dialog/overflow新轮与同session ECH上界维护，不写State/Row/proof/ledger/Job。",
+    "D终审另修正C例 testAdmittedOldRoundDownloadSettlesAndRefusesContinue 缺少 holdDownload 的fixture模式（断言与结算不变），并把 release.yml 注释/摘要同步为79例（6安全+73原生）。",
+    "D登记79例并清空mandatory_not_implemented；F7仅source-only-complete，全部Android NOT RUN；P-anchor-margin-coordinate仍阻断final ready。"
   ],
   "stage": {
-    "completed_stage": "context_remaining",
+    "completed_stage": "budget_ech_remaining",
     "stage_complete": true,
-    "source_commit": "3e98dfb3739f5d6f71a218094c022ecb673b73b4",
+    "source_commit": "0a9470450c851bda0f6eceda68cdcb7ca6e42671",
     "baseline_commit": "7a2d5b27c653fc465b9dd72b9db1f40d68681bdc",
-    "meaning": "C source/registration/cleanup complete only; overall partial (G9/G10 remain). Confirmed frozen-main anchor coordinate defect still blocks product static-ready/Task30 pending separately authorized repair and fresh review. All Android NOT RUN."
+    "meaning": "D source/registration/cleanup complete and all mandatory test cases registered; overall test status implemented only means source-complete, not Android execution or product static-ready. Frozen-main anchor coordinate defect still blocks product review/Task30 pending separately authorized repair and fresh review. All Android NOT RUN."
   },
   "blocking_production_findings": [
     {
