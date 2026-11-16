@@ -282,7 +282,47 @@ AtomicFile；可反射本应用私有 `control`、`selectionIO`、`scanContext`�
 
 这些时序说明是测试设计，不是执行证据；真实按钮/列表操作、API24编译运行及Actions报告仍由后续lane完成。
 
+#### 勾选完成/拒绝回滚接缝（后续 API24 lane；仅设计，未编写/执行测试）
+
+选择完成与早期拒绝现在都先发布真实 Store 快照，再在 main FIFO 发出 `selectionSettled(address)`。
+Activity 按**当前 adapter 地址**定点 `notifyItemChanged`，不依赖 `saving=true` 中间帧或 Row 内容变化；
+bind 暂时移除 listener 后，从最新已发布 Store 的 `selectedAddresses` 设置 checkbox，仍保留
+holder.address / binding position guard。旧 diff 即使晚到，也不能用旧 Row.checked 覆盖较新确认。
+这是显式地址重绑，不是 Root revision / scanEpoch 确认；无落盘序号、无事件历史或全列表重绑。
+`selectedAddresses` 只镜像当前有界 Root 的 selected，不累计操作记录。事件到达时地址若已移除，
+无需保留位置；以后重绑仍读取最新 Store 选择。交互期间保留的已移除行也如此，不移动焦点或锚点。
+
+下一 lane 必须以真实 Activity checkbox 点击（不是直接 select 或改 State）做以下确定性回归：
+
+1. **无 saving 帧的双向快失败**：先通过既有 Backend/NetworkAccess 接缝形成稳定 A 的完整
+   reference，真正暂停并 drain matching worker_done。分别准备 X 未选和 X 已选的落盘正例。
+   用例专属 retained Controller 可反射暂停 control 的周期任务（只操作该实例的 scheduled future，
+   不停止 control/selectionIO，不加生产开关），在 control 手动调用真实 publish 建立初帧。
+   在隔离目录制造真实 AtomicFile openRead 快故障，例如在持 Store.LOCK 时将原 base/.bak
+   安全移存到同一用例目录，再把 base 换成非空目录；不得改正式库，也不得用伪 Store 返回值。
+   松锁后真实点击 X；用 selectionIO→control 栅栏等失败回调，而非 sleep。观察初帧与完成帧之间
+   **没有 saving=true**，且 pending 确实 0→1→0。完成帧仍须触发地址重绑，新增失败回 false、
+   取消失败回 true；恢复故障文件后真实 read 核 selected/validations/enabled 和原字节未被改写。
+   这是 AtomicFile 读故障；若另测写故障，须单独证明实际写入失败及恢复语义，不能冒称同一覆盖。
+2. **晚 diff / 地址身份**：在 differ 先放闩锁，捕获完成前的旧 before/after，再让失败或成功完成，
+   确认 main 已收到较新快照与地址确认后才放旧 diff。分别让 diff 内容相等/变化/含排序及另一地址 Y，
+   覆盖旧 diff 已运行和仍排队两种窗口。断言 X 的实际 checked 始终最终等于最新 Store，Y 不受误写；
+   对 TalkBack/触摸/滚动的 held removed row 也核取消成功显示 false，延后移位/anchor/fold 不变。
+3. **成功/重复/拒绝**：无故障新增保存与取消保存为正例，最后取消 disable；同地址快速重复意图、
+   新增后取消、失败后再次成功分别以真实点击建立，不强填 proof/valid/enabled。用 control 栅栏
+   在点击入队后、intent 执行前通知网络变化，确定性触发早期拒绝；仍须恢复 checkbox，不能只验消息。
+   统计 Store 实际提交与 selected/selection_version，确认重绑 setChecked 不递归产生选择事务。
+   另保留稳定成功后的普通 Root revision / tab 切换不推进 scanEpoch 的原回归。
+4. **清理**：每例 finally 释放所有闩锁、恢复故障路径及真实 Preferences；网络任务按原
+   package-private 接缝完成 drain 后再 forget / 恢复 factory。暂停周期任务的实例直接清理，
+   不复用于下一例。不能留下 differ/control 阻塞、故障文件或假网络工厂；不公开 fake / 私网开关。
+
+以上仅源码层设计与静态推演；API24 原生操作、真实 AtomicFile 故障和晚 diff 尚未执行。
+
 ### 验证边界
+
+本次 checkbox 修复仅改 Controller 完成/拒绝通知、Activity 地址重绑及最新 Store 选择绑定，
+并做纯静态词法/源码契约与 Git 范围检查；源码已实现不代表 Java 编译或 UI/并发测试通过。
 
 本次冻结上下文修复仅做 Controller 词法括号/调用参数个数、冻结归属/事务门槛/下载六字段等源码断言，
 允许路径核对及 `git diff --check`；这些纯静态检查不证明 Java 类型检查或并发运行正确。

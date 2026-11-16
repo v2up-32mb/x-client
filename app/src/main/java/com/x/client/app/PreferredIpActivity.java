@@ -37,6 +37,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
     private static final int OPEN_TXT = 502;
     private PreferredIpController controller;
     private PreferredIpController.State state;
+    // Latest published Store selection, independent of any older in-flight adapter diff.
+    private final Set<String> selectedAddresses = new HashSet<>();
     private ViewPager pager;
     private RecyclerView list;
     private LinearLayoutManager layout;
@@ -256,6 +258,10 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
     }
     @Override public void changed(PreferredIpController.State next) {
         state = next;
+        selectedAddresses.clear();
+        JSONArray selected = next.data.optJSONArray("selected");
+        for (int i = 0; selected != null && i < selected.length(); i++)
+            selectedAddresses.add(selected.optJSONObject(i).optString("address"));
         referenceDetail.setText(next.referenceSummary);
         String statusText = next.phase + " · 已完成 " + next.completed + "/" + next.total + "（成功 " + next.success + " / 失败 " + (next.completed - next.success) + "）"
                 + "\n已选 " + next.selected + (next.saving ? " · 保存中" : "") + " · " + next.network
@@ -267,6 +273,9 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         primary.setText(next.busy ? (next.paused ? "取消 / 等待退出" : "暂停") : next.sessionId.isEmpty() || next.stale ? "开始测试" : "继续测试");
         for (View view : sourceNetworkButtons) view.setEnabled(!next.busy);
         renderSources(); adapter.submitLatest();
+    }
+    @Override public void selectionSettled(String address) {
+        if (!destroyed) adapter.rebindSelection(address);
     }
     private void renderSources() {
         JSONArray sources = state.data.optJSONArray("sources"); String key = String.valueOf(sources) + state.busy + state.sourceMessages;
@@ -353,6 +362,13 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             if (position == 0) return 0;
             String address = rows.get(position - 1).address;
             Long id = ids.get(address); if (id == null) { id = nextId++; ids.put(address, id); } return id;
+        }
+        void rebindSelection(String address) {
+            // Native checkbox state can differ even when sameRows/DiffUtil sees equal models.
+            // Resolve the address against CURRENT rows; never retain a position across a diff.
+            for (int i = 0; i < rows.size(); i++) {
+                if (address.equals(rows.get(i).address)) { notifyItemChanged(i + 1); return; }
+            }
         }
         void submitLatest() {
             if (destroyed || state == null) return;
@@ -453,7 +469,10 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             if (position == 0) return;
             PreferredIpController.Row row = rows.get(position - 1); holder.address = row.address;
             holder.itemView.setTag(row.address); holder.heading.setTag(row.address); holder.choice.setTag(row.address);
-            holder.choice.setOnCheckedChangeListener(null); holder.choice.setChecked(row.checked);
+            holder.choice.setOnCheckedChangeListener(null);
+            // A late diff may bind an older Row after settlement (including held removed rows).
+            // Only the latest published Store selection is authoritative for the native control.
+            holder.choice.setChecked(selectedAddresses.contains(row.address));
             holder.choice.setEnabled(row.selectable && !state.saving);
             holder.choice.setContentDescription("选择 " + row.address);
             holder.choice.setOnCheckedChangeListener((button, on) -> {

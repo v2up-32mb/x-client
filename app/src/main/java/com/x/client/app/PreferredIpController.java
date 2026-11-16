@@ -19,7 +19,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /** One process-retained UI session, one Go network slot, independent short selection transactions.
  * State belongs to control; blocking Go polling NEVER occupies control, canceller or selectionIO. */
 final class PreferredIpController {
-    interface Listener { void changed(State state); }
+    interface Listener {
+        void changed(State state);
+        default void selectionSettled(String address) { }
+    }
     interface Work { void run() throws Exception; }
     interface Finished { void run(JSONObject result) throws Exception; }
     static final class State {
@@ -638,11 +641,20 @@ final class PreferredIpController {
     }
     void select(String address, boolean selected) {
         post(() -> {
-            if (data == null) throw new IllegalStateException("优选库尚未加载");
-            final ScanContext proof = scanContext;
-            if (selected && !eligible(address, proof)) throw new IllegalStateException("新增选择需要当前网络完整合格参考结果");
-            final JSONObject candidate = selected ? PreferredIpHistory.candidate(candidates.get(address)) : null;
-            final String profileSignature = selected ? profilesKey() : "";
+            final ScanContext proof;
+            final JSONObject candidate;
+            final String profileSignature;
+            try {
+                if (data == null) throw new IllegalStateException("优选库尚未加载");
+                proof = scanContext;
+                if (selected && !eligible(address, proof)) throw new IllegalStateException("新增选择需要当前网络完整合格参考结果");
+                candidate = selected ? PreferredIpHistory.candidate(candidates.get(address)) : null;
+                profileSignature = selected ? profilesKey() : "";
+            } catch (Exception e) {
+                message = "选择未保存，已回滚：" + shortError(e);
+                publishSelectionSettled(address);
+                return;
+            }
             selectionVersion.incrementAndGet(); selectionPending++; validationAllowed = true; dirty = true;
             selectionIO.execute(() -> {
                 try {
@@ -667,12 +679,21 @@ final class PreferredIpController {
                             throw new IllegalStateException("新增选择证明已过期");
                     });
                     post(() -> { acceptData(saved); selectionPending--; validationSeen.clear(); validationNotes.clear();
-                        message = "选择已保存；实际节点兼容验证后下次连接生效，不重连VPN"; validateSelections(true); });
+                        message = "选择已保存；实际节点兼容验证后下次连接生效，不重连VPN";
+                        publishSelectionSettled(address); validateSelections(true); });
                 } catch (Exception e) {
-                    post(() -> { selectionPending--; message = "选择保存失败，已回滚：" + shortError(e); dirty = true; });
+                    post(() -> { selectionPending--; message = "选择保存失败，已回滚：" + shortError(e);
+                        publishSelectionSettled(address); });
                 }
             });
         });
+    }
+    /** Completion is an address rebind, not a transient saving frame or a Root revision ack.
+     * Publish authoritative Store data first; main's FIFO also orders repeated completions. */
+    private void publishSelectionSettled(String address) throws Exception {
+        dirty = true;
+        publish();
+        main.post(() -> { Listener current = listener; if (current != null) current.selectionSettled(address); });
     }
     private String profilesKey() throws Exception {
         StringBuilder key = new StringBuilder(); Preferences prefs = new Preferences(context);
