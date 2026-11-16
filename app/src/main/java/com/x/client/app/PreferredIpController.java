@@ -67,14 +67,34 @@ final class PreferredIpController {
     private volatile Listener listener;
     private volatile boolean foreground, stopRequested = true;
     private volatile String taskId = "";
+    // Only the short network/epoch capture is locked; NEVER hold this lock over Store/Go I/O.
+    private final Object contextLock = new Object();
     private volatile String network;
+    private volatile ScanContext scanContext;
+    /** Immutable ownership, including the pending first prepare (empty session/key).
+     * JSON is frozen as text, not shared mutable JSONObject state. Published through scanContext. */
+    private static final class ScanContext {
+        final long epoch;
+        final String networkId, referenceId, referenceKey, contextKey, targetJson, optionsJson, sessionId, targetKey;
+        ScanContext(long epoch, String networkId, String referenceId, String referenceKey, String contextKey,
+                String targetJson, String optionsJson, String sessionId, String targetKey) {
+            this.epoch = epoch; this.networkId = networkId; this.referenceId = referenceId; this.referenceKey = referenceKey;
+            this.contextKey = contextKey; this.targetJson = targetJson; this.optionsJson = optionsJson;
+            this.sessionId = sessionId; this.targetKey = targetKey;
+        }
+        ScanContext prepared(String sessionId, String targetKey) {
+            return new ScanContext(epoch, networkId, referenceId, referenceKey, contextKey, targetJson, optionsJson, sessionId, targetKey);
+        }
+    }
     private volatile Job active;
     private JSONObject data, parsed, options, target, ech = new JSONObject();
     private JSONObject oldHistory = new JSONObject();
     private final LinkedHashMap<String, JSONObject> candidates = new LinkedHashMap<>(), results = new LinkedHashMap<>();
+    private final Map<String, ScanContext> resultContexts = new HashMap<>();
+    private ScanContext pendingDownloadContext;
     private final Map<String, String> validationNotes = new LinkedHashMap<>(), sourceMessages = new LinkedHashMap<>(), downloadNotes = new LinkedHashMap<>();
     private final Set<String> validationSeen = new HashSet<>();
-    private String session = "", round = "", targetKey = "", contextKey = "", referenceKey = "", sessionNetwork = "";
+    private String session = "", round = "";
     private String observedProfiles = "";
     private String referenceId, referenceSummary = "", message = "加载优选库…", phase = "尚未测试";
     private String parseSource, parseKind, parseUrl = "", pendingDownload = "";
@@ -157,23 +177,35 @@ final class PreferredIpController {
         post(() -> {
             cancelIO();
             if (active != null && active.kind.startsWith("validation")) validationAllowed = false;
-            paused = true; pendingDownload = ""; message = reason;
+            paused = true; pendingDownload = ""; pendingDownloadContext = null; message = reason;
             phase = active == null ? "已暂停" : "正在暂停，等待网络退出";
             if (active == null) checkpoint(); dirty = true;
         });
     }
     void cancel(String reason) { pause(reason); }
     private void networkChanged() {
-        String current = net.id();
-        if (!current.equals(network)) {
-            network = current; scanEpoch.incrementAndGet(); cancelIO();
-            post(() -> invalidate("网络已变化；旧成绩仅供历史查看，请重新开始"));
+        final long changedEpoch;
+        synchronized (contextLock) {
+            String current = net.id();
+            if (current.equals(network)) changedEpoch = -1;
+            else {
+                // Revoke proofs synchronously, BEFORE the control queue can process another intent.
+                changedEpoch = scanEpoch.incrementAndGet(); network = current;
+            }
+        }
+        if (changedEpoch >= 0) {
+            cancelIO();
+            post(() -> {
+                // A delayed notification must not invalidate an explicitly started newer scan.
+                if (scanContext == null || scanContext.epoch < changedEpoch)
+                    invalidate("网络已变化；旧成绩仅供历史查看，请重新开始");
+            });
         } else {
             try { net.requireDirect(); } catch (Exception e) { if (active != null) pause(shortError(e)); }
         }
     }
     private void invalidate(String reason) throws Exception {
-        stale = true; paused = true; scanning = false; pendingDownload = "";
+        stale = true; paused = true; scanning = false; pendingDownload = ""; pendingDownloadContext = null;
         validationSeen.clear(); validationNotes.clear(); message = reason; dirty = true; checkpoint();
     }
     private String currentReferenceKey(String id) throws Exception {
@@ -183,12 +215,24 @@ final class PreferredIpController {
         // Advanced credentials are only hashed, never persisted or displayed.
         return PreferredIpIds.opaque("reference", id + "|" + merged.toString());
     }
+    /** Safe on control and selectionIO: never read control-owned maps/JSON or relabel a proof.
+     * The final epoch check also rejects A→B→A during the reference/network reads. */
+    private boolean contextCurrent(ScanContext proof) {
+        if (proof == null || proof != scanContext || proof.epoch != scanEpoch.get()
+                || !proof.networkId.equals(network) || !proof.networkId.equals(net.id())) return false;
+        try {
+            return proof.referenceKey.equals(currentReferenceKey(proof.referenceId))
+                    && proof.networkId.equals(network) && proof.networkId.equals(net.id())
+                    && proof == scanContext && proof.epoch == scanEpoch.get();
+        } catch (Exception ignored) { return false; }
+    }
+    private void advanceEpoch() { synchronized (contextLock) { scanEpoch.incrementAndGet(); } }
     private void checkContext() throws Exception {
-        if (!foreground || session.isEmpty() || stale) return;
+        if (!foreground || scanContext == null || stale) return;
         String signature = profilesKey();
         if (!signature.equals(observedProfiles)) { observedProfiles = signature; validationSeen.clear(); validationNotes.clear(); dirty = true; }
-        if (!network.equals(net.id()) || !referenceKey.equals(currentReferenceKey(referenceId))) {
-            scanEpoch.incrementAndGet(); cancelIO(); invalidate("参考节点最终参数/网络已变化；请重新开始");
+        if (!contextCurrent(scanContext)) {
+            advanceEpoch(); cancelIO(); invalidate("参考节点最终参数/网络已变化；请重新开始");
         }
     }
     void refreshDetails() { post(() -> dirty = true); }
@@ -203,9 +247,9 @@ final class PreferredIpController {
     }
     void parametersChanged(String profile, int sample, int concurrency) {
         post(() -> {
-            if (session.isEmpty() || stale || options == null) return;
+            if (scanContext == null || stale || options == null) return;
             if (!profile.equals(referenceId) || sample != options.optInt("sample_limit") || concurrency != options.optInt("probe_concurrency")) {
-                scanEpoch.incrementAndGet(); cancelIO(); invalidate("参考节点/测试参数改变；需重新开始，旧成绩仅为历史");
+                advanceEpoch(); cancelIO(); invalidate("参考节点/测试参数改变；需重新开始，旧成绩仅为历史");
             }
         });
     }
@@ -239,14 +283,19 @@ final class PreferredIpController {
         JSONObject merged = PreferredIpResolver.baseParams(p);
         PreferredIpResolver.validatedConnections(p, merged);
         JSONObject newTarget = PreferredIpResolver.target(p, merged);
-        String key = currentReferenceKey(profile);
+        // Hash the exact parameters used above, not a second potentially changed Preferences read.
+        String key = PreferredIpIds.opaque("reference", profile + "|" + merged.toString());
         JSONObject priorHistory = historySnapshot(); checkpoint();
-        scanEpoch.incrementAndGet(); referenceId = profile; referenceKey = key;
+        final long epoch; final String scanNetwork;
+        synchronized (contextLock) { epoch = scanEpoch.incrementAndGet(); scanNetwork = network; }
+        referenceId = profile;
         target = newTarget; options = options(target, false, sample, concurrency, PROBE_DOWNLOAD);
-        contextKey = PreferredIpIds.opaque("scan", key + "|" + network + "|" + sample + "|" + concurrency + "|" + scanEpoch.get());
+        String contextKey = PreferredIpIds.opaque("scan", key + "|" + scanNetwork + "|" + sample + "|" + concurrency + "|" + epoch);
+        scanContext = new ScanContext(epoch, scanNetwork, profile, key, contextKey, target.toString(), options.toString(), "", "");
         referenceSummary = PreferredIpPresentation.target(target);
-        if (priorHistory.length() != 0) oldHistory = priorHistory; candidates.clear(); results.clear(); downloadNotes.clear(); validationSeen.clear(); validationNotes.clear();
-        validationAllowed = true; sessionNetwork = network; session = ""; targetKey = ""; stale = false; paused = false; scanning = true; startedAt = clock.now();
+        if (priorHistory.length() != 0) oldHistory = priorHistory; candidates.clear(); results.clear(); resultContexts.clear(); downloadNotes.clear(); validationSeen.clear(); validationNotes.clear();
+        pendingDownload = ""; pendingDownloadContext = null;
+        validationAllowed = true; session = ""; stale = false; paused = false; scanning = true; startedAt = clock.now();
         beginPrepare(true, confirmedRound);
     }
     private void requireForeground() {
@@ -257,7 +306,7 @@ final class PreferredIpController {
     void resume() {
         post(() -> {
             checkContext(); requireForeground();
-            if (stale || session.isEmpty()) throw new IllegalStateException("上下文已失效，请重新开始");
+            if (stale || session.isEmpty() || !contextCurrent(scanContext)) throw new IllegalStateException("上下文已失效，请重新开始");
             if (active != null || preparingDisk) throw new IllegalStateException("仍在等待网络任务退出");
             paused = false; scanning = true; validationAllowed = true; stopRequested = false; message = "只继续未完成的 IP"; schedule(); dirty = true;
         });
@@ -267,7 +316,7 @@ final class PreferredIpController {
         post(() -> {
             if (active != null || preparingDisk) throw new IllegalStateException("请先暂停并等待网络退出");
             requireForeground(); paused = true;
-            if (session.isEmpty() || stale || !profile.equals(referenceId) || options == null
+            if (session.isEmpty() || stale || !contextCurrent(scanContext) || !profile.equals(referenceId) || options == null
                     || sample != options.optInt("sample_limit") || concurrency != options.optInt("probe_concurrency")) {
                 startScan(profile, sample, concurrency, true);
                 paused = true;
@@ -276,27 +325,34 @@ final class PreferredIpController {
     }
     private void beginPrepare(boolean fresh, boolean newRound) throws Exception {
         preparingDisk = true; phase = "准备候选 / ECH"; dirty = true;
-        long epoch = scanEpoch.get(), cancellation = cancelVersion.get();
+        final ScanContext proof = scanContext;
+        final long cancellation = cancelVersion.get();
         selectionIO.execute(() -> {
             try {
                 String roundId = ledger.beforePrepare(newRound);
                 JSONObject latest = store.read();
                 post(() -> {
                     preparingDisk = false; acceptData(latest);
-                    if (epoch != scanEpoch.get() || cancellation != cancelVersion.get() || !foreground) { paused = true; return; }
+                    if (!contextCurrent(proof) || cancellation != cancelVersion.get() || !foreground) { paused = true; return; }
                     round = roundId;
-                    JSONObject request = request("prepare", options, new JSONArray());
+                    JSONObject request = request(proof, "prepare", new JSONObject(proof.optionsJson), new JSONArray());
                     if (fresh) {
                         request.remove("session_id");
                         request.put("candidates", data.getJSONArray("candidates")).put("prefixes", data.getJSONArray("prefixes"));
                     }
                     if (newRound) request.put("new_download_round", true);
-                    Job job = new Job(request, "prepare", response -> { });
+                    Job job = new Job(proof, request, "prepare", response -> { });
                     job.accountPrepare = true; job.newRound = newRound;
                     job.finished = response -> {
                         if (!"completed".equals(response.optString("state"))) { paused = true; return; }
-                        session = response.getString("session_id"); round = response.getString("download_round_id");
-                        targetKey = response.getString("target_key"); ech = response.getJSONObject("ech");
+                        if (!contextCurrent(proof)) return;
+                        String preparedSession = response.getString("session_id"), preparedKey = response.getString("target_key");
+                        if (preparedSession.isEmpty() || preparedKey.isEmpty() || (!fresh &&
+                                (!proof.sessionId.equals(preparedSession) || !proof.targetKey.equals(preparedKey))))
+                            throw new IllegalStateException("准备响应不属于冻结参考会话");
+                        if (fresh) scanContext = proof.prepared(preparedSession, preparedKey);
+                        session = preparedSession; round = response.getString("download_round_id");
+                        ech = response.getJSONObject("ech");
                         if (fresh) {
                             JSONArray frozen = response.getJSONArray("candidates");
                             for (int i = 0; i < frozen.length(); i++) {
@@ -311,30 +367,38 @@ final class PreferredIpController {
             } catch (Exception e) { post(() -> { preparingDisk = false; paused = true; phase = "已暂停"; message = shortError(e); dirty = true; }); }
         });
     }
-    private JSONObject request(String operation, JSONObject opts, JSONArray chunk) throws Exception {
-        JSONObject request = new JSONObject().put("operation", operation).put("network_id", network)
+    private JSONObject request(ScanContext proof, String operation, JSONObject opts, JSONArray chunk) throws Exception {
+        if (!contextCurrent(proof)) throw new IllegalStateException("任务证明上下文已失效");
+        JSONObject request = new JSONObject().put("operation", operation).put("network_id", proof.networkId)
                 .put("options", new JSONObject(opts.toString())).put("candidates", chunk).put("prefixes", new JSONArray());
-        if (!session.isEmpty()) request.put("session_id", session);
+        if (!proof.sessionId.isEmpty()) request.put("session_id", proof.sessionId);
         if (!round.isEmpty()) request.put("download_round_id", round);
         return request;
     }
     private final class Job {
         final JSONObject request;
+        final ScanContext proof;
         final long epoch;
         final String networkId, sessionId, kind;
         Finished finished;
         boolean accountPrepare, newRound, retryUsed, reserved;
         String id = "";
-        Job(JSONObject request, String kind, Finished finished) {
-            this.request = request; this.kind = kind; this.finished = finished;
-            epoch = scanEpoch.get(); networkId = request.optString("network_id"); sessionId = request.optString("session_id");
+        Job(ScanContext proof, JSONObject request, String kind, Finished finished) throws Exception {
+            this.proof = proof; this.request = new JSONObject(request.toString()); this.kind = kind; this.finished = finished;
+            // Only fetch has no scan proof. Every scan/retry inherits its original epoch, never the live one.
+            epoch = proof == null ? scanEpoch.get() : proof.epoch;
+            networkId = this.request.optString("network_id"); sessionId = this.request.optString("session_id");
         }
+    }
+    private boolean jobCurrent(Job job) {
+        return job.epoch == scanEpoch.get() && job.networkId.equals(network) && job.networkId.equals(net.id())
+                && (job.proof == null ? "fetch".equals(job.kind) : contextCurrent(job.proof)
+                    && job.proof.networkId.equals(job.networkId) && job.proof.sessionId.equals(job.sessionId));
     }
     private void launch(Job job) throws Exception {
         if (active != null || preparingDisk) throw new IllegalStateException("内部网络任务槽仍占用");
         requireForeground();
-        if (job.epoch != scanEpoch.get() || !job.networkId.equals(network)
-                || (!job.sessionId.isEmpty() && !sessionNetwork.equals(network)))
+        if (!jobCurrent(job))
             throw new IllegalStateException("任务请求上下文已变化，请重新开始");
         if ("download".equals(job.kind)) { liveDownloadUsed = 0; liveDownloadBytes = 0; }
         active = job; stopRequested = false; phase = job.kind.equals("download") ? "单 IP 下载" : job.kind.equals("validation") ? "实际节点验证" : job.kind.equals("fetch") ? "抓取来源" : "准备 / 测试";
@@ -342,7 +406,11 @@ final class PreferredIpController {
         networkIO.execute(() -> runJob(job));
     }
     private boolean relevant(Job job, JSONObject snapshot) {
-        return active == job && job.epoch == scanEpoch.get() && job.networkId.equals(network)
+        return active == job && jobCurrent(job)
+                && job.request.optString("operation").equals(snapshot.optString("operation"))
+                && (job.proof == null || job.request.optString("probe_role", "reference").equals(snapshot.optString("probe_role")))
+                && (!("probe".equals(job.kind) || "download".equals(job.kind))
+                    || job.proof.targetKey.equals(snapshot.optString("target_key")))
                 && job.id.equals(snapshot.optString("id")) && job.networkId.equals(snapshot.optString("network_id"))
                 && (job.sessionId.isEmpty() || job.sessionId.equals(snapshot.optString("session_id")));
     }
@@ -356,7 +424,7 @@ final class PreferredIpController {
         JSONObject terminal = null;
         Exception failure = null;
         try {
-            if (!foreground || job.epoch != scanEpoch.get() || stopRequested || !job.networkId.equals(net.id()))
+            if (!foreground || !jobCurrent(job) || stopRequested)
                 throw new IllegalStateException("已暂停/网络已变化，未启动任务");
             net.requireDirect();
             if ("download".equals(job.kind)) {
@@ -364,8 +432,10 @@ final class PreferredIpController {
                 job.reserved = true;
                 JSONObject reserved = store.read(); post(() -> acceptData(reserved));
             }
+            // Reservation/Store reads may have blocked while the network changed. Do not start old work.
+            if (!foreground || stopRequested || !jobCurrent(job)) throw new IllegalStateException("任务上下文已变化，未启动任务");
             job.id = backend.start(job.request.toString()); taskId = job.id;
-            if (stopRequested || !foreground || job.epoch != scanEpoch.get()) cancelBackend(job.id);
+            if (stopRequested || !foreground || !jobCurrent(job)) cancelBackend(job.id);
             while (true) {
                 JSONObject snapshot;
                 try { snapshot = new JSONObject(backend.poll(job.id)); }
@@ -382,7 +452,7 @@ final class PreferredIpController {
                 JSONObject update = snapshot;
                 post(() -> { if (relevant(job, update)) mergeSnapshot(job, update); });
                 if (snapshot.optBoolean("worker_done")) { terminal = snapshot; break; }
-                if (stopRequested || !foreground || job.epoch != scanEpoch.get() || !job.networkId.equals(net.id())) cancelBackend(job.id);
+                if (stopRequested || !foreground || !jobCurrent(job)) cancelBackend(job.id);
                 pollDelay();
             }
             if ("download".equals(job.kind)) ledger.settle(terminal);
@@ -421,16 +491,19 @@ final class PreferredIpController {
         post(() -> finishJob(job, finalSnapshot, finalError, latest));
     }
     private void mergeSnapshot(Job job, JSONObject snapshot) throws Exception {
+        if (!relevant(job, snapshot)) return;
         if (snapshot.optJSONObject("ech") != null) ech = snapshot.getJSONObject("ech");
         if ("probe".equals(job.kind)) {
-            if (!"reference".equals(snapshot.optString("probe_role")) || !targetKey.equals(snapshot.optString("target_key"))) return;
+            if (!"reference".equals(snapshot.optString("probe_role")) || !job.proof.targetKey.equals(snapshot.optString("target_key"))) return;
             JSONArray rows = snapshot.getJSONArray("results");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i); String address = row.getString("address");
                 if (PreferredIpPresentation.find(job.request.optJSONArray("candidates"), address) == null || !candidates.containsKey(address) || !"reference".equals(row.optString("result_kind"))
-                        || !targetKey.equals(row.optString("target_key"))) continue;
+                        || !job.proof.targetKey.equals(row.optString("target_key"))) continue;
                 JSONObject old = results.get(address);
-                if (old == null || !old.optBoolean("probe_complete")) results.put(address, row);
+                if (old == null || !old.optBoolean("probe_complete")) {
+                    results.put(address, row); resultContexts.put(address, job.proof);
+                }
             }
         } else if ("download".equals(job.kind)) {
             if (!round.equals(snapshot.optString("download_round_id"))) return;
@@ -446,7 +519,7 @@ final class PreferredIpController {
             JSONArray rows = snapshot.getJSONArray("results");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i), original = results.get(row.optString("address"));
-                if (original == null || !job.request.getJSONArray("candidates").getJSONObject(0).getString("address").equals(row.optString("address"))
+                if (original == null || resultContexts.get(row.optString("address")) != job.proof || !job.request.getJSONArray("candidates").getJSONObject(0).getString("address").equals(row.optString("address"))
                         || !"download".equals(row.optString("result_kind"))) continue;
                 JSONObject merged = new JSONObject(original.toString());
                 for (String key : new String[]{"download_bytes", "download_seconds", "download_mib_s", "download_peak_mib_s", "download_state", "download_ech_status"})
@@ -470,7 +543,7 @@ final class PreferredIpController {
         }
         if (error != null) {
             String text = shortError(error);
-            if (job.epoch == scanEpoch.get() && text.contains("prepare_required") && !job.retryUsed && foreground && !stopRequested) {
+            if (job.proof != null && jobCurrent(job) && text.contains("prepare_required") && !job.retryUsed && foreground && !stopRequested) {
                 maintainThen(job); return;
             }
             paused = true; validationAllowed = false;
@@ -484,6 +557,7 @@ final class PreferredIpController {
         // Remove partials after true worker_done; complete successes AND failures remain frozen.
         if ("probe".equals(job.kind)) {
             results.entrySet().removeIf(e -> !e.getValue().optBoolean("probe_complete"));
+            resultContexts.keySet().retainAll(results.keySet());
         }
         if (!"fetch".equals(job.kind)) checkpoint();
         phase = paused ? "已暂停" : "测试中"; dirty = true; schedule();
@@ -491,26 +565,31 @@ final class PreferredIpController {
     /** A single foreground maintenance/re-dispatch attempt. TTL=0 cannot create a retry loop. */
     private void maintainThen(Job original) throws Exception {
         original.retryUsed = true;
-        JSONObject maintenance = request("prepare", original.request.getJSONObject("options"), new JSONArray());
-        // prepare uses generic non-download options even when maintaining a download context.
-        maintenance.put("options", options(original.request.getJSONObject("options"), false,
-                options.optInt("sample_limit", 256), options.optInt("probe_concurrency", 8), PROBE_DOWNLOAD));
-        if ("validation".equals(original.kind)) maintenance.put("probe_role", "validation");
-        Job job = new Job(maintenance, "maintenance", response -> {
-            if (!"completed".equals(response.optString("state")) || stopRequested || !foreground) return;
-            Job retry = new Job(original.request, original.kind, original.finished); retry.retryUsed = true;
+        ScanContext proof = original.proof;
+        if (!jobCurrent(original)) return;
+        JSONObject frozenOptions = new JSONObject(proof.optionsJson);
+        JSONObject maintenance = request(proof, "prepare", options(original.request.getJSONObject("options"), false,
+                frozenOptions.optInt("sample_limit", 256), frozenOptions.optInt("probe_concurrency", 8), PROBE_DOWNLOAD), new JSONArray());
+        if (original.request.has("probe_role")) maintenance.put("probe_role", original.request.getString("probe_role"));
+        Job job = new Job(proof, maintenance, "maintenance", response -> {
+            if (!"completed".equals(response.optString("state")) || stopRequested || !foreground || !jobCurrent(original)) return;
+            Job retry = new Job(proof, original.request, original.kind, original.finished); retry.retryUsed = true;
             launch(retry);
         });
         launch(job);
     }
     private void schedule() throws Exception {
         if (!foreground || active != null || preparingDisk || data == null || session.isEmpty() || stale) return;
-        checkContext(); if (stale) return;
+        checkContext();
+        ScanContext proof = scanContext;
+        if (stale || !contextCurrent(proof)) return;
+        JSONObject frozenOptions = new JSONObject(proof.optionsJson);
         if (!pendingDownload.isEmpty()) {
-            String address = pendingDownload; pendingDownload = "";
-            if (!eligible(address)) throw new IllegalStateException("只能下载本轮完整合格参考 IP");
-            JSONObject opts = options(target, true, options.optInt("sample_limit"), options.optInt("probe_concurrency"), DOWNLOAD);
-            Job download = new Job(request("download", opts, new JSONArray().put(candidates.get(address))), "download", response -> {
+            String address = pendingDownload; ScanContext downloadProof = pendingDownloadContext;
+            pendingDownload = ""; pendingDownloadContext = null;
+            if (downloadProof != proof || !eligible(address, downloadProof)) throw new IllegalStateException("只能下载本轮完整合格参考 IP");
+            JSONObject opts = options(new JSONObject(proof.targetJson), true, frozenOptions.optInt("sample_limit"), frozenOptions.optInt("probe_concurrency"), DOWNLOAD);
+            Job download = new Job(proof, request(proof, "download", opts, new JSONArray().put(candidates.get(address))), "download", response -> {
                 paused = true; message = "测速结束，保持暂停；下载不改变参考分数/证明";
             });
             launch(download); return;
@@ -522,30 +601,36 @@ final class PreferredIpController {
         for (Map.Entry<String, JSONObject> entry : candidates.entrySet()) {
             JSONObject r = results.get(entry.getKey());
             if (r == null || !r.optBoolean("probe_complete")) chunk.put(entry.getValue());
-            if (chunk.length() == options.optInt("probe_concurrency", 8)) break;
+            if (chunk.length() == frozenOptions.optInt("probe_concurrency", 8)) break;
         }
         if (chunk.length() == 0) {
             scanning = false; paused = true; phase = "测试完成"; message = "全部候选处理完成；勾选即保存，下载须手动";
             checkpoint(); dirty = true; return;
         }
-        JSONObject request = request("probe", options, chunk).put("probe_role", "reference");
-        launch(new Job(request, "probe", response -> { }));
+        JSONObject request = request(proof, "probe", frozenOptions, chunk).put("probe_role", "reference");
+        launch(new Job(proof, request, "probe", response -> { }));
     }
     void download(String address) {
         cancelIO();
         post(() -> {
             cancelIO();
             if (!eligible(address)) throw new IllegalStateException("只允许当前完整合格参考 IP 手动测速");
-            paused = true; pendingDownload = address;
+            paused = true; pendingDownload = address; pendingDownloadContext = scanContext;
             message = active == null ? "准备单 IP 测速" : "先暂停扫描，等待 worker_done 后测速";
             dirty = true; schedule();
         });
     }
-    private boolean eligible(String address) {
+    private boolean eligible(String address) { return eligible(address, scanContext); }
+    private boolean eligible(String address, ScanContext proof) {
+        return contextCurrent(proof) && eligibleResult(address, proof);
+    }
+    /** control-only row check; caller must also positively check the frozen context. */
+    private boolean eligibleResult(String address, ScanContext proof) {
         JSONObject row = results.get(address);
-        return !stale && !session.isEmpty() && row != null && row.optBoolean("probe_complete") && row.optBoolean("score_ready")
+        return proof != null && !stale && !proof.sessionId.isEmpty() && resultContexts.get(address) == proof
+                && candidates.containsKey(address) && row != null && row.optBoolean("probe_complete") && row.optBoolean("score_ready")
                 && row.optInt("score_version") == 1 && "reference".equals(row.optString("result_kind"))
-                && targetKey.equals(row.optString("target_key")) && compatible(row);
+                && proof.targetKey.equals(row.optString("target_key")) && compatible(row);
     }
     /** Legacy low-level predicate remains for the original six safety tests; NOT a new-proof gate. */
     static boolean compatible(JSONObject row) {
@@ -554,15 +639,15 @@ final class PreferredIpController {
     void select(String address, boolean selected) {
         post(() -> {
             if (data == null) throw new IllegalStateException("优选库尚未加载");
-            if (selected && !eligible(address)) throw new IllegalStateException("新增选择需要当前网络完整合格参考结果");
+            final ScanContext proof = scanContext;
+            if (selected && !eligible(address, proof)) throw new IllegalStateException("新增选择需要当前网络完整合格参考结果");
             final JSONObject candidate = selected ? PreferredIpHistory.candidate(candidates.get(address)) : null;
-            final long epoch = scanEpoch.get(); final String currentNetwork = network, ref = referenceKey;
+            final String profileSignature = selected ? profilesKey() : "";
             selectionVersion.incrementAndGet(); selectionPending++; validationAllowed = true; dirty = true;
             selectionIO.execute(() -> {
                 try {
                     JSONObject saved = store.update(root -> {
-                        if (selected && (epoch != scanEpoch.get() || !currentNetwork.equals(net.id())
-                                || !ref.equals(currentReferenceKey(referenceId)))) throw new IllegalStateException("上下文已变化，未保存新增选择");
+                        if (selected && !selectionContextCurrent(proof, profileSignature)) throw new IllegalStateException("上下文已变化，未保存新增选择");
                         JSONArray rows = root.getJSONArray("selected"), next = new JSONArray();
                         for (int i = 0; i < rows.length(); i++) if (!address.equals(rows.getJSONObject(i).getString("address"))) next.put(rows.getJSONObject(i));
                         if (selected) next.put(candidate);
@@ -578,6 +663,8 @@ final class PreferredIpController {
                         }
                         if (next.length() == 0) root.put("enabled", false);
                         // Checkbox changes only intent (+ removal of obsolete proof), never modes or fabricated validation.
+                        if (selected && !selectionContextCurrent(proof, profileSignature))
+                            throw new IllegalStateException("新增选择证明已过期");
                     });
                     post(() -> { acceptData(saved); selectionPending--; validationSeen.clear(); validationNotes.clear();
                         message = "选择已保存；实际节点兼容验证后下次连接生效，不重连VPN"; validateSelections(true); });
@@ -609,8 +696,12 @@ final class PreferredIpController {
         final List<String> ids = new ArrayList<>();
     }
     private void validateSelections(boolean referenceOnly) throws Exception {
-        if (!foreground || !validationAllowed || stale || data == null || session.isEmpty() || selectionPending > 0) return;
-        long version = selectionVersion.get(), epoch = scanEpoch.get(); String profileSignature = profilesKey();
+        final ScanContext proofContext = scanContext;
+        if (!foreground || !validationAllowed || stale || data == null || !contextCurrent(proofContext)
+                || proofContext.sessionId.isEmpty() || selectionPending > 0) return;
+        long version = selectionVersion.get(), storedSelectionVersion = data.optLong("selection_version");
+        String profileSignature = profilesKey();
+        JSONObject frozenOptions = new JSONObject(proofContext.optionsJson);
         JSONArray selected = data.getJSONArray("selected");
         if (selected.length() == 0) return;
         Map<String, ValidationGroup> groups = new LinkedHashMap<>(); Preferences prefs = new Preferences(context);
@@ -628,17 +719,17 @@ final class PreferredIpController {
             } catch (Exception ignored) { /* Resolver's actual non-adoption reason is rendered in each row. */ }
         }
         for (ValidationGroup group : groups.values()) {
-            boolean same = group.key.equals(PreferredIpResolver.fingerprint(target));
+            boolean same = group.key.equals(PreferredIpResolver.fingerprint(new JSONObject(proofContext.targetJson)));
             JSONArray chunk = new JSONArray();
             List<String> seen = new ArrayList<>();
             for (int i = 0; i < selected.length(); i++) {
                 String address = selected.getJSONObject(i).getString("address");
                 // History-selected addresses stay visible, but only current reference candidates acquire new proof.
-                if (!eligible(address)) continue;
+                if (!eligible(address, proofContext)) continue;
                 String key = version + "|" + profileSignature + "|" + group.key + "|" + address;
                 if (validationSeen.contains(key)) continue;
                 chunk.put(candidates.get(address)); seen.add(key);
-                if (chunk.length() == options.optInt("probe_concurrency", 8)) break;
+                if (chunk.length() == frozenOptions.optInt("probe_concurrency", 8)) break;
             }
             if (chunk.length() == 0 || (!same && (referenceOnly || active != null))) continue;
             if (validationSeen.size() + seen.size() > 8192) { validationAllowed = false; message = "兼容证明缓存达到8192项上限；请减少参与节点或选择后明确继续"; dirty = true; return; }
@@ -646,56 +737,53 @@ final class PreferredIpController {
             if (same) {
                 JSONArray proof = new JSONArray();
                 for (int i = 0; i < chunk.length(); i++) proof.put(results.get(chunk.getJSONObject(i).getString("address")));
-                commitValidation(group, proof, version, epoch, network, profileSignature, "reference", targetKey);
+                commitValidation(proofContext, group, proof, version, storedSelectionVersion, profileSignature, "reference", proofContext.targetKey);
                 continue;
             }
-            final String currentNetwork = network;
-            JSONObject opts = options(group.target, false, options.optInt("sample_limit"), options.optInt("probe_concurrency"), PROBE_DOWNLOAD);
-            JSONObject prep = request("prepare", opts, new JSONArray()).put("probe_role", "validation");
-            Job preparation = new Job(prep, "validation_prepare", response -> {
-                if (!"completed".equals(response.optString("state")) || version != selectionVersion.get()
+            JSONObject opts = options(group.target, false, frozenOptions.optInt("sample_limit"), frozenOptions.optInt("probe_concurrency"), PROBE_DOWNLOAD);
+            JSONObject prep = request(proofContext, "prepare", opts, new JSONArray()).put("probe_role", "validation");
+            Job preparation = new Job(proofContext, prep, "validation_prepare", response -> {
+                if (!"completed".equals(response.optString("state")) || !contextCurrent(proofContext) || version != selectionVersion.get()
                         || !profileSignature.equals(profilesKey()) || !foreground || stopRequested) { validationSeen.removeAll(seen); return; }
                 String goKey = response.getString("target_key");
+                if (goKey.isEmpty()) throw new IllegalStateException("验证准备缺少目标指纹");
                 // Canonically identical Go targets must reuse reference (never send validation for the reference key).
-                if (goKey.equals(targetKey)) {
+                if (goKey.equals(proofContext.targetKey)) {
                     JSONArray proof = new JSONArray();
                     for (int i = 0; i < chunk.length(); i++) proof.put(results.get(chunk.getJSONObject(i).getString("address")));
-                    commitValidation(group, proof, version, epoch, currentNetwork, profileSignature, "reference", goKey);
+                    commitValidation(proofContext, group, proof, version, storedSelectionVersion, profileSignature, "reference", goKey);
                     return;
                 }
-                JSONObject request = request("probe", opts, chunk).put("probe_role", "validation");
-                Job validation = new Job(request, "validation", result -> {
+                JSONObject request = request(proofContext, "probe", opts, chunk).put("probe_role", "validation");
+                Job validation = new Job(proofContext, request, "validation", result -> {
                     if (!"completed".equals(result.optString("state"))) { validationSeen.removeAll(seen); return; }
                     if (!goKey.equals(result.optString("target_key")) || !"validation".equals(result.optString("probe_role"))) return;
-                    commitValidation(group, result.getJSONArray("results"), version, epoch, currentNetwork, profileSignature, "validation", goKey);
+                    commitValidation(proofContext, group, result.getJSONArray("results"), version, storedSelectionVersion, profileSignature, "validation", goKey);
                 });
                 launch(validation);
             });
             launch(preparation); return; // Exactly one Go slot, never a profile×4096 task queue.
         }
     }
-    private void commitValidation(ValidationGroup group, JSONArray proofs, long version, long epoch, String networkId,
-            String profileSignature, String role, String goKey) throws Exception {
-        if (version != selectionVersion.get() || epoch != scanEpoch.get() || !networkId.equals(net.id())
-                || !profileSignature.equals(profilesKey())) return;
+    private void commitValidation(ScanContext proofContext, ValidationGroup group, JSONArray proofs, long version,
+            long storedSelectionVersion, String profileSignature, String role, String goKey) throws Exception {
+        if (!validationCurrent(proofContext, version, profileSignature)) return;
         JSONArray addresses = new JSONArray();
         for (int i = 0; i < proofs.length(); i++) {
             JSONObject r = proofs.getJSONObject(i);
-            if (!eligible(r.optString("address")) || !r.optBoolean("probe_complete") || !role.equals(r.optString("result_kind")) || !goKey.equals(r.optString("target_key"))) continue;
+            if (!eligible(r.optString("address"), proofContext) || !r.optBoolean("probe_complete")
+                    || !r.optBoolean("score_ready") || r.optInt("score_version") != 1 || !role.equals(r.optString("result_kind")) || !goKey.equals(r.optString("target_key"))) continue;
             String address = r.getString("address");
             validationNotes.put(group.key + "|" + address, compatible(r) ? "本轮实际目标 HTTPS/CF 通过" : "本轮失败：" + r.optString("error", "HTTPS/CF 未通过"));
             if (compatible(r)) addresses.put(address);
         }
         dirty = true;
         if (addresses.length() == 0) return; // A failed new check never destroys a user's historical effective pool.
-        String sessionId = session, referenceSignature = referenceKey;
-        long storedSelectionVersion = data.optLong("selection_version");
         selectionIO.execute(() -> {
             try {
                 JSONObject saved = store.update(root -> {
-                    if (version != selectionVersion.get() || storedSelectionVersion != root.optLong("selection_version")
-                            || epoch != scanEpoch.get() || !networkId.equals(net.id())
-                            || !profileSignature.equals(profilesKey()) || !referenceSignature.equals(currentReferenceKey(referenceId)))
+                    if (!validationCurrent(proofContext, version, profileSignature)
+                            || storedSelectionVersion != root.optLong("selection_version"))
                         throw new IllegalStateException("验证已过期；未覆盖新选择/节点参数");
                     Preferences prefs = new Preferences(context);
                     JSONObject validations = root.getJSONObject("validations");
@@ -714,16 +802,26 @@ final class PreferredIpController {
                         boolean added = false;
                         for (int i = 0; i < addresses.length(); i++) if (isSelected(root, addresses.getString(i))) { subset.add(addresses.getString(i)); added = true; }
                         if (!added) continue;
-                        validations.put(id, new JSONObject().put("target_key", group.key).put("network_id", networkId)
-                                .put("session_id", sessionId).put("tested_at", clock.now()).put("addresses", new JSONArray(subset)));
+                        validations.put(id, new JSONObject().put("target_key", group.key).put("network_id", proofContext.networkId)
+                                .put("session_id", proofContext.sessionId).put("context_key", proofContext.contextKey).put("tested_at", clock.now()).put("addresses", new JSONArray(subset)));
                         if (!root.has("rollback_modes")) root.put("rollback_modes", new JSONObject(root.getJSONObject("profile_modes").toString()));
                         // Enabling requires at least one real following target proof; implicit modes remain implicit.
                         if (!root.optBoolean("user_disabled")) root.put("enabled", true);
                     }
+                    // Abort the in-memory mutation too if context changed while assembling the subset.
+                    if (!validationCurrent(proofContext, version, profileSignature))
+                        throw new IllegalStateException("验证证明上下文已过期");
                 });
                 post(() -> { acceptData(saved); message = "已保存实际节点兼容子集；仅下次连接生效"; });
             } catch (Exception e) { error(e); }
         });
+    }
+    private boolean selectionContextCurrent(ScanContext proof, String profileSignature) throws Exception {
+        return contextCurrent(proof) && profileSignature.equals(profilesKey()) && contextCurrent(proof);
+    }
+    private boolean validationCurrent(ScanContext proof, long version, String profileSignature) throws Exception {
+        return version == selectionVersion.get() && selectionContextCurrent(proof, profileSignature)
+                && version == selectionVersion.get();
     }
     private static boolean isSelected(JSONObject root, String address) {
         return PreferredIpPresentation.find(root.optJSONArray("selected"), address) != null;
@@ -758,7 +856,7 @@ final class PreferredIpController {
             sourceMessages.put(id, "更新中");
             JSONObject request = new JSONObject().put("operation", "fetch").put("network_id", network)
                     .put("source", new JSONObject().put("id", id).put("url", url).put("kind", kind));
-            launch(new Job(request, "fetch", response -> {
+            launch(new Job(null, request, "fetch", response -> {
                 if (!"completed".equals(response.optString("state"))) { message = "来源更新未完成，保留旧快照"; return; }
                 if (response.getJSONArray("errors").length() > 0) {
                     parsed = response; parseSource = id; parseKind = kind; parseUrl = url; parseAppend = false;
@@ -880,11 +978,12 @@ final class PreferredIpController {
         root.put("candidates", rows).put("prefixes", prefixes);
     }
     private JSONObject historySnapshot() throws Exception {
-        if (candidates.isEmpty()) return new JSONObject();
+        ScanContext proof = scanContext;
+        if (candidates.isEmpty() || proof == null) return new JSONObject();
         boolean complete = results.size() == candidates.size();
         for (JSONObject r : results.values()) complete &= r.optBoolean("probe_complete");
-        return new JSONObject().put("session_id", session).put("network_id", sessionNetwork).put("context_key", contextKey)
-                .put("reference_id", referenceId).put("target_key", targetKey).put("test_target", target)
+        return new JSONObject().put("session_id", proof.sessionId).put("network_id", proof.networkId).put("context_key", proof.contextKey)
+                .put("reference_id", proof.referenceId).put("target_key", proof.targetKey).put("test_target", new JSONObject(proof.targetJson))
                 .put("started_at", startedAt).put("updated_at", clock.now()).put("score_version", 1)
                 .put("state", complete ? "completed" : "paused").put("candidates", new JSONArray(candidates.values()))
                 .put("results", new JSONArray(results.values())).put("download_notes", new JSONObject(downloadNotes));
@@ -987,7 +1086,9 @@ final class PreferredIpController {
         state.parse = parsed; state.parseThirdParty = "list".equals(parseKind);
         state.message = message; state.network = net.label(); state.referenceId = referenceId; state.referenceSummary = referenceSummary;
         state.activeDownload = active != null && "download".equals(active.kind) ? active.request.getJSONArray("candidates").getJSONObject(0).getString("address") : "";
-        state.sessionId = session; state.busy = active != null || preparingDisk; state.paused = paused; state.stale = stale;
+        ScanContext proof = scanContext;
+        boolean currentContext = contextCurrent(proof);
+        state.sessionId = session; state.busy = active != null || preparingDisk; state.paused = paused; state.stale = stale || !currentContext;
         state.scanning = scanning; state.saving = selectionPending > 0; state.metered = net.metered(); state.selected = data.getJSONArray("selected").length();
         state.phase = phase + " · ECH " + ech.optString("state", "未准备")
                 + (ech.optString("error").isEmpty() ? "" : " · " + ech.optString("error"));
@@ -1007,21 +1108,21 @@ final class PreferredIpController {
         // Stable sort: original Go priority/numeric order breaks ties. No Java IP sampling/sorting duplication.
         addresses.sort((a, b) -> {
             JSONObject ra = results.get(a), rb = results.get(b);
-            int ga = rank(ra, candidates.containsKey(a)), gb = rank(rb, candidates.containsKey(b));
+            int ga = rank(ra, currentContext && candidates.containsKey(a)), gb = rank(rb, currentContext && candidates.containsKey(b));
             if (ga != gb) return Integer.compare(ga, gb);
             return ga == 0 ? Double.compare(rb.optDouble("score"), ra.optDouble("score")) : 0;
         });
         List<Row> rows = new ArrayList<>();
         for (String address : addresses) {
-            JSONObject r = results.get(address); boolean historical = stale || !candidates.containsKey(address);
+            JSONObject r = results.get(address); boolean historical = !currentContext || stale || !candidates.containsKey(address);
             if (r == null && historical) r = PreferredIpPresentation.find(oldHistory.optJSONArray("results"), address);
             boolean current = !historical && r != null && r.optBoolean("probe_complete") && r.optBoolean("score_ready") && r.optInt("score_version") == 1;
             if (current) { state.completed++; if (compatible(r)) state.success++; }
             String colo = r == null ? "" : r.optString("colo"); if (!colo.matches("[A-Za-z]{3}")) colo = "UKN";
-            boolean checked = checkedAddresses.contains(address), valid = eligible(address);
+            boolean checked = checkedAddresses.contains(address), valid = currentContext && eligibleResult(address, proof);
             rows.add(new Row(address, colo.toUpperCase(Locale.ROOT), current ? String.format(Locale.getDefault(), "%.1f", r.optDouble("score")) : "—",
                     expanded.contains(address) ? detail(visible.get(address), r, historical, results.containsKey(address) ? target : oldHistory.optJSONObject("test_target"),
-                            results.containsKey(address) ? sessionNetwork : oldHistory.optString("network_id")) : "", checked, checked || valid, valid, r, state.saving + "|" + state.activeDownload));
+                            results.containsKey(address) ? proof.networkId : oldHistory.optString("network_id")) : "", checked, checked || valid, valid, r, state.saving + "|" + state.activeDownload));
         }
         state.rows = Collections.unmodifiableList(rows); state.total = candidates.size();
         dirty = false;

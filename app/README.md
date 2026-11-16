@@ -121,6 +121,30 @@ app/src/main/res/values[-night]/
   （如 TTL=0）就停止并提示。不同验证目标先 prepare；Go 规范化 key 若等同参考，复用参考证明，
   不发送相同 target 的 validation。不存在缓存错误后悄悄新建会话/额度的重试分支。
 
+### 冻结证明上下文（切网竞态修复）
+
+- 私有不可变 `ScanContext` 冻结 network ID、scan epoch、参考 Profile ID/最终参数摘要、context key、
+  公共 target/options JSON（含抽样/并发）；首次 prepare 返回后仅补齐 Go session ID/reference target key。
+  通过 volatile 指针安全发布，结果 `resultContexts[address]`、每个扫描 Job 和待下载意图都持有该对象。
+  新扫描清空结果及其归属；原会话的新下载轮/ECH维护不替换归属。私有对象不含明文凭据。
+- `networkChanged` 在短锁内先递增 epoch、更新网络，再走独立 Cancel、排队 invalidate。
+  `eligible` **正向**核对象身份、epoch、网络（已观察网络及实时 NetworkAccess）、当前参考参数摘要、
+  非空session、地址/结果归属、reference target key、完整/score-ready/v1/合格；不靠 `!stale` 猜当前。
+  因而 invalidate 尚未执行也不能新增；A→B→A 的字符串虽恢复，epoch 不恢复。迟到 invalidate
+  不会把用户已明确启动的较新扫描标旧。切tab/checkbox/Store revision 不增加扫描代次。
+- 请求写 proof 自己的 network/session；Job 拷贝请求并继承 proof epoch，维护/重派不读取当前代次
+  给旧请求换标签。响应核 task/operation/role/network/session，reference 还核 snapshot/row target key。
+  下载派发前、持久预留后的 Start 前再检查；被切网拒绝且尚未 Start 的预留走原未入场释放路径。
+  已入场旧 Job 仍按原 task/network/session 等 worker_done 并结账，不能以失效为由丢弃下载账本。
+- 新增 intent 的资格检查与 Store mutation 内检查持有同一个 proof；取消旧 checked 不受此门槛限制。
+  reference复用、异target prepare/probe及其回调也携原 proof。验证提交前和 Store mutation 内首尾
+  再核 proof、内存 selectionVersion、最终 Profile 集合/参数；锁内核派发时的持久 selection_version，
+  并逐 Profile 核最新 following/mode/实际target、最新selected交集。仍以最新revision作CAS，不覆盖旧整库。
+  落盘 network_id/session_id/context_key 来自 proof，而非通过检查时重新采样的网络/会话。
+- 此修复只拒绝过期**新提交**，不在切网时改 selected/validations/modes/enabled 或删除历史有效池，
+  不自动重连。独立 canceller 不拿 Store 锁；contextLock 不包围 Store/Go I/O。历史快照也始终写测量
+  所属的冻结网络/会话。50MiB/10秒、100MiB显式追加、六字段merge、worker_done单槽及有界ECH维护不变。
+
 ### 列表与交互
 
 测试页是一份 RecyclerView（设置是可滚动 header，不会在大字体时挤掉列表）：
@@ -150,7 +174,8 @@ Go 返回的完整规范地址，不截端口。语义 Material 3 颜色、无�
    清掉该地址旧验证以防取消再勾选复活旧网络proof；失败界面回到落盘状态。
 3. 同真实目标复用当前完整 reference。其它 following 目标在暂停期用同一网络槽无下载验证；
    不把 validation 结果放进参考排名。提交再次核对选择版本（内存与持久）、最终 Profile 参数/
-   集合、当前网络/scan epoch，且在最新revision上只合并实际通过地址，不写旧整库快照。
+   集合、冻结证明上下文及当前网络/scan epoch，且在最新revision上只合并实际通过地址，不写旧整库快照。
+   持久 selection_version 在派发验证前冻结，不等结果回来后再取新版本。
 4. 至少一个合法 following 实际目标通过才首次启用。隐式模式保持隐式；显式 independent/default
    和高级 relay_nodes 冲突不强制迁移。验证失败不删历史有效池；切网也不自动销毁用户已批准的池。
    验证去重/说明缓存有8192项硬上限，避免无界 profile×4096矩阵；超限停止并提示。
@@ -220,9 +245,49 @@ PreferredIpRuntime.factory = (context, reference) -> new PreferredIpController(
 - 原 `app/src/static_checks/preferred_ip_feedback.py` 仍断言旧保存预览/日志页面，**本轮未改测试lane**；
   下一lane应改为v2结构断言并保留原六安全场景，不以运行旧fixture替代新UI动作。
 
+#### 切网时序接缝（后续 API24 lane；本轮未编写/运行 instrumentation）
+
+无需修改 `PreferredIpRuntime` 或增加生产测试开关。沿用上面的 factory/backend/network/clock 和真实
+AtomicFile；可反射本应用私有 `control`、`selectionIO`、`scanContext`、`resultContexts`、`scanEpoch`、
+`stale`、`eligible`、`validateSelections`、`commitValidation` 及 `PreferredIpStore.LOCK`。
+控制器内部状态只在 control 上读取/反射调用，用 CountDownLatch/Future 建立先后关系，不用 sleep 猜竞态；
+不得修改已经发布的 JSONObject、强填 valid/enabled，或用公开 fake 开关替代真实 Activity 操作。
+
+1. **保留旧完整 reference**：真实启动 Activity，Backend按实际wire返回 prepare(SA/KA/network A)
+   和完整 reference（至少一条合格），等控制器已merge并保存好旧 `scanContext`/结果归属。
+   先真实暂停并给 matching worker_done，保留结果，不重建/清空扫描。选中历史项的用例先在 A 正常
+   走选择与验证落盘；未选中项另留一条。用旧对象身份与 JSON 副本作断言，不能重新注入结果。
+2. **invalidate 尚在队列**：反射取得 control，在一个 control Runnable 内先排 `select(address,true)`
+   和验证检查，再把注入网络置 B、同步调用 watch 保存的 changed Runnable；invalidate 排在它们之后。
+   为避免500ms周期任务抢先标 stale 导致假阴性，**同一个仍未返回的 Runnable 内**反射检查
+   `stale` 仍为 false、旧结果仍完整，而 `eligible` 已为 false，并直接调用 `validateSelections(true)`。
+   这是确定性的“失效通知已发、invalidate不能运行”窗口；随后放行队列，检查无新增选择/证明/启用。
+   再在同一个窗口内依次通知 B、A，确认旧对象仍被拒绝，不能只比 network字符串。
+3. **已排队 Store 事务**：测试线程持有反射取得的 `PreferredIpStore.LOCK` monitor，另一线程在
+   control 触发新增选择，或基于已经落盘的 selected 触发 reference复用/异target完成提交。
+   用 control栅栏确认提交已入 selectionIO，保持 Store锁期间同步通知 B（另例 B→A），再释放锁。
+   真实 update 获锁后的检查必须拒绝旧提交，旧 selected/validations/profile_modes/enabled保持不变；
+   不要同JVM另拿重叠 FileChannel锁，也不要持 Store锁等待 selectionIO完成，以免用例自身死锁。
+   通过 selectionIO→control 双栅栏确认错误回调已处理。分别覆盖“新增intent尚未落盘”和
+   “intent已落盘、兼容证明尚未落盘”。后者尤其核 enabled 不能从false变true或覆盖较新池。
+4. **晚到/维护回调**：Backend.poll 用闩锁阻塞异target prepare/probe或prepare_required后的维护；
+   切网后才返回旧 SA/A 的 completed+worker_done。不可派生新validation/retry/download或落新proof；
+   即使网络回 A 也不可。另例 Start 前卡下载 Store预留再切网：允许按原账本释放未入场预留，但不能
+   调 Backend.start。已启动下载则必须 drain及计费，参考六字段之外保持不变。
+5. **稳定正例/版本与安全回归**：网络一直 A 时新选择、同target复用无需额外Go probe应成功；Go
+   规范化target相同的prepare回调也应复用。稳定时ECH维护/显式新轮后原reference仍可选/下载。
+   真正切tab、快速勾选、Store revision变更不改变scanEpoch；选择/最终Profile变化使晚验证拒绝。
+   切网后旧checked仍能取消、最后一项取消能disable。阻塞poll与Store时取消仍独立可达，
+   cancelled+worker_done=false不能启动第二槽，true结算后才能继续。用例结束前释放所有闩锁并drain。
+
+这些时序说明是测试设计，不是执行证据；真实按钮/列表操作、API24编译运行及Actions报告仍由后续lane完成。
+
 ### 验证边界
 
-本轮仅做纯Python XML/资源引用/词法括号/API24源码守卫、契约静态检查及 git diff --check。
+本次冻结上下文修复仅做 Controller 词法括号/调用参数个数、冻结归属/事务门槛/下载六字段等源码断言，
+允许路径核对及 `git diff --check`；这些纯静态检查不证明 Java 类型检查或并发运行正确。
+
+原 Android v2 交付仅做纯Python XML/资源引用/词法括号/API24源码守卫、契约静态检查及 git diff --check。
 **未执行任何 Go/Android 构建、依赖解析、Gradle/javac/SDK/adb/emulator 或 CI**。ViewPager实际
 classpath、四API绑定、API24真实点击/横滑/生命周期/跨进程AtomicFile、深浅主题/大字体/IPv6、
 公网ECH/VPN/WSS认证与下载计量必须由后续 GitHub Actions 和设备验收，不沿用旧CI通过记录。
