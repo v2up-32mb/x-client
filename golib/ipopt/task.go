@@ -14,6 +14,7 @@ import (
 type operations struct {
 	fetch        func(context.Context, Source) (fetchOutput, error)
 	prepare      func(context.Context, Options) ([]byte, []string, error)
+	prepareTTL   func(context.Context, Options) ([]byte, time.Duration, []string, error)
 	connectivity func(context.Context, Result, Options, []byte) (Result, []string)
 	stability    func(context.Context, Result) (Result, []string)
 	latency      func(context.Context, Result, Options, []byte) (Result, []string)
@@ -29,6 +30,9 @@ func productionOperations() operations {
 		prepare: func(ctx context.Context, o Options) ([]byte, []string, error) {
 			return prepareECH(ctx, o, nil, guardedDial)
 		},
+		prepareTTL: func(ctx context.Context, o Options) ([]byte, time.Duration, []string, error) {
+			return prepareECHTTL(ctx, o, nil, guardedDial)
+		},
 		connectivity: p.connectivity, stability: p.stability, latency: p.latency, download: p.download,
 	}
 }
@@ -37,15 +41,21 @@ func productionOperations() operations {
 // A cancelled task still occupies the worker slot until all its I/O/workers
 // have actually returned; cancellation never merely hides background work.
 type Manager struct {
-	mu      sync.Mutex
-	tasks   map[string]*task
-	current string
-	history []string
-	ops     operations
-	now     func() time.Time
+	mu                sync.Mutex
+	tasks             map[string]*task
+	current           string
+	history           []string
+	ops               operations
+	now               func() time.Time
+	session           *scanSession
+	ledger            *downloadLedger
+	ledgerInitialized bool
 }
 
 type task struct {
+	session  *scanSession
+	ledger   *downloadLedger
+	ech      []byte
 	mu       sync.Mutex
 	snapshot Snapshot
 	request  Request
@@ -72,6 +82,9 @@ func (m *Manager) Start(requestJSON string) (string, error) {
 	if m.current != "" {
 		return "", fmt.Errorf("busy: 已有优选任务运行或正在取消，请稍后重试")
 	}
+	if err := m.validateSessionRequest(&r); err != nil {
+		return "", err
+	}
 	var bytes [16]byte
 	if _, err = rand.Read(bytes[:]); err != nil {
 		return "", err
@@ -88,6 +101,30 @@ func (m *Manager) Start(requestJSON string) (string, error) {
 	t := &task{request: r, ctx: ctx, cancel: cancel, done: make(chan struct{}), io: scope, now: m.now,
 		snapshot: Snapshot{ID: id, Operation: r.Operation, NetworkID: r.NetworkID, State: "queued", Phase: phase,
 			StartedAt: now, UpdatedAt: now, Warnings: []string{}, Candidates: []Candidate{}, Prefixes: []Prefix{}, Errors: []LineError{}, Results: []Result{}},
+	}
+	if r.Operation == "prepare" || r.Operation == "probe" || r.Operation == "download" {
+		t.session, t.ledger = m.session, m.ledger
+		t.snapshot.SessionID, t.snapshot.ProbeRole = r.SessionID, r.ProbeRole
+		t.snapshot.TargetKey = targetKey(r.Options)
+		if r.Operation != "prepare" {
+			entry := m.session.ech[echKey(r.NetworkID, r.Options)]
+			if r.Options.EnableECH {
+				t.ech = entry.config
+				t.snapshot.ECH = entry.info
+				t.snapshot.ECH.CacheHit = true
+			} else {
+				t.snapshot.ECH.State = "disabled"
+			}
+		}
+		if t.ledger != nil {
+			t.ledger.fill(&t.snapshot)
+		}
+		if r.Operation == "download" {
+			t.snapshot.DownloadReservedBytes = r.Options.DownloadBytesPerIP
+			if t.snapshot.DownloadReservedBytes > t.snapshot.DownloadRoundRemaining {
+				t.snapshot.DownloadReservedBytes = t.snapshot.DownloadRoundRemaining
+			}
+		}
 	}
 	m.tasks[id] = t
 	m.current = id
@@ -112,7 +149,12 @@ func (m *Manager) Get(id string) (string, error) {
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	b, err := json.Marshal(t.snapshot)
+	s := t.snapshot
+	if s.Operation == "probe" {
+		s.Results = append([]Result{}, s.Results...)
+		rankScores(s.Results)
+	}
+	b, err := json.Marshal(s)
 	return string(b), err
 }
 
@@ -133,6 +175,10 @@ func (m *Manager) Cancel(id string) {
 		t.snapshot.Warnings = appendUnique(t.snapshot.Warnings, "任务已取消；部分结果不自动推荐，网络变化时请标记为旧网络")
 		for i := range t.snapshot.Results {
 			t.snapshot.Results[i].Recommended = false
+			if t.request.Operation == "probe" && !t.snapshot.Results[i].ProbeComplete {
+				t.snapshot.Results[i].Status = "untested"
+				t.snapshot.Results[i].NAReason = "已取消；partial需从该IP流程头重试"
+			}
 		}
 		t.cancel()
 	}
@@ -149,7 +195,8 @@ func (t *task) update(fn func(*Snapshot)) {
 	t.snapshot.UpdatedAt = t.now().UnixMilli()
 }
 
-// Download accounting is the only update allowed after explicit cancellation.
+// Besides worker_done acknowledgement, only download accounting may update
+// a snapshot after explicit cancellation.
 // It is cumulative (not additive per report), so final settlement cannot double
 // charge the body budget. No late status, speed, recommendation or phase leaks
 // through this path. The worker slot remains occupied until download returns.
@@ -167,6 +214,12 @@ func (t *task) recordDownloadLocked(i int, bytes int64, seconds float64) {
 	r := &s.Results[i]
 	if bytes > r.DownloadBytes {
 		s.DownloadBytes += bytes - r.DownloadBytes
+		if t.ledger != nil {
+			t.ledger.mu.Lock()
+			t.ledger.used += bytes - r.DownloadBytes
+			t.ledger.fillLocked(s)
+			t.ledger.mu.Unlock()
+		}
 		r.DownloadBytes = bytes
 	}
 	if seconds > r.DownloadSeconds {
@@ -207,7 +260,16 @@ func (m *Manager) run(t *task) {
 	} else if t.request.Operation == "fetch" {
 		err = m.runFetch(t)
 	} else {
-		err = m.runTest(t)
+		switch t.request.Operation {
+		case "prepare":
+			err = m.runPrepare(t)
+		case "probe":
+			err = m.runProbe(t)
+		case "download":
+			err = m.runDownloadOnly(t)
+		default:
+			err = m.runTest(t)
+		}
 	}
 	t.mu.Lock()
 	if !terminal(t.snapshot.State) {
@@ -234,6 +296,12 @@ func (m *Manager) run(t *task) {
 	t.cancel()
 	t.io.close() // join detached transport dials before releasing the worker slot
 	m.mu.Lock()
+	t.mu.Lock()
+	t.snapshot.WorkerDone = true
+	t.session, t.ech = nil, nil
+	// Completion/settlement acknowledgement is the only lifecycle change after
+	// cancellation. It cannot publish a late probe success or recommendation.
+	t.mu.Unlock()
 	m.current = ""
 	m.history = append(m.history, t.snapshot.ID)
 	for len(m.history) > 3 {

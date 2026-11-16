@@ -26,6 +26,7 @@ func fakeOperations() operations {
 			return r, nil
 		},
 		stability: func(_ context.Context, r Result) (Result, []string) {
+			r.TCPMeasured = true
 			r.TCPSuccess = 10
 			r.TCPAttempts = 10
 			r.TCPMinMS = 20
@@ -34,6 +35,7 @@ func fakeOperations() operations {
 			return r, nil
 		},
 		latency: func(_ context.Context, r Result, _ Options, _ []byte) (Result, []string) {
+			r.HTTPMeasured = true
 			r.HTTPSuccess = 5
 			r.HTTPAttempts = 5
 			r.HTTPMedianMS = 30
@@ -209,7 +211,7 @@ func TestTaskCancelBusyAndNoLateResultOverwrite(t *testing.T) {
 	close(release)
 	s := waitDone(t, m, id)
 	after, _ := m.Get(id)
-	if s.State != "cancelled" || s.NetworkID != req.NetworkID || s.Results[0].Recommended || s.Results[0].Status != "untested" || before != after {
+	if s.State != "cancelled" || s.NetworkID != req.NetworkID || s.Results[0].Recommended || s.Results[0].Status != "untested" || strings.Replace(before, `"worker_done":false`, `"worker_done":true`, 1) != after || !s.WorkerDone {
 		t.Fatalf("cancel overwritten: %s -> %s", before, after)
 	}
 }

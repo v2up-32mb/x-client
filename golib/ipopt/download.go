@@ -11,8 +11,8 @@ import (
 	"time"
 )
 
-func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []byte, budget int64, progress func(int64, float64)) (Result, []string) {
-	warnings := []string{}
+func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []byte, budget int64, progress func(int64, float64)) (result Result, warnings []string) {
+	warnings = []string{}
 	r.DownloadState = "failed"
 	if budget <= 0 {
 		return r, []string{r.Address + ": 下载总预算已耗尽"}
@@ -29,6 +29,7 @@ func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []
 	}
 	s := p.session(ctx, r.Candidate, u, o, ech)
 	defer s.close()
+	defer func() { result.DownloadECHStatus = s.echStatus() }()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return r, []string{r.Address + ": " + err.Error()}

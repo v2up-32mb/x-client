@@ -70,6 +70,13 @@ func (p *networkProbe) session(parent context.Context, c Candidate, u *url.URL, 
 		},
 	}
 	tr.DialTLSContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		// Join the complete detached TLS dial, not only its TCP sub-call.
+		if scope, ok := owner.Value(ioScopeKey{}).(*ioScope); ok {
+			if !scope.begin() {
+				return nil, context.Canceled
+			}
+			defer scope.dials.Done()
+		}
 		ctx, done := context.WithTimeout(ctx, probeTimeout)
 		stop := context.AfterFunc(owner, done)
 		defer stop()
@@ -249,6 +256,7 @@ func (p *networkProbe) stability(ctx context.Context, r Result) (Result, []strin
 		cancel()
 	}
 	if len(times) > 0 {
+		r.TCPMeasured = true
 		sort.Float64s(times)
 		r.TCPMinMS, r.TCPMaxMS = times[0], times[len(times)-1]
 		for _, v := range times {
@@ -304,6 +312,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		r.Status = "failed"
 	}
 	if len(times) > 0 {
+		r.HTTPMeasured = true
 		sort.Float64s(times)
 		n := len(times)
 		r.HTTPMedianMS = times[n/2]
