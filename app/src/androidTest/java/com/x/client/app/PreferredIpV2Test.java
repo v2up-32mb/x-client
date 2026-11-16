@@ -147,8 +147,10 @@ final class PreferredIpV2Test {
         final BlockingQueue<Task> started = new LinkedBlockingQueue<>();
         final Map<String, Task> tasks = new ConcurrentHashMap<>();
         final List<JSONObject> requests = Collections.synchronizedList(new ArrayList<>());
+        final List<String> parseInputs = Collections.synchronizedList(new ArrayList<>());
         final PreferredIpTestControl.Failures failures;
         volatile boolean holdProbe, holdDownload, holdFetch, cleaning;
+        volatile String holdProbeAddress = "";
         volatile PreferredIpTestControl.Gate startReturn;
         volatile String admitted = "", session = "", round = "round-1";
         final AtomicLong startAttempts = new AtomicLong();
@@ -158,14 +160,17 @@ final class PreferredIpV2Test {
             if (!value) { IOException e = new IOException(message); failures.add(e); throw e; }
         }
         public String parse(String text, String source, String kind) throws Exception {
-            JSONArray rows = new JSONArray();
-            for (String line : text.split("[\\r\\n]+")) {
-                if (line.trim().isEmpty()) continue;
-                String[] fields = line.trim().split("#", 2);
-                rows.put(candidate(fields[0]).put("comment", fields.length == 2 ? fields[1] : "")
-                    .put("source_id", source).put("source_kind", kind).put("source_ids", new JSONArray().put(source)).put("source_kinds", new JSONArray().put(kind)));
-            }
-            return new JSONObject().put("candidates", rows).put("prefixes", new JSONArray()).put("errors", new JSONArray()).toString();
+            parseInputs.add(text);
+            try {
+                JSONArray rows = new JSONArray();
+                for (String line : text.split("[\\r\\n]+")) {
+                    if (line.trim().isEmpty()) continue;
+                    String[] fields = line.trim().split("#", 2);
+                    rows.put(candidate(fields[0]).put("comment", fields.length == 2 ? fields[1] : "")
+                        .put("source_id", source).put("source_kind", kind).put("source_ids", new JSONArray().put(source)).put("source_kinds", new JSONArray().put(kind)));
+                }
+                return new JSONObject().put("candidates", rows).put("prefixes", new JSONArray()).put("errors", new JSONArray()).toString();
+            } catch (Exception failure) { failures.add(failure); throw failure; }
         }
         public String start(String raw) throws Exception {
             startAttempts.incrementAndGet(); Task task = null;
@@ -180,7 +185,9 @@ final class PreferredIpV2Test {
                     task = new Task("task-" + (++serial), request, fetch ? "" : session, fetch ? "" : round, fetch ? 0 : used,
                         fetch ? "" : targetKey(request.getJSONObject("options")));
                     tasks.put(task.id, task); admitted = task.id;
-                    if (!(operation.equals("probe") && holdProbe) && !(operation.equals("download") && holdDownload) && !(fetch && holdFetch))
+                    boolean heldProbe = operation.equals("probe") && (holdProbe || (!holdProbeAddress.isEmpty()
+                        && PreferredIpPresentation.find(request.optJSONArray("candidates"), holdProbeAddress) != null));
+                    if (!heldProbe && !(operation.equals("download") && holdDownload) && !(fetch && holdFetch))
                         task.automatic = snapshot(task, "completed", true, true, 0);
                     started.add(task);
                 }
@@ -203,7 +210,7 @@ final class PreferredIpV2Test {
             try {
                 response = cleaning ? exit(task) : task.automatic;
                 if (response == null) {
-                    response = task.replies.poll(10, TimeUnit.SECONDS);
+                    response = task.replies.poll(30, TimeUnit.SECONDS);
                     if (response == null) {
                         failures.add(new TimeoutException("missing scripted poll reply")); cleaning = true; response = exit(task);
                     }
@@ -262,7 +269,7 @@ final class PreferredIpV2Test {
                     .put("http_median_ms", download || failed ? 0 : X.equals(address) ? 30 : 400).put("http_jitter_ms", download || failed ? 0 : X.equals(address) ? 5 : 50)
                     .put("probe_phase", download ? "" : complete ? "done" : "connectivity")
                     .put("na_reason", download ? "仅下载；参考成绩与证明未修改" : complete ? "" : "暂停后待重测").put("ech_status", "disabled").put("recommended", false)
-                    .put("tested_at", download ? 0 : 1730000002000L)
+                    .put("tested_at", download || !complete ? 0 : 1730000002000L)
                     .put("download_state", download ? "failed" : "untested").put("download_bytes", download ? body : 0)
                     .put("download_seconds", download ? 2 : 0).put("download_mib_s", 0).put("download_peak_mib_s", 0).put("download_ech_status", download ? "fallback" : "disabled");
                 if (!operation.equals("prepare")) rows.put(row);
@@ -363,6 +370,7 @@ final class PreferredIpV2Test {
                 fence(control); main(() -> { });
             }
         }
+        String adapterDiagnostic = "not-read";
         void awaitAdapterIdle() throws Exception {
             ExecutorService differ = (ExecutorService) onMain(() -> field(activity, "differ"));
             until(() -> {
@@ -371,7 +379,7 @@ final class PreferredIpV2Test {
                     Object adapter = list().getAdapter();
                     if ((Boolean) field(adapter, "diffRunning")) return false;
                     // pending is sticky after sameRows early-return; read for diagnosis, never write it.
-                    field(adapter, "pending");
+                    adapterDiagnostic = "pending=" + field(adapter, "pending");
                     List<?> rows = (List<?>) field(adapter, "rows"); PreferredIpController.State current = (PreferredIpController.State) field(activity, "state");
                     if (current == null || rows.size() != current.rows.size()) return false;
                     for (int n = 0; n < rows.size(); n++) {
@@ -444,9 +452,11 @@ final class PreferredIpV2Test {
             CountDownLatch rendered = new CountDownLatch(1);
             main(() -> {
                 View decor = activity.getWindow().getDecorView();
-                decor.getViewTreeObserver().addOnDrawListener(new ViewTreeObserver.OnDrawListener() {
+                ViewTreeObserver.OnDrawListener drawing = new ViewTreeObserver.OnDrawListener() {
                     public void onDraw() { rendered.countDown(); decor.post(() -> { if (decor.getViewTreeObserver().isAlive()) decor.getViewTreeObserver().removeOnDrawListener(this); }); }
-                });
+                };
+                decor.getViewTreeObserver().addOnDrawListener(drawing);
+                resources.add(() -> main(() -> { if (decor.getViewTreeObserver().isAlive()) decor.getViewTreeObserver().removeOnDrawListener(drawing); }));
                 decor.requestLayout(); decor.invalidate(); list().invalidate();
             });
             await(rendered, "actual layout/pre-draw/draw"); main(() -> { });

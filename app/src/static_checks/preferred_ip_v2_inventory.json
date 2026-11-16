@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 41,
+  "total_registered": 55,
   "cases": [
     {
       "number": 1,
@@ -391,11 +391,149 @@
       "assertions": "旧approved pool纯迁移fixture含selected/modes/validations/enabled；History存在但真实startWrite权限故障、Root read/lock可行；Controller迁移后legacy Root/full pool/旧History字节保持。",
       "trigger_and_boundary": "纯旧库安全，非伪造新UI验证；实际AtomicFile迁移write失败区别于旧lock失败。",
       "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 42,
+      "name": "testNativeVerticalRecycleRestoresSelectionAndFold",
+      "kind": "stage-a-native-ui-source",
+      "group": "G1b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "真实编辑/parse/确认31候选+新scan；X真实选中/展开，sendPointerSync纵向gesture及onScrolled>0，实际X被recycle且旧holder复用于另址；真实反向gesture回X，stableID/checked/fold/version/IPv6保持。",
+      "trigger_and_boundary": "正常回收bind路径；不拿scrollToPosition或未rebind pre-draw组代替。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 43,
+      "name": "testHeldRemovedTouchNoPositionIdentity",
+      "kind": "stage-a-native-ui-source",
+      "group": "G1c",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "UI将source编辑为Y、新scan只有Y但历史selected X仍显示；真DOWN/MOVE持序后uncheck X，State实际不含X而adapter保held X、nativefalse/fold/anchor不变；真实取消触摸同Runnable后公开suppressLayout，生产Diff移除→旧holder真实NO_POSITION点击无pending/version/Y写入；恢复source/新scan/bind后X可真选且Yfalse。",
+      "trigger_and_boundary": "没有改holder flags/Row/Store；事件必须先送达再抑制layout，避免吞touch-release。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 44,
+      "name": "testHeldRemovedAccessibilityNoPositionIdentity",
+      "kind": "stage-a-native-ui-source",
+      "group": "G1c/G3b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "同上held/NO_POSITION身份矩阵，入口为UiAutomation真实ACCESSIBILITY_FOCUS/CLICK/CLEAR及实际focus事件/production地址；焦点期间旧行/anchor/fold保留，clear后才移除；旧NO_POSITION点击不串Y，正常重绑定恢复。",
+      "trigger_and_boundary": "原生a11y管线不是TalkBack语音；serviceInfo/所有nodes/events/gates/layout恢复。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 45,
+      "name": "testSameRowsAddReadFailureHasNoDiff",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "未选真实add read故障，periodfuture停止/Trace观察真实无saving帧；全部Row渲染字段相等且adapter.rows原对象不替换，diffRunning=false，实际widget回false/库不变/Yfalse。",
+      "trigger_and_boundary": "sameRows早退无Diff，明确不假装算过Diff。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 46,
+      "name": "testSameRowsRemoveReadFailureHasNoDiff",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "已选取消真实read故障的equal模型对称，原rows对象/无Diff/全帧savingfalse/widgettrue/库和Y不变。",
+      "trigger_and_boundary": "保与content/reorder真实Diff组的区别。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 47,
+      "name": "testQueuedContentDiffUsesLatestSelection",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "实际heading展开产生content变化，differ gate令真实old Diff queued；真checkbox保存/State和settled已消费，old Row.checked=false而disktrue，放gate后实际oldAfter对象在Adapter通知时应用、newer State先于old apply；每实际pre-draw核最新selected/标签/stableID，最终版本不递归/Y不串。 使用31个候选/实际gesture到非首尾：首anchor是中部已完成地址，content变化由下一可见heading产生，不改变anchor高度；逐记录position/top/padding/margin/decoratedTop/height/ID，actual Diff后仍exact top/ID/height。",
+      "trigger_and_boundary": "无通用driver排空被测窗口；old apply由真实producer rows对象和通知鉴别。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 48,
+      "name": "testCalculatedContentDiffUsesLatestSelection",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "同content差量，但Store monitor+真实click后main gate；selection/validation与真实publish排main后，放old differ并FIFO fence证明计算已返回/apply已post，最后放main；实际older apply消费时State已新，所有实际帧与库一致。 使用31个候选/实际gesture到非首尾：首anchor是中部已完成地址，content变化由下一可见heading产生，不改变anchor高度；逐记录position/top/padding/margin/decoratedTop/height/ID，actual Diff后仍exact top/ID/height。",
+      "trigger_and_boundary": "不改私有queue/State；main与control/Store不反向互等。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 49,
+      "name": "testQueuedReorderDiffUsesLatestSelection",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "31候选/N=32，所有非X先自然complete（Y排名首），X仍partial→真Pause/drain→Continue仅X；实际gesture在非首尾定位中部已完成address anchor，真实选择该地址使旧checkedfalse与最新disktrue相反。更高分X产生Y→X真实排序，queued/calculated main先后、旧after对象在实际通知中apply、全部实际帧/两个地址标签/stableID/版本与exact anchor top/height断言。",
+      "trigger_and_boundary": "网络fixture仅返回合法wire经真实merge，不注入Row或重扫Y。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 50,
+      "name": "testCalculatedReorderDiffUsesLatestSelection",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "31候选/N=32，所有非X先自然complete（Y排名首），X仍partial→真Pause/drain→Continue仅X；实际gesture在非首尾定位中部已完成address anchor，真实选择该地址使旧checkedfalse与最新disktrue相反。更高分X产生Y→X真实排序，queued/calculated main先后、旧after对象在实际通知中apply、全部实际帧/两个地址标签/stableID/版本与exact anchor top/height断言。",
+      "trigger_and_boundary": "counterfactual旧Row必须与最新库相反。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 51,
+      "name": "testQueuedContentDiffAfterReadFailure",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "content旧Diff queued时先真add成功，再制造真取消read故障，确保latestdisktrue仍与captured checkedfalse相反；failure State/settled消费后旧Diff实际apply仍不得回写旧值。 使用31个候选/实际gesture到非首尾：首anchor是中部已完成地址，content变化由下一可见heading产生，不改变anchor高度；逐记录position/top/padding/margin/decoratedTop/height/ID，actual Diff后仍exact top/ID/height。",
+      "trigger_and_boundary": "失败组通过真实成功前序建立opposite，不填假Row/checked。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 52,
+      "name": "testCalculatedContentDiffAfterReadFailure",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3a",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "上述失败后旧Diff calculated-before-apply交错；Root故障在main gate期间由IO/control处理、恢复文件，最新失败State先queued，旧Diff后apply；库/version/Y及实际控件全部核。 使用31个候选/实际gesture到非首尾：首anchor是中部已完成地址，content变化由下一可见heading产生，不改变anchor高度；逐记录position/top/padding/margin/decoratedTop/height/ID，actual Diff后仍exact top/ID/height。",
+      "trigger_and_boundary": "异常collector/gates/file guard保证cleanup可达，任何错误不能PASS。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 53,
+      "name": "testNativeTouchUpDefersMovesFoldAnchor",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "31候选实际gesture非首尾、中部首anchor实际选中且高度不变，下一可见heading真实展开。原生DOWN/MOVE持序，X自然完成更高分时内容/proof更新而仍Y首/State已X首；真实UP或CANCEL后才排序。逐记anchor address/position/top/padding/topMargin/decoratedTop/height/ID并要求exact等值，无递归落盘/fold不丢。",
+      "trigger_and_boundary": "持序driver按同地址最新内容而非强求最新排序；正常driver只在release后。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 54,
+      "name": "testNativeTouchCancelDefersMovesFoldAnchor",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "31候选实际gesture非首尾、中部首anchor实际选中且高度不变，下一可见heading真实展开。原生DOWN/MOVE持序，X自然完成更高分时内容/proof更新而仍Y首/State已X首；真实UP或CANCEL后才排序。逐记anchor address/position/top/padding/topMargin/decoratedTop/height/ID并要求exact等值，无递归落盘/fold不丢。",
+      "trigger_and_boundary": "未直接写touched或调用submitLatest/deferMoves。",
+      "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 55,
+      "name": "testNativeAccessibilityFocusDefersMovesAndClicks",
+      "kind": "stage-a-native-ui-source",
+      "group": "G3b",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpUiRemainingTest.java",
+      "assertions": "31候选实际gesture非首尾，首anchor高度不变并真实选中，下一可见secondary真实选中/展开。UiAutomation真实FOCUSED/CLEARED事件、native isAccessibilityFocused及生产address；X更高分只更新内容/不移位；secondary checkbox真ACTION_CLICK只取消不折叠，clear后才排序、exact anchor top/height/ID；heading真click才折叠。3次真实选择事务，无多余写。",
+      "trigger_and_boundary": "不sendAccessibilityEvent/普通focus冒充；恢复serviceInfo、node/event及观测器，非TalkBack朗读。 service能力或事件缺失必须fail；普通view focus不能替代。",
+      "execution": "NOT RUN; Actions only"
     }
   ],
   "mandatory_not_implemented": [
-    "G1 — 已写Absent/Hidden双向因果＋FirstState正常首bind；未写普通回收复用与HeldRemoved/NO_POSITION。",
-    "G3 — queued/calculated late Diff、native touch/A11y/fold/anchor/焦点矩阵未写。",
     "G4 — 真实旋转、深浅/系统大字体与真实纵滑配置矩阵未写。",
     "G6 — 已写Start-return/官网fetch/三wrongdone＋原partial resume；尚缺poll+Store并阻时Cancel、blockedStart期间实际选择短事务。",
     "G7 — stored-intent validation头尾/Clock gate、异target/最终Profile变化/旧池完整矩阵未写。",
@@ -403,7 +541,7 @@
     "G9 — 真实计费dialog/overflow新轮确认/跨多个UI task100MiB/失账拒续未写，纯Ledger不可替代。",
     "G10 — 同session多批ECH复用/TTL0一次maintenance重试/成功维护保持/sticky fallback调度未写。"
   ],
-  "ci": "Existing runner registers 41 ordered cases (original 6+15 retained, 20 continuation). Strict raw parser requires exact report/API24/-1. Original 480s native timeout retained; only count/summary updated, no new actions/deps/Go/bind/sign/publish changes. All Android NOT RUN; partial matrix cannot claim complete v2.",
+  "ci": "55 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded31-row gestures/node/event/gate work plus emulator setup. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; B/C/D and blocking production anchor finding prevent final ready.",
   "findings_map": [
     {
       "id": "F1",
@@ -438,14 +576,14 @@
     {
       "id": "F7",
       "status": "partial-matrix",
-      "evidence": "已补G1/G2/G5/G6/G11/G12若干，但G1c/G3/G4/G6并阻/G7-G10等仍未实现，不将41例当完整Task25。"
+      "evidence": "Stage A closes source G1/G3; overall F7 remains partial for staged B/C/D (G4/G6 remaining/G7-G10), not 55 PASS."
     }
   ],
   "groups": [
     {
       "id": "G1",
-      "status": "partial",
-      "detail": "已写Absent/Hidden双向因果＋FirstState正常首bind；未写普通回收复用与HeldRemoved/NO_POSITION。"
+      "status": "source-implemented",
+      "detail": "保留旧Absent/Hidden/FirstState，补真实普通recycle及touch/a11y heldRemoved/NO_POSITION/恢复bind；全Android NOT RUN。"
     },
     {
       "id": "G2",
@@ -454,8 +592,8 @@
     },
     {
       "id": "G3",
-      "status": "not-implemented",
-      "detail": "queued/calculated late Diff、native touch/A11y/fold/anchor/焦点矩阵未写。"
+      "status": "source-implemented",
+      "detail": "补equal无Diff、content/reorder queued与calculated旧apply、真实成功后read失败opposite、native touch UP/CANCEL及实际a11y focus/clear/click/fold/anchor；全Android NOT RUN。"
     },
     {
       "id": "G4",
@@ -506,6 +644,27 @@
   "authority_notes": [
     "续工source=b48 baseline=7a2；保留b48追加直父b48一提交。",
     "115仅Controller.main透明实例引用观察，其余State/proof/listener/Window/Looper/帧钟/main源码不写。",
-    "本轮supervisor批准：pending为sameRows早退后sticky诊断位；正常driver不以pending=false单独门禁，differ→main且diffRunning=false和地址/顺序/全部渲染字段精确一致；实际widget/Store仍独立核。"
+    "本轮supervisor批准：pending为sameRows早退后sticky诊断位；正常driver不以pending=false单独门禁，differ→main且diffRunning=false和地址/顺序/全部渲染字段精确一致；实际widget/Store仍独立核。",
+    "本轮supervisor：anchor.getTop+rowMargin/LLM offset混坐标强静态疑点按显式阻断finding登记；继续测试source_complete但不得称anchor passed或产品ready；exact31-row nonboundary gesture/unchanged-height/public decorated diagnostics不放松。",
+    "父新静态字节/source链把anchor疑点升级为明确坐标缺陷；旧水平报告保留后改纵向$2，全11方法静态decode，不冒称v2运行。保持exact address/top/height/stableID反证，不减margin或额外scroll；Task30 blocks26，main修复未授权。"
+  ],
+  "stage": {
+    "completed_stage": "ui_remaining",
+    "stage_complete": true,
+    "source_commit": "e7dd17808388ca420688c952b742411e187a73be",
+    "baseline_commit": "7a2d5b27c653fc465b9dd72b9db1f40d68681bdc",
+    "meaning": "A source/registration/cleanup complete only; overall partial. Confirmed frozen-main anchor coordinate defect blocks product static-ready/Task26 pending separately authorized repair and fresh review. All Android NOT RUN."
+  },
+  "blocking_production_findings": [
+    {
+      "id": "P-anchor-margin-coordinate",
+      "status": "confirmed-static-coordinate-defect-blocks-ready",
+      "path": "app/src/main/java/com/x/client/app/PreferredIpActivity.java",
+      "lines": "429/441/459 (7a2 frozen source)",
+      "evidence": "Parent read-only verified 691 official APK SHA and 4DEX/11 complete methods: vertical decoratedStart=V-D-M; normal offset placement gives Vprime=P+O+D+M. Frozen 7a2 sets O=V-P, so non-boundary unchanged-anchor path adds D+M (current topMargin spacing_sm=8dp, no ItemDecoration). This is static byte/source evidence, not v2 execution or future dependency resolution proof.",
+      "contract": "No main repair permission. Keep exact real address/top/stableID and unchanged anchor height; use actual native gesture non-boundary31-row scenario and record decoratedTop/margin/padding/position. No tolerance/subtraction/extra scroll. Not Android run proof, but not merely ordinary runtime risk: blocks product static-ready/Task26 until independent resolution.",
+      "parent_evidence": "/opt/x-client/docs/cf-ip-plan/evidence/api24-anchor-9999c670/static-conclusion-and-proposal.md",
+      "tracking": "Task30 blocks26; no main repair authority granted to this writer."
+    }
   ]
 }

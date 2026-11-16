@@ -149,16 +149,31 @@ suite = (tests / "PreferredIpFeedbackTest.java").read_text()
 v2 = (tests / "PreferredIpV2Test.java").read_text()
 continuation = (tests / "PreferredIpV2ContinuationTest.java").read_text()
 control_tests = (tests / "PreferredIpTestControl.java").read_text()
+ui = (tests / "PreferredIpUiRemainingTest.java").read_text()
 runner = (tests / "PreferredIpFeedbackInstrumentation.java").read_text()
 protocol = runpy.run_path(str(app / "src/static_checks/preferred_ip_instrumentation.py"))
 assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARIOS"]
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 41
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 55
 assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
 assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
+assert 'PreferredIpUiRemainingTest.run(this, reporter)' in runner
+assert tuple(re.findall(r"PreferredIpUiRemainingTest::(test\w+)", ui)) == protocol['UI_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(ui, 'static final String[] NAMES = {', '};'))) == protocol['UI_SCENARIOS']
+for seam in ['sendPointerSync', 'addRecyclerListener', 'onItemRangeRemoved', 'RecyclerView.NO_POSITION',
+             'executeAndWaitForEvent', 'ACTION_ACCESSIBILITY_FOCUS', 'ACTION_CLEAR_ACCESSIBILITY_FOCUS',
+             'getBindingAdapterPosition', 'rows(f) == captured', 'captured, address).checked',
+             'mainGate.awaitEnter()', 'f.backend.parseInputs']:
+    assert seam in ui, seam
+assert 'sendAccessibilityEvent(' not in ui and '.requestFocus(' not in ui
+assert 'controller.select(' not in ui and 'reconcileVisibleSelections' not in ui
+assert 'new PreferredIpController.Row' not in ui and 'new PreferredIpController.State' not in ui
+assert 'Thread.sleep' not in ui and 'String.join' not in ui and 'java.nio.file' not in ui
+assert 'automation.setServiceInfo(original)' in ui
+assert 'resources.add' in ui and 'pointer.end(MotionEvent.ACTION_CANCEL); f.list().suppressLayout(true)' in ui
 assert 'read_bytes().decode("utf-8")' in (app / 'src/static_checks/preferred_ip_instrumentation.py').read_text()
 assert 'super.dispatchMessage(message)' in control_tests
 assert control_tests.count('super.dispatchMessage(message)') == 1
@@ -177,6 +192,13 @@ assert [case['number'] for case in inventory['cases']] == list(range(1, protocol
 assert inventory['mandatory_not_implemented']
 assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
 assert len(inventory['findings_map']) == 7 and len(inventory['groups']) == 12
+assert inventory['stage']['completed_stage'] == 'ui_remaining'
+assert inventory['stage']['stage_complete'] is True
+assert inventory['blocking_production_findings'][0]['id'] == 'P-anchor-margin-coordinate'
+assert 'getDecoratedTop' in ui and 'top == v.getTop()' in ui
+assert 'height == v.getHeight()' in ui and 'middleByGesture' in ui
+assert 'holdProbeAddress' in v2
+assert all(group['status'] == 'source-implemented' for group in inventory['groups'] if group['id'] in ('G1', 'G3'))
 assert suite.index('finally { suite.tearDown(); }') < suite.index('reporter.passed(i + 1, names[i])')
 assert 'assertTrue(edit.commit())' in suite
 assert 'extends Instrumentation' in runner

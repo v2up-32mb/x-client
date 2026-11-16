@@ -55,7 +55,23 @@ CONTINUATION_SCENARIOS = (
     "testFirstStateBeforeFirstHolder",
     "testLegacyMigrationAtomicWriteFailure",
 )
-SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS
+UI_SCENARIOS = (
+    "testNativeVerticalRecycleRestoresSelectionAndFold",
+    "testHeldRemovedTouchNoPositionIdentity",
+    "testHeldRemovedAccessibilityNoPositionIdentity",
+    "testSameRowsAddReadFailureHasNoDiff",
+    "testSameRowsRemoveReadFailureHasNoDiff",
+    "testQueuedContentDiffUsesLatestSelection",
+    "testCalculatedContentDiffUsesLatestSelection",
+    "testQueuedReorderDiffUsesLatestSelection",
+    "testCalculatedReorderDiffUsesLatestSelection",
+    "testQueuedContentDiffAfterReadFailure",
+    "testCalculatedContentDiffAfterReadFailure",
+    "testNativeTouchUpDefersMovesFoldAnchor",
+    "testNativeTouchCancelDefersMovesFoldAnchor",
+    "testNativeAccessibilityFocusDefersMovesAndClicks",
+)
+SCENARIOS = SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS
 TOTAL = len(SCENARIOS)
 
 
