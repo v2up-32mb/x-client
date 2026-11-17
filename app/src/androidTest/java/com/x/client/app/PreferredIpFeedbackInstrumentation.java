@@ -10,7 +10,7 @@ import android.util.Log;
  * including the final budget/ECH stage.
  * Network fixture assertions are NOT public-network/ECHAccepted/VPN authentication evidence. */
 public final class PreferredIpFeedbackInstrumentation extends Instrumentation {
-    private static final int TOTAL = PreferredIpFeedbackTest.TOTAL + PreferredIpV2Test.NAMES.length + PreferredIpV2ContinuationTest.NAMES.length + PreferredIpUiRemainingTest.NAMES.length + PreferredIpConfigurationCancelTest.NAMES.length + PreferredIpContextRemainingTest.NAMES.length + PreferredIpBudgetEchRemainingTest.NAMES.length + PreferredIpValidationRemainingTest.NAMES.length;
+    private static final int TOTAL = PreferredIpFeedbackTest.TOTAL + PreferredIpV2Test.NAMES.length + PreferredIpV2ContinuationTest.NAMES.length + PreferredIpUiRemainingTest.NAMES.length + PreferredIpConfigurationCancelTest.NAMES.length + PreferredIpContextRemainingTest.NAMES.length + PreferredIpBudgetEchRemainingTest.NAMES.length + PreferredIpValidationRemainingTest.NAMES.length + PreferredIpDownloadRemainingTest.NAMES.length;
     interface Created { void afterCreate(Activity activity); }
     Created afterActivityCreate;
     @Override public void callActivityOnCreate(Activity activity, Bundle saved) {
@@ -54,6 +54,7 @@ public final class PreferredIpFeedbackInstrumentation extends Instrumentation {
             PreferredIpContextRemainingTest.run(this, reporter);
             PreferredIpBudgetEchRemainingTest.run(this, reporter);
             PreferredIpValidationRemainingTest.run(this, reporter);
+            PreferredIpDownloadRemainingTest.run(this, reporter);
             if (passed != TOTAL) throw new AssertionError("Incomplete suite");
             result.putInt("preferred_ip_passed", passed);
             result.putString("preferred_ip_result", "PASS " + TOTAL + "/" + TOTAL);

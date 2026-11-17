@@ -159,7 +159,7 @@ assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARI
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 100
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 105
 assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
 assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
@@ -175,19 +175,27 @@ assert tuple(re.findall(r'"(test\w+)"', section(context, 'static final String[] 
 validation = (tests / "PreferredIpValidationRemainingTest.java").read_text()
 assert 'PreferredIpValidationRemainingTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpValidationRemainingTest::(test\w+)", validation)) == protocol['VALIDATION_SCENARIOS']
+download = (tests / "PreferredIpDownloadRemainingTest.java").read_text()
+ech_script = (tests / "PreferredIpEchScript.java").read_text()
+assert 'PreferredIpDownloadRemainingTest.run(this, reporter)' in runner
+assert tuple(re.findall(r"PreferredIpDownloadRemainingTest::(test\w+)", download)) == protocol['DOWNLOAD_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(download, 'static final String[] NAMES = {', '};'))) == protocol['DOWNLOAD_SCENARIOS']
+total_expr = runner.split('private static final int TOTAL =', 1)[1].split(';', 1)[0]
+assert re.findall(r'(PreferredIp\w+)\.NAMES\.length', total_expr) == [cls for cls in ('PreferredIpV2Test','PreferredIpV2ContinuationTest','PreferredIpUiRemainingTest','PreferredIpConfigurationCancelTest','PreferredIpContextRemainingTest','PreferredIpBudgetEchRemainingTest','PreferredIpValidationRemainingTest','PreferredIpDownloadRemainingTest')]
+
 assert tuple(re.findall(r'"(test\w+)"', section(validation, 'static final String[] NAMES = {', '};'))) == protocol['VALIDATION_SCENARIOS']
 assert 'PreferredIpBudgetEchRemainingTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpBudgetEchRemainingTest::(test\w+)", budget)) == protocol['BUDGET_ECH_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(budget, 'static final String[] NAMES = {', '};'))) == protocol['BUDGET_ECH_SCENARIOS']
 for forbidden in ['controller.select(', '.setChecked(', 'new PreferredIpController.Row', 'new PreferredIpController.State',
                   'Thread.sleep', 'String.join', 'java.nio.file']:
-    assert forbidden not in context and forbidden not in budget, forbidden
-for seam in ['clockHook', 'persisted(f)', 'startAttempts', 'rejectStartWith', 'holdStartAt', 'storeMonitor()',
-             'download_round_id', 'prepare_required']:
+    assert all(forbidden not in source for source in (context, budget, download, ech_script)), forbidden
+for seam in ['clockHook', 'persisted(f)', 'startAttempts', 'ech.rejected', 'holdStartAt', 'storeMonitor()',
+             'download_round_id', 'EXPIRED_READY']:
     assert seam in context, seam
-for seam in ['new_download_round', 'rejectStartWith', 'holdStartAt', 'download_ledger',
-             'prepare_required', 'expires_at', 'GLOBAL_ACTION_BACK', 'android:id/button1',
-             'android:id/button2', 'backend.ech', 'startAttempts']:
+for seam in ['new_download_round', 'ech.rejected', 'holdStartAt', 'download_ledger',
+             'EXPIRED_READY', 'expires_at', 'GLOBAL_ACTION_BACK', 'android:id/button1',
+             'android:id/button2', 'backend.echScript', 'startAttempts']:
     assert seam in budget, seam
 for seam in ['old.setRequestedOrientation(requested)', 'old.isDestroyed()', 'afterActivityCreate',
              'ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE', 'R.id.spinner_theme_mode', 'SettingsActivity.class',
@@ -228,11 +236,16 @@ assert inventory['status'] == 'implemented' and inventory['total_registered'] ==
 assert tuple(case['name'] for case in inventory['cases']) == protocol['SCENARIOS']
 assert [case['number'] for case in inventory['cases']] == list(range(1, protocol['TOTAL'] + 1))
 assert inventory['mandatory_not_implemented'] == []
+assert inventory['stage']['source_commit'] == 'a7646ec356de07ef4b60ba30fd25ea60640f627a'
+assert inventory['stage']['baseline_commit'] == 'a1affafef6c3fb0f926341079d98816bdb078cdf'
+assert inventory['stage']['stage_complete'] is True
+assert [entry['id'] for entry in inventory['r2_fix_findings']] == ['F1','F2','F3','F4','F5','F6','F7','F8']
+assert all(entry['status'] == 'corrected-source-only' for entry in inventory['r2_fix_findings'])
+assert len(inventory['cases']) == 105 and [case['number'] for case in inventory['cases']] == list(range(1,106))
+
 assert all(case['execution'] == 'NOT RUN; Actions only' for case in inventory['cases'])
 assert len(inventory['findings_map']) == 7 and len(inventory['groups']) == 12
-assert inventory['stage']['completed_stage'] == 'budget_ech_remaining'
-assert inventory['stage']['stage_complete'] is True
-assert inventory['stage']['source_commit'] == '0a9470450c851bda0f6eceda68cdcb7ca6e42671'
+assert inventory['stage']['completed_stage'] == 'r2_fix_e3'
 assert inventory['blocking_production_findings'][0]['id'] == 'P-anchor-margin-coordinate'
 assert 'getDecoratedTop' in ui and 'top == v.getTop()' in ui
 assert 'height == v.getHeight()' in ui and 'middleByGesture' in ui
@@ -270,4 +283,19 @@ for file in list(java.glob("PreferredIp*.java")) + [java / "ProfileEditActivity.
         elif c in ")}]":
             assert stack and "({["[")}]".index(c)] == stack.pop(), file
     assert not stack, file
-print("PASS: source guards, XML/resources and lexical sanity ONLY; no Android/Go build or runtime tests")
+# E3 fixture seams supplement the strict final completion/registration gate above.
+for seam in ['case 0: done.put("download_round_id"', 'case 1: done.put("download_reserved_bytes"',
+             'case 2:', 'download_round_used', 'task.consumedDone', 'ledgerBlocked', 'getJSONObject("previous")',
+             'reservesAtStart', 'startObserver', 'maintenanceReturn.awaitEnter()', 'retryReturn.awaitEnter()',
+             '50 * MIB', '7 * MIB', '11 * MIB', 'reservesAtStart.get(0).toString()', 'assertOnlyDownloadChanged']:
+    assert seam in download, seam
+for seam in ['enable_ech', 'beforeStart', 'matchingReply', 'PrepareRequired',
+             'EXPIRED_READY', 'FALLBACK', 'expires_at', 'prepared_at', 'cache_hit', 'backend.require',
+             'session + "|" + key', 'metadata(key, "ready"', 'expiry >= at']:
+    assert seam in ech_script, seam
+assert 'rejectStartWith' not in v2 and 'wire-target' not in v2
+assert 'backend.echScript = new PreferredIpEchScript(backend)' in v2
+assert 'activeScript.matchingReply(task, response)' in v2
+assert 'beforeAdmission(parsedRequest)' in v2
+
+print("PASS: source guards, XML/resources, exact E3 facts and lexical sanity ONLY; no Java/Android/Go build or runtime tests")

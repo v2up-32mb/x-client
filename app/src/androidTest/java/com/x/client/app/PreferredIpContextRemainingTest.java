@@ -489,6 +489,9 @@ final class PreferredIpContextRemainingTest {
     }
 
     static void testPrepareRequiredMaintenanceStopsAfterNetworkRevoke(Fixture f) throws Exception {
+        PreferredIpEchScript ech = PreferredIpBudgetEchRemainingTest.enableEch(f);
+        ech.prepare(PreferredIpEchScript.Preparation.EXPIRED_READY);
+        ech.prepare(PreferredIpEchScript.Preparation.READY);
         f.launch(); f.tab(1); PreferredIpUiRemainingTest.header(f);
         PreferredIpTestControl.Gate prepareGate = f.gates.create();
         f.backend.startReturn = prepareGate;
@@ -496,19 +499,23 @@ final class PreferredIpContextRemainingTest {
         f.backend.next("prepare"); prepareGate.awaitEnter();
         PreferredIpTestControl.Gate maintenance = f.gates.create();
         f.backend.startReturn = maintenance; f.backend.holdStartAt = 3;
-        f.backend.rejectStartWith = "prepare_required: ECH DNS returned TTL 0";
         prepareGate.close();
-        maintenance.awaitEnter();
-        eq(3L, f.backend.startAttempts.get()); // prepare, synchronously rejected probe, maintenance prepare
-        check(field(f.controller, "active") != null, "real maintenance prepare is admitted while its Start return is held");
+        Task maintenanceTask = f.backend.next("prepare"); maintenance.awaitEnter();
+        eq(3L, f.backend.startAttempts.get()); // initial prepare, legal expired-ready rejection, maintenance prepare.
+        eq(1, ech.rejected); eq("ready", maintenanceTask.echAtAdmission.getString("state"));
+        check(maintenanceTask.echAtAdmission.getLong("expires_at") > ech.time(), "maintenance replaces expired ECH with a usable ready wire");
+        f.publish(); check(field(f.controller, "active") != null, "real maintenance prepare is admitted while its Start return is held");
         f.publish(); check(f.state().busy, "maintenance keeps the only network slot busy");
         f.network.change("B"); f.settle(); f.publish();
         check(f.state().stale, "network revocation reaches the held maintenance");
         maintenance.close();
         until(() -> { f.publish(); return !f.state().busy; }, "maintenance drains without launching the retry");
-        f.settle(); f.publish();
+        f.actorDrain(); f.publish(); check(maintenanceTask.consumedDone, "matching maintenance exits before old-context no-retry assertion");
         eq(3L, f.backend.startAttempts.get()); // One bounded maintenance attempt, never the original retry.
-        eq(2, f.backend.tasks.size()); // original prepare plus maintenance; the probe was rejected before admission.
+        eq(2, f.backend.tasks.size()); // original prepare plus maintenance; expired probe was never admitted.
+        eq(1, ech.rejected); check(f.state().message.contains("旧成绩仅为历史") || f.state().stale, "network revoke suppresses retry for old context");
+        PreferredIpBudgetEchRemainingTest.assertEchEnabledRequests(f);
+        PreferredIpBudgetEchRemainingTest.assertEchScriptsDrained(f);
         for (JSONObject request : f.backend.requests) check(!"validation".equals(request.optString("probe_role")), "no later probe on the revoked network");
         eq(0, f.store.read().getJSONArray("selected").length());
         eq(false, f.store.read().getBoolean("enabled"));

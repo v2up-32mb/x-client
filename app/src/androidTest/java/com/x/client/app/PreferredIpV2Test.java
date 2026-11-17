@@ -123,14 +123,15 @@ final class PreferredIpV2Test {
     }
     static final class Task {
         final JSONObject request; final String id, sessionId, networkId, targetKey, roundId;
-        final long usedAtAdmission, reservedAtAdmission;
+        final long usedAtAdmission, reservedAtAdmission, wireStartedAt;
+        final JSONObject echAtAdmission;
         final CountDownLatch polled = new CountDownLatch(1), cancelled = new CountDownLatch(1);
         final BlockingQueue<JSONObject> replies = new LinkedBlockingQueue<>();
         final AtomicLong pollEntries = new AtomicLong();
         volatile JSONObject automatic, lastMatchingReply; volatile boolean consumedDone;
-        Task(String id, JSONObject request, String session, String round, long used, String key) throws Exception {
-            this.id = id; this.request = new JSONObject(request.toString());
-            sessionId = session; roundId = round; usedAtAdmission = used; targetKey = key;
+        Task(String id, JSONObject request, String session, String round, long used, String key, JSONObject ech, long wireTime) throws Exception {
+            this.id = id; this.request = new JSONObject(request.toString()); this.echAtAdmission = ech == null ? null : new JSONObject(ech.toString());
+            sessionId = session; roundId = round; usedAtAdmission = used; targetKey = key; wireStartedAt = wireTime;
             networkId = request.getString("network_id");
             reservedAtAdmission = "download".equals(request.getString("operation")) ? Math.min(PreferredIpLedger.PER_IP, PreferredIpLedger.LIMIT - used) : 0;
         }
@@ -148,16 +149,18 @@ final class PreferredIpV2Test {
         final BlockingQueue<Task> started = new LinkedBlockingQueue<>();
         final Map<String, Task> tasks = new ConcurrentHashMap<>();
         final List<JSONObject> requests = Collections.synchronizedList(new ArrayList<>());
+        final List<JSONObject> startRequests = Collections.synchronizedList(new ArrayList<>());
         final List<String> parseInputs = Collections.synchronizedList(new ArrayList<>());
         final PreferredIpTestControl.Failures failures;
         volatile boolean holdProbe, holdDownload, holdFetch, cleaning;
         volatile boolean holdValidationPrepare, holdValidationProbe;
         volatile String holdProbeAddress = "";
         volatile PreferredIpTestControl.Gate startReturn;
-        volatile String rejectStartWith; // Scripted synchronous Go Start rejection (no worker admitted).
         volatile long holdStartAt = -1; // Admission ordinal held after Start is admitted; -1 holds every start like startReturn.
         volatile String admitted = "", session = "", round = "round-1";
-        volatile JSONObject ech; // Scripted real wire ECH metadata; null keeps the default disabled block.
+        interface StartObserver { void beforeAdmission(JSONObject request) throws Exception; }
+        volatile StartObserver startObserver;
+        volatile PreferredIpEchScript echScript;
         final AtomicLong startAttempts = new AtomicLong();
         int serial, sessionSerial; long used;
         Backend(PreferredIpTestControl.Failures failures) { this.failures = failures; }
@@ -179,19 +182,28 @@ final class PreferredIpV2Test {
         }
         public String start(String raw) throws Exception {
             startAttempts.incrementAndGet();
-            String rejection = rejectStartWith; // Synchronous API rejection before any worker is admitted.
-            if (rejection != null) { rejectStartWith = null; throw new IOException(rejection); }
+            JSONObject parsedRequest = new JSONObject(raw); startRequests.add(new JSONObject(raw));
+            StartObserver observer = startObserver;
+            if (observer != null && !cleaning) {
+                try { observer.beforeAdmission(parsedRequest); } catch (Exception e) { failures.add(e); throw e; }
+            }
+            PreferredIpEchScript script = echScript;
+            JSONObject echWire;
+            try { echWire = script == null ? null : script.beforeStart(parsedRequest); }
+            catch (PreferredIpEchScript.PrepareRequired expected) { throw expected; }
+            catch (Exception error) { failures.add(error); throw error; }
             Task task = null;
             try {
                 synchronized (this) {
                     require(admitted.isEmpty(), "second backend slot before matching worker_done");
-                    JSONObject request = new JSONObject(raw); requests.add(new JSONObject(raw));
+                    JSONObject request = parsedRequest; requests.add(new JSONObject(raw));
                     String operation = request.getString("operation");
                     if (operation.equals("prepare") && request.optString("session_id").isEmpty()) session = "session-" + (++sessionSerial);
                     if (request.optBoolean("new_download_round")) { round = "round-" + (++serial); used = 0; }
                     boolean fetch = operation.equals("fetch");
-                    task = new Task("task-" + (++serial), request, fetch ? "" : session, fetch ? "" : round, fetch ? 0 : used,
-                        fetch ? "" : targetKey(request.getJSONObject("options")));
+                    task = new Task("task-" + (++serial), request, fetch ? "" : session, fetch ? "" : round,
+                        fetch ? 0 : used, fetch ? "" : targetKey(request.getJSONObject("options")), echWire,
+                        !fetch && request.getJSONObject("options").optBoolean("enable_ech") ? script.time() : 1730000001000L);
                     tasks.put(task.id, task); admitted = task.id;
                     boolean heldProbe = operation.equals("probe") && (holdProbe || (!holdProbeAddress.isEmpty()
                         && PreferredIpPresentation.find(request.optJSONArray("candidates"), holdProbeAddress) != null));
@@ -225,7 +237,11 @@ final class PreferredIpV2Test {
                         failures.add(new TimeoutException("missing scripted poll reply")); cleaning = true; response = exit(task);
                     }
                 }
-                if (task.matches(response)) task.lastMatchingReply = new JSONObject(response.toString());
+                if (task.matches(response)) {
+                    PreferredIpEchScript activeScript = echScript;
+                    if (activeScript != null) activeScript.matchingReply(task, response);
+                    task.lastMatchingReply = new JSONObject(response.toString());
+                }
                 if (response.optBoolean("worker_done") && task.matches(response)) {
                     synchronized (this) {
                         require(admitted.equals(id), "matching slot exit"); admitted = ""; task.consumedDone = true;
@@ -298,25 +314,31 @@ final class PreferredIpV2Test {
                     .put("tcp_max_ms", download || failed ? 0 : X.equals(address) ? 30 : 150).put("tls_ms", download || failed ? 0 : 35)
                     .put("http_median_ms", download || failed ? 0 : X.equals(address) ? 30 : 400).put("http_jitter_ms", download || failed ? 0 : X.equals(address) ? 5 : 50)
                     .put("probe_phase", download ? "" : complete ? "done" : "connectivity")
-                    .put("na_reason", download ? "仅下载；参考成绩与证明未修改" : complete ? "" : "暂停后待重测").put("ech_status", "disabled").put("recommended", false)
-                    .put("tested_at", download || !complete ? 0 : 1730000002000L)
+                    .put("na_reason", download ? "仅下载；参考成绩与证明未修改" : complete ? "" : "暂停后待重测")
+                    .put("ech_status", task.request.optJSONObject("options") != null
+                        && task.request.getJSONObject("options").optBoolean("enable_ech") ? "fallback" : "disabled")
+                    .put("recommended", false)
+                    .put("tested_at", download || !complete ? 0 : Math.max(1730000002000L, task.wireStartedAt))
                     .put("download_state", download ? "failed" : "untested").put("download_bytes", download ? body : 0)
-                    .put("download_seconds", download ? 2 : 0).put("download_mib_s", 0).put("download_peak_mib_s", 0).put("download_ech_status", download ? "fallback" : "disabled");
+                    .put("download_seconds", download ? 2 : 0).put("download_mib_s", 0).put("download_peak_mib_s", 0)
+                    .put("download_ech_status", task.request.getJSONObject("options").optBoolean("enable_ech") ? "fallback" : "disabled");
                 if (!operation.equals("prepare")) rows.put(row);
             }
             long reserved = task.reservedAtAdmission;
             long limit = "fetch".equals(operation) ? 0 : PreferredIpLedger.LIMIT;
-            JSONObject echState = ech == null ? new JSONObject().put("key", "fetch".equals(operation) ? "" : "ech-key")
-                .put("state", "fetch".equals(operation) ? "" : "disabled").put("prepared_at", 0).put("expires_at", 0)
-                .put("cache_hit", false).put("error", "") : new JSONObject(ech.toString());
+            JSONObject echState = new JSONObject(task.echAtAdmission.toString());
+            JSONArray warnings = new JSONArray();
+            if ("prepare".equals(operation) && "fallback".equals(echState.optString("state")))
+                warnings.put("ECH准备失败，明确回退标准TLS: " + echState.getString("error"));
             return new JSONObject().put("id", task.id).put("operation", operation).put("state", state).put("phase", done ? "done" : "fetch".equals(operation) ? "fetch" : "connectivity")
                 .put("worker_done", done).put("session_id", task.sessionId).put("target_key", key).put("probe_role", role)
-                .put("network_id", task.networkId).put("started_at", 1730000001000L).put("updated_at", 1730000002000L)
+                .put("network_id", task.networkId).put("started_at", task.wireStartedAt)
+                .put("updated_at", Math.max(Math.max(1730000002000L, task.wireStartedAt), task.echAtAdmission.optLong("prepared_at")))
                 .put("completed", complete ? cs.length() : 0).put("total", cs.length()).put("download_bytes", body)
                 .put("download_round_id", task.roundId).put("download_round_limit", limit).put("download_round_used", task.usedAtAdmission + body)
                 .put("download_round_remaining", limit - task.usedAtAdmission - body).put("download_reserved_bytes", reserved)
                 .put("ech", echState)
-                .put("candidates", cs).put("prefixes", new JSONArray()).put("errors", new JSONArray()).put("warnings", new JSONArray()).put("error", "").put("results", rows);
+                .put("candidates", cs).put("prefixes", new JSONArray()).put("errors", new JSONArray()).put("warnings", warnings).put("error", "").put("results", rows);
         }
         void drain() throws Exception {
             cleaning = true;
@@ -350,6 +372,7 @@ final class PreferredIpV2Test {
                 @Override public Context getApplicationContext() { return this; }
             };
             store = new PreferredIpStore(isolated);
+            backend.echScript = new PreferredIpEchScript(backend);
             Field retained = PreferredIpRuntime.class.getDeclaredField("retained"); retained.setAccessible(true);
             check(retained.get(null) == null, "previous case must drain/forget before next fixture");
             try {
@@ -586,6 +609,7 @@ final class PreferredIpV2Test {
                 failures.attempt(() -> restorePreferences(prefs, original));
                 failures.attempt(() -> delete(dir));
             } else failures.add(new IllegalStateException("fail closed: live case resources retained; no Preferences/factory/file reset"));
+            failures.attempt(() -> { if (backend.echScript != null) backend.echScript.assertConsumed(); });
             failures.assertEmpty(); // Collector errors can never yield a scenario PASS, even if drain recovered.
         }
     }
@@ -845,10 +869,10 @@ final class PreferredIpV2Test {
         Iterator<String> keys = before.keys(); while (keys.hasNext()) { String key = keys.next(); if (!six.contains(key)) eq(before.get(key).toString(), result.get(key).toString()); }
         eq(7 * 1048576L, result.getLong("download_bytes")); eq(2.0, result.getDouble("download_seconds"));
         eq(0.0, result.getDouble("download_mib_s")); eq(0.0, result.getDouble("download_peak_mib_s"));
-        eq("failed", result.getString("download_state")); eq("fallback", result.getString("download_ech_status"));
+        eq("failed", result.getString("download_state")); eq("disabled", result.getString("download_ech_status")); // Actual request has enable_ech=false.
         f.show(X); f.draw();
         String displayed = f.rowText(X);
-        for (String part : new String[]{"failed", "辅助峰值", "秒", "下载 ECH fallback"}) check(displayed.contains(part), "download detail rendered: " + part);
+        for (String part : new String[]{"failed", "辅助峰值", "秒", "下载 ECH disabled"}) check(displayed.contains(part), "download detail rendered: " + part);
         eq(validations.toString(), f.store.read().getJSONObject("validations").toString());
         for (JSONObject request : f.backend.requests) if (!request.getString("operation").equals("download")) {
             eq(20971520, request.getJSONObject("options").getInt("download_bytes_per_ip")); eq(5, request.getJSONObject("options").getInt("download_seconds"));

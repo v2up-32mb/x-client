@@ -124,8 +124,15 @@ VALIDATION_SCENARIOS = (
     "testDownloadReserveAfterNetworkBRejects",
     "testDownloadReserveAfterNetworkAbaRejects",
 )
+DOWNLOAD_SCENARIOS = (
+    "testAdmittedDownloadWrongRoundDonePreservesReservation",
+    "testAdmittedDownloadWrongReservedDonePreservesReservation",
+    "testAdmittedDownloadWrongUsedDonePreservesReservation",
+    "testDownloadPrepareRequiredMaintenanceRetriesReservedBudgetOnce",
+    "testDownloadPrepareRequiredSecondRejectionIsBounded",
+)
 SCENARIOS = (SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS
-             + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS + BUDGET_ECH_SCENARIOS + VALIDATION_SCENARIOS)
+             + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS + BUDGET_ECH_SCENARIOS + VALIDATION_SCENARIOS + DOWNLOAD_SCENARIOS)
 TOTAL = len(SCENARIOS)
 
 

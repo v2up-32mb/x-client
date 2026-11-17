@@ -1,7 +1,7 @@
 {
-  "status": "partial",
+  "status": "implemented",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 100,
+  "total_registered": 105,
   "cases": [
     {
       "number": 1,
@@ -687,8 +687,8 @@
       "name": "testPrepareRequiredMaintenanceStopsAfterNetworkRevoke",
       "kind": "stage-c-native-maintenance",
       "group": "G8d",
-      "assertions": "真实prepare_required同步拒绝后仅一次maintenance prepare入场（第3次Start）并在Start返回窗口切网；放行后cancel/drain，无retry/无validation probe、startAttempts仍3、tasks仅2、selected空/enabled=false。",
-      "trigger_and_boundary": "prepare_required为真实Go Start同步拒绝路径；maintenance gate只延迟已admission的Start返回。",
+      "assertions": "真实enable_ech reference初prepare实际wire为ready且立刻过期；真实probe Start在匹配key/cache发现过期后同步prepare_required。maintenance用相同S/R空队列和usable ready，在Start-return窗口切B，匹配completion后不retry、不新增probe/Start；enabled旧状态与startedAt保持。全部请求enable_ech=true。",
+      "trigger_and_boundary": "Profile XT_DISABLE_ECH在launch前设false；ECH script按Go-derived key/expiry逐请求校验，不设rejectStartWith；只证明Android调度。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -748,8 +748,8 @@
       "kind": "stage-d-native-budget",
       "group": "G10a",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
-      "assertions": "11候选/concurrency8真实自然两批：prepare发布sticky ECH fallback(key固定/expires_at=0)，两批probe同session/round/options且同时保持ECH；第二批仅余3个冻结地址；startedAt/ledger不变，全部请求无download。",
-      "trigger_and_boundary": "Backend ech只为合法wire字段，两批均由真实schedule与worker_done驱动，不直改controller.ech。",
+      "assertions": "真实enable_ech request的prepare产生合法fallback（cache_hit=false/实际key/prepared_at>0/expires_at=0/error）；11候选自然两批probe均同session/round/options且ECH cache_hit=true。脚本时间前进24小时后fallback仍sticky可用，无额外prepare/refresh/new round；冻结队列、startedAt、ledger、X proof/validation不变且无download。不得声称ECHAccepted。",
+      "trigger_and_boundary": "两probe都使用同一真实Go-derived ECH key/DoH顺序；fallback TTL0是合法黏性语义，与立即过期ready错误分开。",
       "execution": "NOT RUN; Actions only"
     },
     {
@@ -758,8 +758,8 @@
       "kind": "stage-d-native-budget",
       "group": "G10b",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
-      "assertions": "真实prepare后首probe Start同步prepare_required TTL0；仅一次maintenance prepare(空candidates/prefixes、同session/round、无new_download_round)，其retry probe再次被拒后有界停止；startAttempts4/tasks2/prepare2/probe0，round/used/selected/enabled不变。",
-      "trigger_and_boundary": "TTL0为真实Go Start同步拒绝路径；maintenance gate只延迟已admission的Start返回，不写Job。",
+      "assertions": "真实ECH-enabled初prepare返回ready且prepared_at==expires_at；实际probe请求后同步prepare_required；一次同S/R无候选maintenance合法ready同刻立即到期，再次probe同步拒绝。startAttempts=4、admitted tasks=2、真正拒绝2、prepare请求2/probe未admit，ledger/round/used/proof/selection/enabled/startedAt不变且无第三派。",
+      "trigger_and_boundary": "两个同步失败均来自Go真实prepareEntry/validateSessionRequest启用ECH+now>=ExpiresAt契约；无人工error脚本。wire key/state/timestamp/error和actual request逐字段核。",
       "execution": "NOT RUN; Actions only"
     },
     {
@@ -768,8 +768,8 @@
       "kind": "stage-d-native-budget",
       "group": "G10c",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpBudgetEchRemainingTest.java",
-      "assertions": "11候选首批8完成后真实Pause/Cancel；Continue首probe被TTL0拒，maintenance成功后再retry仅余3 IP；X proof/tested_at/score/validation/ledger/startedAt保持，ECH fallback且expires_at=0不强刷；全程仅一次maintenance/两次probe、无download。",
-      "trigger_and_boundary": "真实继续按钮触发拒绝与成功维护；ECH metadata只经真实poll合并，不伪造proof。",
+      "assertions": "真实ECH-enabled首prepare ready被自然reference批复用；首8批完成并Pause后，脚本时间推进到ready expiry，Continue才触发合法prepare_required。恰一次same-session空queue maintenance生成usable ready并缓存，retry只剩3 IP且cache_hit；X proof/tested_at/score/validation、ledger、startedAt、候选队列保持，只有initial+maintenance两prepare及首/retry两probe，无download。Android scheduler only。",
+      "trigger_and_boundary": "源wire从expired ready→fresh ready→cache hit；sticky fallback另有独立case77，不再对expires_at=0制造过期错误。 历史方法名保留以稳定登记；成功维护当前使用READY而非sticky过期，独立sticky仍在case77。",
       "execution": "NOT RUN; Actions only"
     },
     {
@@ -1002,29 +1002,70 @@
       "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
-    }
-  ],
-  "mandatory_not_implemented": [
+    },
     {
-      "finding": "F6",
+      "number": 101,
+      "name": "testAdmittedDownloadWrongRoundDonePreservesReservation",
+      "kind": "r2-e3-native-download-ledger-mismatch",
       "group": "G9",
-      "stage": "E3",
-      "required": "真实UI已admitted下载持久reserve后，身份匹配但round/reserved/used账务不匹配的worker_done；保reserved/旧used、active退出/ledgerBlocked、原生再输入无Start；真实新轮菜单cancel保持/confirm恢复、previous可追且不自动下载。"
+      "finding": "F6",
+      "assertions": "真实profile disabled-ECH参考池与7MiB已用后，真实行download完成reserve=50MiB并admit/poll；身份id/session/network/target一致，但worker_done的download_round_id不同。actual settle拒绝，AtomicFile Root完全保持reserved50MiB/address/used7MiB，active退出、worker_done/slot消费且ledgerBlocked；enabled原生行再次尝试无Start/Root变化；overflow cancel原账完整，confirm才新round并previous保留错账全字段且无自动download。",
+      "trigger_and_boundary": "round mismatch命中PreferredIpLedger.settle实际第一个账务比较；不是错误Task identity、dead owner入场前拒绝或纯Ledger调用。 ECH disabled在launch前真实Profile状态与disabled wire经fixture checker核验。UI/worker done/Root均真实；不写Store/Job/State/proof。 当前生产Adapter按row.downloadable维持可点击；ledgerBlocked不是该控件禁用条件。本例明确核实际enabled并走真实原生UI尝试后reserve拒绝，无强开控件；E1另保留stale真实disabled输入反证。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpDownloadRemainingTest.java",
+      "line": 38
     },
     {
-      "finding": "F7",
+      "number": 102,
+      "name": "testAdmittedDownloadWrongReservedDonePreservesReservation",
+      "kind": "r2-e3-native-download-ledger-mismatch",
+      "group": "G9",
+      "finding": "F6",
+      "assertions": "同真实已admitted下载，响应身份及round正确、used=old+body正确，仅download_reserved_bytes与Root实际50MiB reservation不同；worker_done匹配后settle拒绝且Root/used/reserved原样保留、slot退出/ledgerBlocked/UI再尝试无Start；真实新轮取消不变、主动确认保存previous并恢复空round、无auto-download。",
+      "trigger_and_boundary": "独立核reserved字节条件，不与round wrong-id混淆；UI/AtomicFile/Controller真实分支。 ECH disabled在launch前真实Profile状态与disabled wire经fixture checker核验。UI/worker done/Root均真实；不写Store/Job/State/proof。 当前生产Adapter按row.downloadable维持可点击；ledgerBlocked不是该控件禁用条件。本例明确核实际enabled并走真实原生UI尝试后reserve拒绝，无强开控件；E1另保留stale真实disabled输入反证。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpDownloadRemainingTest.java",
+      "line": 39
+    },
+    {
+      "number": 103,
+      "name": "testAdmittedDownloadWrongUsedDonePreservesReservation",
+      "kind": "r2-e3-native-download-ledger-mismatch",
+      "group": "G9",
+      "finding": "F6",
+      "assertions": "同真实UI download/admission/50MiB Root reserve，身份、round、reserved匹配，used刻意只比旧used+download_bytes大1且remaining内部匹配；真实settle因累计used条件拒绝，保reserved50MiB/旧used7MiB/root旧账，active退出与ledgerBlocked；再入原生行不Start，overflow cancel不变/确认新roundprevious可追且无自动download。",
+      "trigger_and_boundary": "第三独立命中used累计比较；matching done被Backend消费，不能以wrong network/session/id回复替代。 ECH disabled在launch前真实Profile状态与disabled wire经fixture checker核验。UI/worker done/Root均真实；不写Store/Job/State/proof。 当前生产Adapter按row.downloadable维持可点击；ledgerBlocked不是该控件禁用条件。本例明确核实际enabled并走真实原生UI尝试后reserve拒绝，无强开控件；E1另保留stale真实disabled输入反证。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpDownloadRemainingTest.java",
+      "line": 40
+    },
+    {
+      "number": 104,
+      "name": "testDownloadPrepareRequiredMaintenanceRetriesReservedBudgetOnce",
+      "kind": "r2-e3-native-download-ech-maintenance",
       "group": "G10",
-      "stage": "E3",
-      "required": "C maintenance及D ECH例launch前真实Profile enable_ech=true且核request；合法ready立即过期wire触发同步prepare_required；成功维护expired-ready→可用ready/fallback；独立sticky fallback expires_at=0复用不强制TTL错误；Backend按实际请求/阶段验证合法metadata/error，禁用组为disabled。"
-    },
-    {
       "finding": "F8",
+      "assertions": "真实enable_ech reference成功后先UI download结算7MiB；Go合法ready expiry推进到now==expires_at。真实行下载在Start前持久reserve50MiB，Start同步抛合法prepare_required未入场，Ledger真实rejectedBeforeStart放reserved。随后同session/round空candidate/prefix maintenance进入真实Backend，gate上读磁盘ledger仍used7/reserved0、旧proof/tested_at/startedAt/queue/version不变；维护返回可用ready，真实retry再预留50MiB并admit/poll，matching worker_done按4MiB实际body结算used11/reserved0，无第三Start。",
+      "trigger_and_boundary": "startObserver在Backend.start前核Reserve 50MiB；maintenance Start gate核同步拒绝释放后的ledger；retry Start gate核再次持久reserve/job.reserved=true/ID未返回；最终poll Task身份/round/used/bytes一致并matching worker_done。ECH key/state/error仅由合法wire脚本根据实际请求检查。 StartObserver仅实际捕获networkIO线程的download阶段只读账本；首拒绝至maintenance Root revision+2、retry结束总revision+4严格证明两次预留/释放或结算，selection_version不变。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpDownloadRemainingTest.java",
+      "line": 242
+    },
+    {
+      "number": 105,
+      "name": "testDownloadPrepareRequiredSecondRejectionIsBounded",
+      "kind": "r2-e3-native-download-ech-maintenance",
       "group": "G10",
-      "stage": "E3",
-      "required": "已有真实reference/非零used→行download reserve→同步prepare_required释放→同S/R空candidates/prefixes maintenance→一次download retry重预留；成功与再次拒绝独立变体，各阶段读真实ledger/保proof/time/queue/round/used，无第三派或预留泄漏。"
+      "finding": "F8",
+      "assertions": "同样真实非零used=7MiB与下载reserve。第一次同步Go-derived ECH过期拒绝真实释放reservation；同S/R maintenance空队列，used/round/validation/proof/time/frozen queue不变；maintenance返回即刻过期ready，download retry再reserve并同步拒绝，rejectedBeforeStart再次释放；严格总增量3次Start（first reject+maintenance+second reject），无Task被下载worker admission、无第三派，round/used/reserved/old proof与余额保持，UI paused。",
+      "trigger_and_boundary": "逐次对实际Start request/阶段及磁盘ledger断言；两个download Start均未admit，maintenance单独matching done。不是probe无reservation场景，计费按真实row按钮触发。 StartObserver仅实际捕获networkIO线程的download阶段只读账本；首拒绝至maintenance Root revision+2、retry结束总revision+4严格证明两次预留/释放或结算，selection_version不变。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpDownloadRemainingTest.java",
+      "line": 243
     }
   ],
-  "ci": "100 registered source cases (original79 preserved + E2 21 appended in exact order). Only release.yml existing count/summary text changed: 6 safety +94 native; timeout900s/native30min unchanged. No new Actions/dependencies/cache/release conditions. Final guard still requires implemented/mandatory-empty and intentionally rejects this partial stage. All100 Android NOT RUN.",
+  "mandatory_not_implemented": [],
+  "ci": "105 registered source cases (6 safety +99 native; original100 source names and effective assertions retained, E3 appends five). Existing release.yml three count/summary strings now read 105 total/99 native; API24 timeout900s/native30min unchanged; no Action/dependency/release-condition changes. All105 Android NOT RUN. Static guard source-complete only, no product/CI execution.",
   "findings_map": [
     {
       "id": "F1",
@@ -1058,8 +1099,8 @@
     },
     {
       "id": "F7",
-      "status": "partial",
-      "evidence": "旧b48总完成finding仍partial。E1修R2 F1–F3，E2补F4/F5；现登记100例全部NOT RUN。F6/F7/F8/E3 mandatory未齐，最终implemented/mandatory-empty source guard保持严格。"
+      "status": "source-only-complete",
+      "evidence": "All original accepted test groups plus R2 F1-F8/E1-E3 source matrices and 105 ordered NOT RUN registrations are present. Source guard is strict and passes static only; this is not Java/Android execution or fresh parent review."
     }
   ],
   "groups": [
@@ -1100,18 +1141,18 @@
     },
     {
       "id": "G8",
-      "status": "partial",
-      "detail": "E2 F5异target prepare/probe各自held B/ABA，透明NetworkAccess线程/阶段gate+真实Store锁等待证明reserve前实际到窗及独立reserved=true/disk50MiB/Backend未Start窗，B/ABA均不Start/释放未入场预留/保旧round used7MiB和pool；E1晚reference/旧admitted false→matching true与原生disabled输入保持。C maintenance的合法ECH wire修复仍在F7/E3 mandatory，不能因F5齐而宣称G8全部wire齐。全部Android NOT RUN。"
+      "status": "source-implemented",
+      "detail": "E2真实异target prepare/probe late B/ABA、reserve前抵达monitor等待与post-reserve未Start双窗、held reference历史及old round入场false/true结算；E3修C maintenance为enabled ECH合法expired-ready→usable-ready。全部105例NOT RUN；不声称Go执行。"
     },
     {
       "id": "G9",
-      "status": "partial",
-      "detail": "已有真实计费dialog/7-57-100MiB及菜单新轮保留；F6已admitted账务mismatch保reservation/blocked/主动恢复仍mandatory，死owner入场前拒绝不能替代。 全部Android NOT RUN。"
+      "status": "source-implemented",
+      "detail": "原真实metered cancel/back/confirm、多任务7/57/100MiB、overflow新轮主动确认保留；E3再以3个真实已admitted UI任务分别送matching identity但round/reserved/used账务错误done，核旧reservation保留/ledgerBlocked/原生拒续/真实previous确认恢复。NOT RUN。"
     },
     {
       "id": "G10",
-      "status": "partial",
-      "detail": "已有人工脚本调度不能算合法ECH wire齐备；F7 enable_ech/ready过期/独立sticky及Backend合法性、F8真实download同步拒绝reserve释放/maintenance/retry两变体仍mandatory。 全部Android NOT RUN。"
+      "status": "source-implemented",
+      "detail": "ECH fixtures在launch前真启用并按Go-derived target/ECH keys、阶段、state、expiry/error、cache-hit校验wire；自然fallback expires0独立sticky复用、ready立即过期同步拒绝一次维护与再拒有界、expired-ready→usable-ready成功；C maintenance同样合法。F8以非零used真实download reserve→同步拒绝释放→same S/R空queue maintenance→实际download retry成功/再次拒绝两变体，账本每阶段读取。NOT RUN；不主张Go/ECHAccepted。"
     },
     {
       "id": "G11",
@@ -1136,14 +1177,16 @@
     "D终审另修正C例 testAdmittedOldRoundDownloadSettlesAndRefusesContinue 缺少 holdDownload 的fixture模式（断言与结算不变），并把 release.yml 注释/摘要同步为79例（6安全+73原生）。",
     "D登记79例并清空mandatory_not_implemented；F7仅source-only-complete，全部Android NOT RUN；P-anchor-margin-coordinate仍阻断final ready。",
     "2026-11-17 R2 fix-contract覆盖旧完成声明：source=a1affaf；E1仅F1–F3源码修复/登记，overall partial，F4–F8/E2/E3 mandatory，不自称Task25 ready；原findings_map仍指旧b48七项，R2八项另列r2_fix_findings。Task30已人工批准/修复/独立审过并在source，不重开或改main。",
-    "E2追加21例至100，source=627578a；不重做E1、保持holdDownload/disabled原生触摸/false不结算与matching done正文结算。Backend XT target key按实际Go normalization+tuple SHA256推导，不强造canonical key；NetworkAccess默认透明hook仅测试线程/阶段gate。E2只F4/F5，F6/F7/F8/E3仍mandatory，合法ECH/C maintenance wire修复不提前。"
+    "E2追加21例至100，source=627578a；不重做E1、保持holdDownload/disabled原生触摸/false不结算与matching done正文结算。Backend XT target key按实际Go normalization+tuple SHA256推导，不强造canonical key；NetworkAccess默认透明hook仅测试线程/阶段gate。E2只F4/F5，F6/F7/F8/E3仍mandatory，合法ECH/C maintenance wire修复不提前。",
+    "E3 source completion supersedes historical E2/older partial claims only after all 3 new ledger + 2 download-maintenance cases, corrected enabled-ECH C/D wires, exact current 105/105 static registrations and unchanged final PASS gates. Source=a7646ec; E3 added five cases (101-105). Full Android suite remains NOT RUN. Task30 anchor fix stays at reviewed baseline; no production changes.",
+    "E3恢复授权后重新逐源核验超时草稿，补齐disabled下载详情文案、ECH请求阶段时间戳/缓存校验失败的cleanup可达性、networkIO限定观察与Root revision反证。implemented仅源码完成，fresh reviews/Actions仍由父决定；不把超时草稿登记作为验收依据。"
   ],
   "stage": {
-    "completed_stage": "r2_fix_e2",
+    "completed_stage": "r2_fix_e3",
     "stage_complete": true,
-    "source_commit": "627578a05da34f9e56f61782f20e10deec175479",
+    "source_commit": "a7646ec356de07ef4b60ba30fd25ea60640f627a",
     "baseline_commit": "a1affafef6c3fb0f926341079d98816bdb078cdf",
-    "meaning": "Only E2 F4/F5 source/registration/cleanup complete; overall partial, remaining mandatory F6/F7/F8/E3. All100 Android NOT RUN; not fresh review/Task25 ready."
+    "meaning": "E3 source/registration/cleanup complete for F1-F8 and G7-G10; status implemented means source-only, not fresh review/Android PASS/CI. All105 Android NOT RUN."
   },
   "blocking_production_findings": [
     {
@@ -1227,24 +1270,36 @@
     },
     {
       "id": "F6",
-      "status": "mandatory-not-implemented",
+      "status": "corrected-source-only",
       "stage": "E3",
-      "group": "G9",
-      "detail": "真实UI已admitted下载持久reserve后，身份匹配但round/reserved/used账务不匹配的worker_done；保reserved/旧used、active退出/ledgerBlocked、原生再输入无Start；真实新轮菜单cancel保持/confirm恢复、previous可追且不自动下载。"
+      "cases": [
+        101,
+        102,
+        103
+      ],
+      "detail": "Admitted UI download matching identity but separate round/reserved/used mismatch done branches; real old ledger reservation preserved, slot consumed, ledgerBlocked, UI attempt refused, real overflow confirm/previous recovery. NOT RUN."
     },
     {
       "id": "F7",
-      "status": "mandatory-not-implemented",
+      "status": "corrected-source-only",
       "stage": "E3",
-      "group": "G10",
-      "detail": "C maintenance及D ECH例launch前真实Profile enable_ech=true且核request；合法ready立即过期wire触发同步prepare_required；成功维护expired-ready→可用ready/fallback；独立sticky fallback expires_at=0复用不强制TTL错误；Backend按实际请求/阶段验证合法metadata/error，禁用组为disabled。"
+      "cases": [
+        71,
+        77,
+        78,
+        79
+      ],
+      "detail": "Launch-time actual ECH enable, legal Go-derived keys and phases; valid sticky fallback zero expiry, immediate-expiry ready bounded reject, expired-ready to usable-ready successful maintenance including C revoke example. No Go execution/ECHAccepted claim. NOT RUN."
     },
     {
       "id": "F8",
-      "status": "mandatory-not-implemented",
+      "status": "corrected-source-only",
       "stage": "E3",
-      "group": "G10",
-      "detail": "已有真实reference/非零used→行download reserve→同步prepare_required释放→同S/R空candidates/prefixes maintenance→一次download retry重预留；成功与再次拒绝独立变体，各阶段读真实ledger/保proof/time/queue/round/used，无第三派或预留泄漏。"
+      "cases": [
+        104,
+        105
+      ],
+      "detail": "Real download after used=7MiB and enabled ready ECH expired: reserve, actual synchronous prepare_required, release, same S/R empty maintenance, second reserve; body success settles to11MiB or second rejection releases bounded with no third dispatch. NOT RUN."
     }
   ]
 }

@@ -25,8 +25,6 @@ final class PreferredIpBudgetEchRemainingTest {
         "testSuccessfulMaintenanceKeepsProofQueueAndStickyFallback"
     };
     private static final long MIB = 1048576L;
-    private static final String ECH_KEY = "ech-sticky-fixture";
-    private static final String TTL_ZERO = "prepare_required: ECH DNS returned TTL 0";
 
     static void run(Instrumentation i, PreferredIpFeedbackTest.Reporter reporter) throws Exception {
         Case[] cases = { PreferredIpBudgetEchRemainingTest::testMeteredScanConfirmationGatesNativeStart,
@@ -165,14 +163,35 @@ final class PreferredIpBudgetEchRemainingTest {
 
     static long storedStartedAt(Fixture f) throws Exception { return (Long) field(f.controller, "startedAt"); }
 
-    static JSONObject fallbackEch() throws Exception {
-        return new JSONObject().put("key", ECH_KEY).put("state", "fallback").put("prepared_at", 1730000002500L)
-            .put("expires_at", 0).put("cache_hit", false).put("error", "TTL 0");
+    static PreferredIpEchScript enableEch(Fixture f) throws Exception {
+        check(f.controller == null, "enable ECH in the real Profile before Activity launch");
+        new Preferences(f.target).forProfile(f.profileId).setXtDisableEch(false);
+        eq(false, new Preferences(f.target).forProfile(f.profileId).getXtDisableEch());
+        PreferredIpEchScript script = new PreferredIpEchScript(f.backend);
+        script.requireEnabled = true; f.backend.echScript = script;
+        return script;
+    }
+    static void assertEchEnabledRequests(Fixture f) throws Exception {
+        for (JSONObject request : f.backend.startRequests) {
+            if ("fetch".equals(request.getString("operation"))) continue;
+            eq(true, request.getJSONObject("options").getBoolean("enable_ech"));
+        }
+    }
+    static void assertEchScriptsDrained(Fixture f) throws Exception {
+        if (f.backend.echScript != null) f.backend.echScript.assertConsumed();
+        f.failures.assertEmpty();
     }
 
     static void eqEch(Fixture f, JSONObject expected) throws Exception {
         eq(expected.toString(), ((JSONObject) field(f.controller, "ech")).toString());
         check(f.state().phase.contains("ECH " + expected.getString("state")), "real published ECH state: " + f.state().phase);
+    }
+    static void eqEchReusable(Fixture f, JSONObject expected) throws Exception {
+        JSONObject actual = (JSONObject) field(f.controller, "ech");
+        for (String key : new String[]{"key", "state", "prepared_at", "expires_at", "error"})
+            eq(expected.get(key).toString(), actual.get(key).toString());
+        eq(true, actual.getBoolean("cache_hit"));
+        check(f.state().phase.contains("ECH " + expected.getString("state")), "same fallback cache entry remains in the real session");
     }
 
     // ---------------------------------------------------------------- G9: real charging dialogs
@@ -354,10 +373,12 @@ final class PreferredIpBudgetEchRemainingTest {
 
     static void testSameSessionBatchesReuseEchQueueAndBudget(Fixture f) throws Exception {
         seedCandidates(f, 11);
-        JSONObject fallback = fallbackEch(); f.backend.ech = fallback; f.backend.holdProbe = true;
+        PreferredIpEchScript ech = enableEch(f); ech.prepare(PreferredIpEchScript.Preparation.FALLBACK);
+        f.backend.holdProbe = true;
         f.launch(); f.tab(1); PreferredIpUiRemainingTest.header(f);
         f.click(f.view(R.id.preferred_primary));
         Task prepare = f.backend.next("prepare");
+        JSONObject fallback = prepare.echAtAdmission;
         f.clockHook = () -> 1730000009000L; // Any accidental fresh startScan would re-stamp startedAt.
         Task first = f.backend.next("probe"); await(first.polled, "first natural batch poll");
         eq(8, first.request.getJSONArray("candidates").length());
@@ -365,22 +386,24 @@ final class PreferredIpBudgetEchRemainingTest {
         JSONObject options = new JSONObject(first.request.getJSONObject("options").toString());
         long startedAt = storedStartedAt(f);
         JSONObject ledgerBefore = new JSONObject(ledger(f).toString());
+        ech.advanceTo(PreferredIpEchScript.INITIAL_TIME + 86400000L); // expires_at=0 remains sticky independent of TTL time.
         first.replies.add(f.backend.snapshot(first, "running", false, true, 0));
         until(() -> { f.publish(); return f.state().completed == 8 && f.state().busy; }, "first batch complete while the worker still owns the slot");
+        JSONObject completedX = resultOf(f, X);
+        JSONObject validations = new JSONObject(f.store.read().getJSONObject("validations").toString());
         first.replies.add(f.backend.snapshot(first, "completed", true, true, 0));
         Task second = f.backend.next("probe"); await(second.polled, "second natural batch poll");
         eq(3, second.request.getJSONArray("candidates").length());
-        eq(first.sessionId, second.sessionId);
-        eq(first.roundId, second.roundId);
+        eq(first.sessionId, second.sessionId); eq(first.roundId, second.roundId);
         eq(prepare.sessionId, second.sessionId);
         eq(options.toString(), second.request.getJSONObject("options").toString());
         for (int n = 0; n < 3; n++) eq("104.16.2." + (n + 7) + ":443", second.request.getJSONArray("candidates").getJSONObject(n).getString("address"));
-        f.publish(); eqEch(f, fallback);
+        f.publish(); eqEchReusable(f, fallback);
         eq(startedAt, storedStartedAt(f)); eq(ledgerBefore.toString(), ledger(f).toString());
         second.replies.add(f.backend.snapshot(second, "running", false, true, 0));
         second.replies.add(f.backend.snapshot(second, "completed", true, true, 0));
         until(() -> { f.publish(); return !f.state().busy && f.state().completed == 11; }, "both batches drain in one session");
-        eq(startedAt, storedStartedAt(f)); eq(ledgerBefore.toString(), ledger(f).toString()); eqEch(f, fallback);
+        eq(startedAt, storedStartedAt(f)); eq(ledgerBefore.toString(), ledger(f).toString()); eqEchReusable(f, fallback);
         eq(3, f.backend.requests.size()); // one prepare plus exactly two probe batches.
         for (JSONObject request : f.backend.requests) {
             eq(prepare.sessionId, request.optString("session_id", prepare.sessionId));
@@ -388,20 +411,29 @@ final class PreferredIpBudgetEchRemainingTest {
         }
         check(f.backend.requests.get(0).getString("operation").equals("prepare"), "only the first request is prepare");
         check(f.backend.requests.get(1).getString("operation").equals("probe") && f.backend.requests.get(2).getString("operation").equals("probe"), "exactly two natural batches");
-        f.backend.holdProbe = false;
+        f.backend.holdProbe = false; f.actorDrain();
+        check(first.consumedDone && second.consumedDone, "both sticky fallback batches had matching worker_done");
+        eq(completedX.toString(), resultOf(f, X).toString());
+        eq(validations.toString(), f.store.read().getJSONObject("validations").toString());
+        eq(0, ech.rejected); assertEchEnabledRequests(f); assertEchScriptsDrained(f);
     }
 
     static void testPrepareRequiredMaintenanceBoundedOnceAtTtlZero(Fixture f) throws Exception {
+        PreferredIpEchScript ech = enableEch(f);
+        ech.prepare(PreferredIpEchScript.Preparation.EXPIRED_READY);
+        ech.prepare(PreferredIpEchScript.Preparation.EXPIRED_READY);
         f.launch(); f.tab(1); PreferredIpUiRemainingTest.header(f);
         PreferredIpTestControl.Gate prepareReturn = f.gates.create();
         f.backend.startReturn = prepareReturn; f.backend.holdStartAt = 1;
         f.click(f.view(R.id.preferred_primary));
         Task prepare = f.backend.next("prepare"); prepareReturn.awaitEnter();
+        eq(true, prepare.request.getJSONObject("options").getBoolean("enable_ech"));
+        eq("ready", prepare.echAtAdmission.getString("state"));
+        eq(prepare.echAtAdmission.getLong("prepared_at"), prepare.echAtAdmission.getLong("expires_at"));
         long startedAt = storedStartedAt(f);
-        f.clockHook = () -> 1730000004000L; // A maintenance re-scan would re-stamp startedAt.
+        f.clockHook = () -> 1730000004000L; // An accidental fresh scan would re-stamp the frozen startedAt.
         PreferredIpTestControl.Gate maintenanceReturn = f.gates.create();
         f.backend.startReturn = maintenanceReturn; f.backend.holdStartAt = 3;
-        f.backend.rejectStartWith = TTL_ZERO;
         prepareReturn.close();
         Task maintenance = f.backend.next("prepare"); maintenanceReturn.awaitEnter();
         JSONObject request = maintenance.request;
@@ -410,29 +442,41 @@ final class PreferredIpBudgetEchRemainingTest {
         eq(0, request.getJSONArray("candidates").length());
         eq(0, request.getJSONArray("prefixes").length());
         check(!request.has("new_download_round"), "maintenance never moves the download round");
-        f.backend.rejectStartWith = TTL_ZERO; // The single retry is rejected too: bounded stop.
+        eq("ready", maintenance.echAtAdmission.getString("state"));
+        eq(maintenance.echAtAdmission.getLong("prepared_at"), maintenance.echAtAdmission.getLong("expires_at"));
+        eq(3L, f.backend.startAttempts.get()); eq(1, ech.rejected);
         maintenanceReturn.close();
         until(() -> { f.publish(); return !f.state().busy && f.state().paused; }, "bounded maintenance stop");
+        f.actorDrain(); check(prepare.consumedDone && maintenance.consumedDone, "matching prepare tasks drained before bounded final assertions");
         eq(4L, f.backend.startAttempts.get()); // prepare, rejected probe, maintenance, rejected retry.
-        eq(2, f.backend.tasks.size()); // original prepare plus the one maintenance; probes were never admitted.
-        int prepares = 0, probes = 0;
-        for (JSONObject sent : f.backend.requests) { if ("prepare".equals(sent.getString("operation"))) prepares++; if ("probe".equals(sent.getString("operation"))) probes++; }
-        eq(2, prepares); eq(0, probes);
-        check(f.state().message.contains("ECH 配置无法复用"), "repeated TTL0 ends explicitly: " + f.state().message);
+        eq(2, f.backend.tasks.size()); // original prepare plus the one maintenance; failed probe Starts are not admitted.
+        eq(2, ech.rejected); eq(0, ech.preparations.size());
+        eq("prepare", f.backend.startRequests.get(0).getString("operation"));
+        eq("probe", f.backend.startRequests.get(1).getString("operation"));
+        eq("prepare", f.backend.startRequests.get(2).getString("operation"));
+        eq("probe", f.backend.startRequests.get(3).getString("operation"));
+        check(f.state().message.contains("ECH 配置无法复用"), "repeated legitimate expiry ends explicitly: " + f.state().message);
         JSONObject budget = ledger(f);
         eq(prepare.roundId, budget.getString("id")); eq(0L, budget.getLong("used")); eq(0L, budget.getLong("reserved"));
         eq(0, f.state().completed); eq(0, f.store.read().getJSONArray("selected").length());
-        eq(startedAt, storedStartedAt(f));
-        eq(false, f.store.read().getBoolean("enabled"));
+        eq(startedAt, storedStartedAt(f)); eq(false, f.store.read().getBoolean("enabled"));
+        assertEchEnabledRequests(f); assertEchScriptsDrained(f);
     }
 
     static void testSuccessfulMaintenanceKeepsProofQueueAndStickyFallback(Fixture f) throws Exception {
         seedCandidates(f, 11);
-        JSONObject fallback = fallbackEch(); f.backend.ech = fallback; f.backend.holdProbe = true;
+        PreferredIpEchScript ech = enableEch(f);
+        ech.prepare(PreferredIpEchScript.Preparation.READY); ech.prepare(PreferredIpEchScript.Preparation.READY);
+        f.backend.holdProbe = true;
         f.launch(); f.tab(1); PreferredIpUiRemainingTest.header(f);
         f.click(f.view(R.id.preferred_primary));
         Task prepare = f.backend.next("prepare");
         Task first = f.backend.next("probe"); await(first.polled, "first batch poll before real Pause");
+        eq(true, prepare.request.getJSONObject("options").getBoolean("enable_ech"));
+        eq(true, first.request.getJSONObject("options").getBoolean("enable_ech"));
+        eq("ready", prepare.echAtAdmission.getString("state"));
+        eq(false, prepare.echAtAdmission.getBoolean("cache_hit"));
+        eq(true, first.echAtAdmission.getBoolean("cache_hit"));
         eq(8, first.request.getJSONArray("candidates").length());
         first.replies.add(f.backend.snapshot(first, "running", false, true, 0));
         until(() -> { f.publish(); return f.state().completed == 8 && f.state().busy; }, "first batch complete");
@@ -444,32 +488,33 @@ final class PreferredIpBudgetEchRemainingTest {
         check(selected(f.store.read(), X), "real selection before maintenance");
         JSONObject xProof = resultOf(f, X), validations = f.store.read().getJSONObject("validations");
         JSONObject ledgerBefore = new JSONObject(ledger(f).toString());
-        long startedAt = storedStartedAt(f);
-        f.clockHook = () -> 1730000004000L; // A maintenance re-scan would re-stamp startedAt.
-        f.backend.rejectStartWith = TTL_ZERO;
+        long startedAt = storedStartedAt(f), expiredAt = prepare.echAtAdmission.getLong("expires_at");
+        f.clockHook = () -> 1730000004000L; // Maintenance cannot silently create a new scan timestamp.
+        ech.advanceTo(expiredAt); // Go reports prepare_required at now >= ready.expires_at.
         long attempts = f.backend.startAttempts.get();
-        PreferredIpUiRemainingTest.header(f); f.click(f.view(R.id.preferred_primary)); // Real Continue, rejected once with prepare_required.
+        PreferredIpUiRemainingTest.header(f); f.click(f.view(R.id.preferred_primary)); // Real Continue, now legitimately expired.
         Task maintenance = f.backend.next("prepare");
         Task retry = f.backend.next("probe");
-        until(() -> { f.publish(); return !f.state().busy && f.state().completed == 11; }, "successful maintenance continues only the remaining IPs");
-        eq(attempts + 3, f.backend.startAttempts.get()); // rejected probe, maintenance, admitted retry.
-        eq(prepare.sessionId, maintenance.sessionId); eq(maintenance.sessionId, retry.sessionId);
-        eq(prepare.roundId, retry.roundId);
-        eq(0, maintenance.request.getJSONArray("candidates").length());
+        until(() -> { f.publish(); return !f.state().busy && f.state().completed == 11; }, "successful expired-ready maintenance continues the frozen queue");
+        f.actorDrain(); check(maintenance.consumedDone && retry.consumedDone, "successful maintenance and retry matching exits");
+        eq(attempts + 3, f.backend.startAttempts.get()); // expired probe rejection, one maintenance, one retry.
+        eq(1, ech.rejected); eq(prepare.sessionId, maintenance.sessionId); eq(maintenance.sessionId, retry.sessionId);
+        eq(prepare.roundId, retry.roundId); eq(0, maintenance.request.getJSONArray("candidates").length());
         eq(0, maintenance.request.getJSONArray("prefixes").length());
         check(!maintenance.request.has("new_download_round"), "maintenance does not move the round");
+        eq("ready", maintenance.echAtAdmission.getString("state"));
+        check(maintenance.echAtAdmission.getLong("expires_at") > ech.time(), "maintenance supplies a usable ready configuration");
+        check(retry.echAtAdmission.getBoolean("cache_hit"), "retry reused the successful maintenance cache entry");
         eq(3, retry.request.getJSONArray("candidates").length());
         for (int n = 0; n < 3; n++) eq("104.16.2." + (n + 7) + ":443", retry.request.getJSONArray("candidates").getJSONObject(n).getString("address"));
         eq(xProof.toString(), resultOf(f, X).toString());
         eq(validations.toString(), f.store.read().getJSONObject("validations").toString());
-        eq(ledgerBefore.toString(), ledger(f).toString());
-        eq(startedAt, storedStartedAt(f));
-        eqEch(f, fallback);
+        eq(ledgerBefore.toString(), ledger(f).toString()); eq(startedAt, storedStartedAt(f));
         int prepares = 0, probes = 0;
         for (JSONObject sent : f.backend.requests) { if ("prepare".equals(sent.getString("operation"))) prepares++; if ("probe".equals(sent.getString("operation"))) probes++; }
-        eq(2, prepares); // initial prepare plus exactly one maintenance; expires_at=0 never forces another refresh.
-        eq(2, probes); // first batch plus the one remaining retry.
-        for (JSONObject sent : f.backend.requests) check(!"download".equals(sent.getString("operation")), "ECH maintenance never downloads");
+        eq(2, prepares); eq(2, probes); f.publish(); eqEch(f, retry.echAtAdmission);
+        assertEchEnabledRequests(f); assertEchScriptsDrained(f);
+        for (JSONObject sent : f.backend.requests) check(!"download".equals(sent.getString("operation")), "reference maintenance never downloads");
         check(f.state().paused, "successful maintenance still stops after the frozen queue drains");
     }
 }
