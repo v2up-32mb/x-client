@@ -1,7 +1,7 @@
 {
   "status": "partial",
   "execution": "source-only; no local/CI product execution",
-  "total_registered": 79,
+  "total_registered": 100,
   "cases": [
     {
       "number": 1,
@@ -628,7 +628,7 @@
       "kind": "stage-c-native-target",
       "group": "G7c",
       "assertions": "following节点最终target与reference不同时，真实validation prepare+probe均指向other.example.com且role=validation；只写该节点自身target_key与X子集、固定Clock tested_at，reference profile不获得该证明；intent version=1、独立mode保持、共4个真实Go请求。",
-      "trigger_and_boundary": "真实目标差异来自Profile XT server；断言写盘validation的target_key等于Resolver对最终Profile的fingerprint。",
+      "trigger_and_boundary": "真实目标差异来自Profile XT server；断言写盘validation的target_key等于Resolver对最终Profile的fingerprint。 E2修正完成屏障：记录真实prepare/probe Task、matching consumedDone与control active=null后才actorDrain，不以requests.size推断完成。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -771,21 +771,240 @@
       "assertions": "11候选首批8完成后真实Pause/Cancel；Continue首probe被TTL0拒，maintenance成功后再retry仅余3 IP；X proof/tested_at/score/validation/ledger/startedAt保持，ECH fallback且expires_at=0不强刷；全程仅一次maintenance/两次probe、无download。",
       "trigger_and_boundary": "真实继续按钮触发拒绝与成功维护；ECH metadata只经真实poll合并，不伪造proof。",
       "execution": "NOT RUN; Actions only"
+    },
+    {
+      "number": 80,
+      "name": "testValidationStoreHeadStableCommits",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实Y intent经selectionIO双gate先落盘；验证实际排在第二gate之后，持Store monitor释放第二gate并核worker BLOCKED于PreferredIpStore.withLock；稳定A放锁后X+Y验证/Resolver采用，revision仅新增一次validation。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 81,
+      "name": "testValidationStoreHeadNetworkBRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "同真实Store首检排队窗切B：同步epoch+1，放锁后AtomicFile字节恰等durable intent基线、旧X有效池保持且Resolver活性；无Start。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 82,
+      "name": "testValidationStoreHeadNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "同真实Store首检排队窗B→A：epoch+2仍拒旧validation，intent/旧池/原字节保持，不以相同网络字符串复活旧证明。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 83,
+      "name": "testValidationClockTailStableCommits",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实selectionIO Clock尾窗稳定正例：先存Y intent、held时旧X proof仍在；放行tested_at固定、validation恰一次/gate一次、revision仅+1、Resolver采用X+Y。E1的B尾检保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 84,
+      "name": "testValidationClockTailNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实Clock尾窗B→A，epoch+2/validation一次/gate一次；已持久Y intent及旧X验证AtomicFile字节保持，旧池Resolver仍活。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 85,
+      "name": "testDifferentTargetFinalServerChangeRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实不同target旧有效X→新增Y后validation prepare/probe held；真实Preferences fixture修改最终server，合法旧完成不覆盖X证明，最终target拒旧采用；恢复原Profile后旧X仍实际采用。不是ProfileEdit UI。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 86,
+      "name": "testDifferentTargetFinalAdvancedChangeRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "相同在途probe窗口通过真实advanced JSON覆写最终server/连接数；profile最终参数变化拒旧写，旧有效池保留；恢复真实fixture后Resolver活性。不是编辑UI。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 87,
+      "name": "testDifferentTargetPendingSelectionVersionRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "异target probe held时真实Y取消排入被gate阻住的selectionIO：内存version+1/pending1而磁盘version未变；旧matching completion已退出仍不写旧证明，再放selection gate让原生意图持久，旧X pool/Resolver保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 88,
+      "name": "testDifferentTargetDurableSelectionVersionRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "异target probe held时真实Y取消并真正落盘：内存与持久version都+1、pending归零；旧matching completion后池等于最新意图基线、无旧证明覆盖。明确这是durable UI路径，不冒称单独隔离磁盘guard。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 89,
+      "name": "testDifferentTargetPartialPassStoresSelectedSubset",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实held reference单槽内先由UI保存X/Y intent且enabled仍false；匹配reference退出后不同target prepare/probe仅请求X/Y无未选V6；Y失败、X通过时只写selected∩通过={X}，首次enable，Resolver仅采用X。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 90,
+      "name": "testDifferentTargetAllFailedKeepsEffectiveOldPool",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实异target成功建立旧X有效池，再选Y/再次实际prepare→probe全部失败；selected/validation/version/enabled保持基线且匹配目标Resolver仍用旧X，不以纯golden代替。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 91,
+      "name": "testGoCanonicalPrepareReusesReferenceWithoutProbe",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "真实合法wss://node.example.com./path与无末尾点reference：Java URI fingerprint不同，Go validateTaskOptions去末尾点后targetKey tuple/digest相同；真实validation prepare回调只复用reference、没有validation probe，共3 Start；按Java最终group key存SECOND/X且independent参考不嫁接。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 92,
+      "name": "testFollowingTargetDefaultInvalidAndIndependentBoundaries",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G7",
+      "finding": "F4",
+      "assertions": "实际Profile集合包括following/same target、explicit independent/default、无效ws目标与advanced relay冲突；真实X选择只给following写proof；边界Profile无proof，Resolver独立保原入口/default置空/高级保9.9.9.9；只2 Start。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 93,
+      "name": "testLateValidationPrepareNetworkBRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "真实旧X有效池后添加不同target，validation prepare held poll切B再给旧S/A合法matching completed；无dependent probe/提交，epoch+1，旧池/Resolver活、current completed0。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 94,
+      "name": "testLateValidationPrepareNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "同真实异target prepare held窗口B→A：epoch+2后迟到matching完成不可派生probe或写proof，旧有效池保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 95,
+      "name": "testLateValidationProbeNetworkBRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "实际异target prepare matching exit后dependent validation probe held，切B后迟到matching完成；无旧proof提交或重派，旧X有效池及Resolver活性保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 96,
+      "name": "testLateValidationProbeNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "异target probe held B→A独立反证；旧epoch不复活，无提交/自动后继，真实matching exit与actorDrain。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 97,
+      "name": "testDownloadReserveBeforeNetworkBRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "真实旧池与已下载7MiB基线；NetworkAccess.requireDirect仅networkIO/未reserved的真实download命中gate；持Store锁放gate并核worker实际BLOCKED于Store.withLock后切B，Backend Start差0；未入场预留归零，round/used7MiB/旧pool保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 98,
+      "name": "testDownloadReserveBeforeNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "相同reserve前实际到窗B→A，epoch+2拒Start；真实reserve/rejectedBeforeStart链释放未入场预留，旧预算及有效pool不变。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 99,
+      "name": "testDownloadReserveAfterNetworkBRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "独立post-reserve窗：仅networkIO且只读Job.reserved=true的NetworkAccess.id gate，实际disk reserve50MiB/Job.id空/Start差0；切B放行后无worker入场、预留释放且旧round/used7MiB/pool保持。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
+    },
+    {
+      "number": 100,
+      "name": "testDownloadReserveAfterNetworkAbaRejects",
+      "kind": "r2-e2-native-context-matrix",
+      "group": "G8",
+      "finding": "F5",
+      "assertions": "同post-reserve/未Start窗口B→A；明确epoch+2且Backend Start差0，不能用已admitted Start-return替代；release后slot空/activeDownload空/预留0，旧预算及pool活性。",
+      "trigger_and_boundary": "真实Activity控件/AtomicFile/Backend匹配身份完成；fixture gates只延迟线程/阶段不改返回值。正常UiDriver排空与故意held窗口分开。所有gate资源/共享Failures/Fixture teardown齐；没有State/proof/Job生产字段写或Controller业务直调。",
+      "execution": "NOT RUN; Actions only",
+      "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpValidationRemainingTest.java"
     }
   ],
   "mandatory_not_implemented": [
-    {
-      "finding": "F4",
-      "group": "G7",
-      "stage": "E2",
-      "required": "真实Store validation首检稳定正例及B/ABA拒写；不同target在途最终server/advanced params/selected内存与持久version变化；部分通过仅selected交集、全失败保旧有效池与Resolver活性、未选地址不请求；合法Java不同fingerprint/Go canonical同reference的真实prepare回调复用；每个网络完成须matching exit/actor屏障。"
-    },
-    {
-      "finding": "F5",
-      "group": "G8",
-      "stage": "E2",
-      "required": "线程限定透明NetworkAccess证明worker确抵reserve前/Store锁等待；独立reserved=true且磁盘50MiB但Backend.start未调用的post-reserve窗口，分别B/ABA拒Start并释放未入场预留；异target validation prepare/probe各自held晚响应B及ABA矩阵，无dependent probe/提交且旧池活性保持。"
-    },
     {
       "finding": "F6",
       "group": "G9",
@@ -805,7 +1024,7 @@
       "required": "已有真实reference/非零used→行download reserve→同步prepare_required释放→同S/R空candidates/prefixes maintenance→一次download retry重预留；成功与再次拒绝独立变体，各阶段读真实ledger/保proof/time/queue/round/used，无第三派或预留泄漏。"
     }
   ],
-  "ci": "79 registered source cases; all Android NOT RUN. E1 adds no cases and changes no CI/timeout/summary, runner/parser names remain exact. Existing source guard still requires implemented and mandatory=[]; expected to reject this partial inventory until E2/E3 complete. No product build/test/CI/push/release executed.",
+  "ci": "100 registered source cases (original79 preserved + E2 21 appended in exact order). Only release.yml existing count/summary text changed: 6 safety +94 native; timeout900s/native30min unchanged. No new Actions/dependencies/cache/release conditions. Final guard still requires implemented/mandatory-empty and intentionally rejects this partial stage. All100 Android NOT RUN.",
   "findings_map": [
     {
       "id": "F1",
@@ -840,7 +1059,7 @@
     {
       "id": "F7",
       "status": "partial",
-      "evidence": "此表为原b48七项finding，不是R2八项编号。R2确认G7–G10 mandatory未齐，先前source-only-complete声明撤回；见mandatory_not_implemented及r2_fix_findings。全部79例Android NOT RUN。"
+      "evidence": "旧b48总完成finding仍partial。E1修R2 F1–F3，E2补F4/F5；现登记100例全部NOT RUN。F6/F7/F8/E3 mandatory未齐，最终implemented/mandatory-empty source guard保持严格。"
     }
   ],
   "groups": [
@@ -876,13 +1095,13 @@
     },
     {
       "id": "G7",
-      "status": "partial",
-      "detail": "已有target成功/subset/模式及真实Clock尾部反证保留；E1修Clock线程计数。F4完整首检/final Profile/version/通过子集/旧池/canonical回调仍mandatory，见清单。 全部Android NOT RUN。"
+      "status": "source-implemented",
+      "detail": "E2补真实Store首检稳定/B/ABA及尾检稳定/ABA（E1 B保持）；异target final server/advanced/内存与durable UI版本变化、真实部分通过/全失败保旧pool/Resolver、Go canonical合法prepare回调复用、default/invalid/independent/conflict边界。全部100例Android NOT RUN。"
     },
     {
       "id": "G8",
       "status": "partial",
-      "detail": "E1修真实重启晚reference/历史归属与当前completed=0、旧round下载+1/禁用原生输入；holdDownload=true保留。F5 reserve前确实到达/post-reserve未Start及异target prepare/probe B/ABA仍mandatory。 全部Android NOT RUN。"
+      "detail": "E2 F5异target prepare/probe各自held B/ABA，透明NetworkAccess线程/阶段gate+真实Store锁等待证明reserve前实际到窗及独立reserved=true/disk50MiB/Backend未Start窗，B/ABA均不Start/释放未入场预留/保旧round used7MiB和pool；E1晚reference/旧admitted false→matching true与原生disabled输入保持。C maintenance的合法ECH wire修复仍在F7/E3 mandatory，不能因F5齐而宣称G8全部wire齐。全部Android NOT RUN。"
     },
     {
       "id": "G9",
@@ -916,14 +1135,15 @@
     "阶段D source=0a94704 baseline=7a2；仅新增androidTest 8例+inventory/parser/runner/CI计数；真实metered dialog/overflow新轮与同session ECH上界维护，不写State/Row/proof/ledger/Job。",
     "D终审另修正C例 testAdmittedOldRoundDownloadSettlesAndRefusesContinue 缺少 holdDownload 的fixture模式（断言与结算不变），并把 release.yml 注释/摘要同步为79例（6安全+73原生）。",
     "D登记79例并清空mandatory_not_implemented；F7仅source-only-complete，全部Android NOT RUN；P-anchor-margin-coordinate仍阻断final ready。",
-    "2026-11-17 R2 fix-contract覆盖旧完成声明：source=a1affaf；E1仅F1–F3源码修复/登记，overall partial，F4–F8/E2/E3 mandatory，不自称Task25 ready；原findings_map仍指旧b48七项，R2八项另列r2_fix_findings。Task30已人工批准/修复/独立审过并在source，不重开或改main。"
+    "2026-11-17 R2 fix-contract覆盖旧完成声明：source=a1affaf；E1仅F1–F3源码修复/登记，overall partial，F4–F8/E2/E3 mandatory，不自称Task25 ready；原findings_map仍指旧b48七项，R2八项另列r2_fix_findings。Task30已人工批准/修复/独立审过并在source，不重开或改main。",
+    "E2追加21例至100，source=627578a；不重做E1、保持holdDownload/disabled原生触摸/false不结算与matching done正文结算。Backend XT target key按实际Go normalization+tuple SHA256推导，不强造canonical key；NetworkAccess默认透明hook仅测试线程/阶段gate。E2只F4/F5，F6/F7/F8/E3仍mandatory，合法ECH/C maintenance wire修复不提前。"
   ],
   "stage": {
-    "completed_stage": "r2_fix_e1",
+    "completed_stage": "r2_fix_e2",
     "stage_complete": true,
-    "source_commit": "a1affafef6c3fb0f926341079d98816bdb078cdf",
+    "source_commit": "627578a05da34f9e56f61782f20e10deec175479",
     "baseline_commit": "a1affafef6c3fb0f926341079d98816bdb078cdf",
-    "meaning": "E1 F1/F2/F3 source/registration/cleanup complete only; overall partial until F4–F8/E2/E3. Neither fresh review nor Android PASS. All79 Android NOT RUN."
+    "meaning": "Only E2 F4/F5 source/registration/cleanup complete; overall partial, remaining mandatory F6/F7/F8/E3. All100 Android NOT RUN; not fresh review/Task25 ready."
   },
   "blocking_production_findings": [
     {
@@ -968,17 +1188,42 @@
     },
     {
       "id": "F4",
-      "status": "mandatory-not-implemented",
+      "status": "corrected-source-only",
       "stage": "E2",
       "group": "G7",
-      "detail": "真实Store validation首检稳定正例及B/ABA拒写；不同target在途最终server/advanced params/selected内存与持久version变化；部分通过仅selected交集、全失败保旧有效池与Resolver活性、未选地址不请求；合法Java不同fingerprint/Go canonical同reference的真实prepare回调复用；每个网络完成须matching exit/actor屏障。"
+      "detail": "E2新增真实源码矩阵，见具名cases；仅source/registration/cleanup齐，不是Android PASS或fresh review。",
+      "cases": [
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92
+      ]
     },
     {
       "id": "F5",
-      "status": "mandatory-not-implemented",
+      "status": "corrected-source-only",
       "stage": "E2",
       "group": "G8",
-      "detail": "线程限定透明NetworkAccess证明worker确抵reserve前/Store锁等待；独立reserved=true且磁盘50MiB但Backend.start未调用的post-reserve窗口，分别B/ABA拒Start并释放未入场预留；异target validation prepare/probe各自held晚响应B及ABA矩阵，无dependent probe/提交且旧池活性保持。"
+      "detail": "E2新增真实源码矩阵，见具名cases；仅source/registration/cleanup齐，不是Android PASS或fresh review。",
+      "cases": [
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
     },
     {
       "id": "F6",

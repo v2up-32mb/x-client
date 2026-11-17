@@ -218,7 +218,9 @@ final class PreferredIpContextRemainingTest {
         f.store.update(root -> root.getJSONObject("profile_modes").put(f.profileId, "independent"));
         f.pausedComplete();
         f.show(X); eq(false, f.checked(X)); f.click(f.widget(X, R.id.preferred_choice));
-        until(() -> f.backend.requests.size() >= 4, "real different-target validation prepare and probe");
+        Task validationPrepare = f.backend.next("prepare"), validationProbe = f.backend.next("probe");
+        until(() -> validationProbe.consumedDone && f.control.submit(() -> field(f.controller, "active") == null).get(10, TimeUnit.SECONDS), "different-target matching worker_done and real actor exit");
+        check(validationPrepare.consumedDone, "different-target prepare really completed");
         f.stopCycle(); f.settle(); f.actorDrain(); f.publish(); f.draw();
         JSONObject prepare = f.backend.requests.get(2), probe = f.backend.requests.get(3);
         eq("prepare", prepare.getString("operation")); eq("validation", prepare.optString("probe_role"));

@@ -115,8 +115,9 @@ final class PreferredIpV2Test {
     }
     static final class Network implements PreferredIpRuntime.NetworkAccess {
         volatile String value = "A"; volatile Runnable callback; volatile boolean charged;
-        public String id() { return value; } public String label() { return "fixture-" + value; }
-        public void requireDirect() { } public boolean ipv6() { return true; } public boolean metered() { return charged; }
+        volatile Runnable beforeId, beforeDirect; // Transparent, case-local NetworkAccess gates; normal calls remain unchanged.
+        public String id() { Runnable hook = beforeId; if (hook != null) hook.run(); return value; } public String label() { return "fixture-" + value; }
+        public void requireDirect() { Runnable hook = beforeDirect; if (hook != null) hook.run(); } public boolean ipv6() { return true; } public boolean metered() { return charged; }
         public void watch(Runnable r) { callback = r; } public void unwatch() { callback = null; }
         void change(String id) { value = id; Runnable r = callback; check(r != null, "network is watched"); r.run(); }
     }
@@ -150,6 +151,7 @@ final class PreferredIpV2Test {
         final List<String> parseInputs = Collections.synchronizedList(new ArrayList<>());
         final PreferredIpTestControl.Failures failures;
         volatile boolean holdProbe, holdDownload, holdFetch, cleaning;
+        volatile boolean holdValidationPrepare, holdValidationProbe;
         volatile String holdProbeAddress = "";
         volatile PreferredIpTestControl.Gate startReturn;
         volatile String rejectStartWith; // Scripted synchronous Go Start rejection (no worker admitted).
@@ -193,7 +195,9 @@ final class PreferredIpV2Test {
                     tasks.put(task.id, task); admitted = task.id;
                     boolean heldProbe = operation.equals("probe") && (holdProbe || (!holdProbeAddress.isEmpty()
                         && PreferredIpPresentation.find(request.optJSONArray("candidates"), holdProbeAddress) != null));
-                    if (!heldProbe && !(operation.equals("download") && holdDownload) && !(fetch && holdFetch))
+                    boolean heldValidation = "validation".equals(request.optString("probe_role"))
+                        && ((operation.equals("prepare") && holdValidationPrepare) || (operation.equals("probe") && holdValidationProbe));
+                    if (!heldProbe && !heldValidation && !(operation.equals("download") && holdDownload) && !(fetch && holdFetch))
                         task.automatic = snapshot(task, "completed", true, true, 0);
                     started.add(task);
                 }
@@ -244,10 +248,30 @@ final class PreferredIpV2Test {
             return task.lastMatchingReply == null ? snapshot(task, "cancelled", true, false, 0)
                 : new JSONObject(task.lastMatchingReply.toString()).put("state", "cancelled").put("worker_done", true);
         }
+        /** Go validateTaskOptions + session.targetKey for this XT fixture, not Java fingerprint.
+         * ASCII payload is explicit so Android JSONObject slash quoting cannot alter Go's digest. */
+        String goTargetPayload(JSONObject opts) throws Exception {
+            require("xtunnel".equals(opts.getString("protocol")), "canonical fixture uses actual XT defaults");
+            String host = opts.getString("target_host").toLowerCase(Locale.ROOT);
+            if (host.endsWith(".")) host = host.substring(0, host.length() - 1);
+            String domain = opts.getString("ech_domain").trim().toLowerCase(Locale.ROOT);
+            if (domain.endsWith(".")) domain = domain.substring(0, domain.length() - 1);
+            if (domain.isEmpty()) domain = "cloudflare-ech.com";
+            String dns = opts.getString("dns_server").trim();
+            if (dns.isEmpty()) dns = "https://v.recipes/dns-query";
+            Set<String> servers = new LinkedHashSet<>(Arrays.asList(dns, "https://cloudflare-dns.com/dns-query", "https://dns.google/dns-query"));
+            require(host.matches("[a-z0-9.-]+") && domain.matches("[a-z0-9.-]+"), "canonical fixture DNS names are ASCII");
+            StringBuilder payload = new StringBuilder("[\"").append(host).append("\",").append(opts.getInt("target_port"))
+                .append(",\"xtunnel\",").append(opts.getBoolean("enable_ech")).append(",\"").append(domain).append("\",[");
+            for (String server : servers) {
+                require(server.matches("[A-Za-z0-9:/?=._-]+"), "canonical fixture DoH URL needs no JSON escaping");
+                if (payload.charAt(payload.length() - 1) != '[') payload.append(',');
+                payload.append('"').append(server).append('"');
+            }
+            return payload.append("]]").toString();
+        }
         String targetKey(JSONObject opts) throws Exception {
-            JSONObject target = new JSONObject();
-            for (String key : new String[]{"protocol", "target_host", "target_port", "enable_ech", "ech_domain", "dns_server"}) target.put(key, opts.get(key));
-            return PreferredIpIds.opaque("wire-target", PreferredIpResolver.fingerprint(target));
+            return PreferredIpIds.opaque("target", goTargetPayload(opts)).substring("target-".length());
         }
         JSONObject snapshot(Task task, String state, boolean done, boolean complete, long body) throws Exception {
             String operation = task.request.getString("operation"), role = task.request.optString("probe_role", "fetch".equals(task.request.getString("operation")) ? "" : "reference");

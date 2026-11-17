@@ -159,7 +159,7 @@ assert tuple(re.findall(r"suite::(test\w+)", suite)) == protocol["SAFETY_SCENARI
 assert tuple(re.findall(r"PreferredIpV2Test::(test\w+)", v2)) == protocol["V2_SCENARIOS"]
 names = section(v2, 'static final String[] NAMES = {', '};')
 assert tuple(re.findall(r'"(test\w+)"', names)) == protocol['V2_SCENARIOS']
-assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 79
+assert len(protocol["SAFETY_SCENARIOS"]) == 6 and protocol["TOTAL"] == 100
 assert tuple(re.findall(r"PreferredIpV2ContinuationTest::(test\w+)", continuation)) == protocol['CONTINUATION_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(continuation, 'static final String[] NAMES = {', '};'))) == protocol['CONTINUATION_SCENARIOS']
 assert 'PreferredIpV2ContinuationTest.run(this, reporter)' in runner
@@ -172,6 +172,10 @@ assert tuple(re.findall(r'"(test\w+)"', section(configuration, 'static final Str
 assert 'PreferredIpContextRemainingTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpContextRemainingTest::(test\w+)", context)) == protocol['CONTEXT_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(context, 'static final String[] NAMES = {', '};'))) == protocol['CONTEXT_SCENARIOS']
+validation = (tests / "PreferredIpValidationRemainingTest.java").read_text()
+assert 'PreferredIpValidationRemainingTest.run(this, reporter)' in runner
+assert tuple(re.findall(r"PreferredIpValidationRemainingTest::(test\w+)", validation)) == protocol['VALIDATION_SCENARIOS']
+assert tuple(re.findall(r'"(test\w+)"', section(validation, 'static final String[] NAMES = {', '};'))) == protocol['VALIDATION_SCENARIOS']
 assert 'PreferredIpBudgetEchRemainingTest.run(this, reporter)' in runner
 assert tuple(re.findall(r"PreferredIpBudgetEchRemainingTest::(test\w+)", budget)) == protocol['BUDGET_ECH_SCENARIOS']
 assert tuple(re.findall(r'"(test\w+)"', section(budget, 'static final String[] NAMES = {', '};'))) == protocol['BUDGET_ECH_SCENARIOS']

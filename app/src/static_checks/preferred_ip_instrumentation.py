@@ -101,8 +101,31 @@ BUDGET_ECH_SCENARIOS = (
     "testPrepareRequiredMaintenanceBoundedOnceAtTtlZero",
     "testSuccessfulMaintenanceKeepsProofQueueAndStickyFallback",
 )
+VALIDATION_SCENARIOS = (
+    "testValidationStoreHeadStableCommits",
+    "testValidationStoreHeadNetworkBRejects",
+    "testValidationStoreHeadNetworkAbaRejects",
+    "testValidationClockTailStableCommits",
+    "testValidationClockTailNetworkAbaRejects",
+    "testDifferentTargetFinalServerChangeRejects",
+    "testDifferentTargetFinalAdvancedChangeRejects",
+    "testDifferentTargetPendingSelectionVersionRejects",
+    "testDifferentTargetDurableSelectionVersionRejects",
+    "testDifferentTargetPartialPassStoresSelectedSubset",
+    "testDifferentTargetAllFailedKeepsEffectiveOldPool",
+    "testGoCanonicalPrepareReusesReferenceWithoutProbe",
+    "testFollowingTargetDefaultInvalidAndIndependentBoundaries",
+    "testLateValidationPrepareNetworkBRejects",
+    "testLateValidationPrepareNetworkAbaRejects",
+    "testLateValidationProbeNetworkBRejects",
+    "testLateValidationProbeNetworkAbaRejects",
+    "testDownloadReserveBeforeNetworkBRejects",
+    "testDownloadReserveBeforeNetworkAbaRejects",
+    "testDownloadReserveAfterNetworkBRejects",
+    "testDownloadReserveAfterNetworkAbaRejects",
+)
 SCENARIOS = (SAFETY_SCENARIOS + V2_SCENARIOS + CONTINUATION_SCENARIOS + UI_SCENARIOS
-             + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS + BUDGET_ECH_SCENARIOS)
+             + CONFIGURATION_SCENARIOS + CONTEXT_SCENARIOS + BUDGET_ECH_SCENARIOS + VALIDATION_SCENARIOS)
 TOTAL = len(SCENARIOS)
 
 
