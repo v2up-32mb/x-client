@@ -1,12 +1,21 @@
 package com.x.client.app;
 
 import android.app.Instrumentation;
+import android.graphics.Rect;
+import android.os.SystemClock;
+import android.view.InputDevice;
+import android.view.MotionEvent;
+import android.view.View;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import static com.x.client.app.PreferredIpV2Test.*;
 
 /** Stage C only: stored selection intent versus late validation, the real Clock transaction
@@ -73,30 +82,40 @@ final class PreferredIpContextRemainingTest {
         node.setXtAdvancedParams(advanced);
     }
 
-    /** Real fixed-time validation transaction gate; blocks exactly the first arm()ed Clock read. */
+    /** Only selectionIO validation timestamps hit the gate; control checkpoints stay transparent. */
     static final class GatedClock implements PreferredIpRuntime.Clock, AutoCloseable {
         static final long FIXED = 1730000099000L;
         final CountDownLatch reached = new CountDownLatch(1), release = new CountDownLatch(1);
-        final AtomicInteger calls = new AtomicInteger();
-        volatile boolean armed, blocked, closed;
-        GatedClock(Fixture f) { f.resources.add(this); }
+        final AtomicInteger validationCalls = new AtomicInteger(), ordinaryCalls = new AtomicInteger(), gateHits = new AtomicInteger();
+        final Thread selectionThread;
+        final PreferredIpTestControl.Failures failures;
+        volatile boolean armed, blocked;
+        GatedClock(Fixture f) throws Exception {
+            selectionThread = f.selection.submit(() -> Thread.currentThread()).get(10, TimeUnit.SECONDS);
+            failures = f.failures; f.resources.add(this);
+        }
         void arm() { armed = true; }
         void awaitReached() throws Exception { await(reached, "real validation transaction reached the Clock"); }
         void letGo() { release.countDown(); }
         public long now() {
-            calls.incrementAndGet();
-            if (armed && !blocked) {
-                blocked = true; reached.countDown();
-                try {
-                    if (!release.await(10, TimeUnit.SECONDS)) throw new AssertionError("Clock gate timeout");
-                } catch (InterruptedException interrupted) {
-                    Thread.currentThread().interrupt();
-                    throw new AssertionError("Clock gate interrupted", interrupted);
+            if (Thread.currentThread() != selectionThread) {
+                ordinaryCalls.incrementAndGet();
+                return FIXED;
+            }
+            if (armed) {
+                validationCalls.incrementAndGet();
+                if (!blocked) {
+                    blocked = true; gateHits.incrementAndGet(); reached.countDown();
+                    try {
+                        if (!release.await(10, TimeUnit.SECONDS)) failures.add(new IllegalStateException("Clock gate timeout"));
+                    } catch (InterruptedException interrupted) {
+                        Thread.currentThread().interrupt(); failures.add(interrupted);
+                    }
                 }
             }
             return FIXED;
         }
-        public void close() { closed = true; release.countDown(); }
+        public void close() { release.countDown(); }
     }
 
     /** Real fixed queries with four dense candidates; only the final V6 batch stays admitted. */
@@ -117,7 +136,7 @@ final class PreferredIpContextRemainingTest {
         f.backend.holdProbeAddress = ""; f.stopCycle(); f.actorDrain();
     }
 
-    // ---------------------------------------------------------------- G7: Clock head/tail
+    // ---------------------------------------------------------------- G7: validation timestamp tail (Store head remains mandatory)
 
     static void testStoredIntentSurvivesLateValidationHeadClock(Fixture f) throws Exception {
         f.pausedComplete(); f.stopCycle();
@@ -126,12 +145,12 @@ final class PreferredIpContextRemainingTest {
         clock.arm();
         f.show(X); eq(false, f.checked(X)); f.click(f.widget(X, R.id.preferred_choice));
         clock.awaitReached();
-        // The intent transaction finished; the validation transaction is at its Clock head.
-        JSONObject head = persisted(f);
-        check(selected(head, X), "real stored intent survives before validation commits");
-        eq(before.getLong("selection_version") + 1, head.getLong("selection_version"));
-        check(!head.getBoolean("enabled"), "no validation was persisted at the transaction head");
-        check(!head.getJSONObject("validations").has(f.profileId), "validation record absent while the Clock gate holds");
+        // This timestamp is after the validation head checks, before the final version check.
+        JSONObject held = persisted(f);
+        check(selected(held, X), "real stored intent survives before validation commits");
+        eq(before.getLong("selection_version") + 1, held.getLong("selection_version"));
+        check(!held.getBoolean("enabled"), "no validation was persisted at the timestamp window");
+        check(!held.getJSONObject("validations").has(f.profileId), "validation record absent while the Clock gate holds");
         // A newer native intent increments the in-memory version; its Store transaction is queued behind.
         f.show(Y); eq(false, f.checked(Y)); f.click(f.widget(Y, R.id.preferred_choice)); fence(f.control);
         eq(1, field(f.controller, "selectionPending"));
@@ -149,8 +168,8 @@ final class PreferredIpContextRemainingTest {
         for (int n = 0; n < 2; n++) check(selected(root, record.getJSONArray("addresses").getString(n)), "committed subset contains only currently selected addresses");
         eq(GatedClock.FIXED, record.getLong("tested_at"));
         check(root.getBoolean("enabled"), "latest real validation enables the pool");
-        eq(revision + 3, root.getLong("revision")); // two intents plus one latest validation; the stale head wrote nothing.
-        eq(2, clock.calls.get());
+        eq(revision + 3, root.getLong("revision")); // Two intents plus the latest validation; the stale gated validation wrote nothing.
+        eq(2, clock.validationCalls.get()); eq(1, clock.gateHits.get());
         f.show(X); eq(true, f.checked(X)); f.show(Y); eq(true, f.checked(Y));
     }
 
@@ -170,8 +189,11 @@ final class PreferredIpContextRemainingTest {
         eq(committed.getLong("selection_version") + 1, tail.getLong("selection_version"));
         check(selected(tail, Y), "new intent is already durable at the validation tail");
         eq(original.toString(), tail.getJSONObject("validations").getJSONObject(f.profileId).toString());
+        byte[] tailBytes = bytes(new File(f.dir, "preferred-ip-v1.json"));
+        long epoch = ((AtomicLong) field(f.controller, "scanEpoch")).get();
         long attempts = f.backend.startAttempts.get();
         f.network.change("B");
+        eq(epoch + 1, ((AtomicLong) field(f.controller, "scanEpoch")).get());
         clock.letGo();
         f.settle(); f.publish(); f.draw();
         JSONObject root = f.store.read();
@@ -179,7 +201,11 @@ final class PreferredIpContextRemainingTest {
         check(selected(root, X) && selected(root, Y), "network revoke keeps both stored intents");
         eq(original.toString(), root.getJSONObject("validations").getJSONObject(f.profileId).toString());
         eq(revision + 1, root.getLong("revision")); // only the intent write; the revoked tail wrote nothing.
-        eq(1, clock.calls.get());
+        eq(1, clock.validationCalls.get()); eq(1, clock.gateHits.get());
+        check(clock.ordinaryCalls.get() > 0, "network checkpoint timestamp is transparent to the validation gate");
+        check(Arrays.equals(tailBytes, bytes(new File(f.dir, "preferred-ip-v1.json"))), "revoked validation leaves durable intent and old pool bytes unchanged");
+        eq(true, root.getBoolean("enabled"));
+        eq(epoch + 1, ((AtomicLong) field(f.controller, "scanEpoch")).get());
         eq(attempts, f.backend.startAttempts.get());
         check(f.state().stale, "revoked scan is stale for the UI");
         f.show(X); eq(true, f.checked(X));
@@ -299,27 +325,76 @@ final class PreferredIpContextRemainingTest {
 
     // ---------------------------------------------------------------- G8: late reply / reservation
 
+    /** Frozen result bytes and read-only attribution copies, captured on their owning actor. */
+    static final class ReferenceSnapshot {
+        final Map<String, String> results = new LinkedHashMap<>();
+        final Map<String, Object> contexts = new LinkedHashMap<>();
+        final String history;
+        final Object proof;
+        @SuppressWarnings("unchecked") ReferenceSnapshot(Fixture f) throws Exception {
+            for (Map.Entry<String, JSONObject> entry : ((Map<String, JSONObject>) field(f.controller, "results")).entrySet())
+                results.put(entry.getKey(), entry.getValue().toString());
+            contexts.putAll((Map<String, Object>) field(f.controller, "resultContexts"));
+            history = ((JSONObject) field(f.controller, "oldHistory")).toString();
+            proof = field(f.controller, "scanContext");
+        }
+        static ReferenceSnapshot capture(Fixture f) throws Exception {
+            return f.control.submit(() -> new ReferenceSnapshot(f)).get(10, TimeUnit.SECONDS);
+        }
+    }
+
     static void testLateReferenceReplyAfterNetworkRevokeIsNotMerged(Fixture f) throws Exception {
-        f.pausedComplete(); f.selectX(true); f.stopCycle();
+        f.pausedComplete(); f.selectX(true); f.stopCycle(); f.actorDrain();
         JSONObject pool = f.store.read(); long attempts = f.backend.startAttempts.get();
+        PreferredIpUiRemainingTest.NativeAccess access = new PreferredIpUiRemainingTest.NativeAccess(f);
         f.backend.holdProbe = true;
-        PreferredIpUiRemainingTest.header(f); f.click(f.view(R.id.preferred_primary)); f.backend.next("prepare");
+        PreferredIpBudgetEchRemainingTest.overflowItem(f, access, "重新开始测试");
+        PreferredIpBudgetEchRemainingTest.dialogButton(f, access, "重新开始", true); access.transientWindow = false;
+        Task prepare = f.backend.next("prepare");
         Task probe = f.backend.next("probe"); await(probe.polled, "new reference poll blocked");
+        eq(prepare.sessionId, probe.sessionId); eq(prepare.roundId, probe.roundId);
+        eq(attempts + 2, f.backend.startAttempts.get());
         JSONObject partial = f.backend.snapshot(probe, "running", false, false, 0);
-        partial.getJSONArray("results").put(0, f.backend.snapshot(probe, "running", false, true, 0).getJSONArray("results").getJSONObject(0));
+        JSONArray rows = partial.getJSONArray("results");
+        JSONObject completeY = PreferredIpPresentation.find(f.backend.snapshot(probe, "running", false, true, 0).getJSONArray("results"), Y);
+        check(completeY != null, "unselected Y has a real complete wire row");
+        for (int n = 0; n < rows.length(); n++) if (Y.equals(rows.getJSONObject(n).getString("address"))) rows.put(n, completeY);
         partial.put("completed", 1); probe.replies.add(partial); probe.awaitPoll(2); f.settle(); f.publish();
         eq(1, f.state().completed);
+        ReferenceSnapshot before = ReferenceSnapshot.capture(f);
+        check(!new JSONObject(before.results.get(X)).getBoolean("probe_complete"), "selected X has no new complete proof before revoke");
+        eq(completeY.toString(), before.results.get(Y));
+        Object proof = before.proof;
+        eq(proof, before.contexts.get(Y));
+        eq("A", field(before.contexts.get(Y), "networkId"));
+        eq(probe.sessionId, field(before.contexts.get(Y), "sessionId"));
+        eq(pool.getJSONObject("validations").getJSONObject(f.profileId).getString("session_id"), new JSONObject(before.history).getString("session_id"));
+        check(!pool.getJSONObject("validations").getJSONObject(f.profileId).getString("session_id").equals(probe.sessionId), "held reference is a genuinely new session");
         f.network.change("B"); f.settle(); f.publish();
-        check(f.state().stale, "network revoke invalidates the running reference");
+        await(probe.cancelled, "network revoke cancels the admitted old reference");
+        check(f.state().stale && f.state().busy, "network revoke invalidates the reference but still waits for worker_done"); eq(0, f.state().completed);
         probe.replies.add(f.backend.snapshot(probe, "running", false, true, 0)); probe.awaitPoll(3); f.settle(); f.publish();
-        eq(1, f.state().completed); // The late complete reply belongs to the old network and is not merged.
+        ReferenceSnapshot after = ReferenceSnapshot.capture(f);
+        eq(before.results, after.results); eq(before.contexts, after.contexts); eq(before.history, after.history);
+        eq(0, f.state().completed); // Historical rows do not count as current completed results.
         eq(attempts + 2, f.backend.startAttempts.get());
         eq(pool.getJSONArray("selected").toString(), f.store.read().getJSONArray("selected").toString());
         eq(pool.getJSONObject("validations").toString(), f.store.read().getJSONObject("validations").toString());
+        eq(pool.getLong("selection_version"), f.store.read().getLong("selection_version"));
         probe.replies.add(f.backend.snapshot(probe, "cancelled", true, true, 0));
         until(() -> { f.publish(); return !f.state().busy; }, "old admission drains after the late reply");
+        f.actorDrain(); check(probe.consumedDone, "matching old reference worker_done really exited");
+        ReferenceSnapshot drained = ReferenceSnapshot.capture(f);
+        eq(1, drained.results.size()); eq(before.results.get(Y), drained.results.get(Y));
+        eq(1, drained.contexts.size()); eq(proof, drained.contexts.get(Y)); eq(before.history, drained.history);
         eq(attempts + 2, f.backend.startAttempts.get()); // no automatic continuation on the new network.
-        f.backend.holdProbe = false; f.settle(); f.show(X); eq(true, f.checked(X)); check(f.state().stale, "old pool remains historical");
+        eq(pool.getJSONObject("validations").toString(), f.store.read().getJSONObject("validations").toString());
+        eq(pool.getLong("selection_version"), f.store.read().getLong("selection_version"));
+        f.backend.holdProbe = false; f.show(Y); f.click(f.widget(Y, R.id.preferred_row_heading)); f.settle(); f.publish(); f.draw();
+        check(f.rowText(Y).contains("历史成绩（不参与当前排名/新增选择）"), "retained Y is explicitly historical in the real row");
+        eq(0, f.state().completed); f.show(X); eq(true, f.checked(X));
+        check(f.state().stale && f.store.read().getBoolean("enabled"), "old enabled pool remains selected while current results are stale");
+        eq(pool.getJSONArray("selected").toString(), f.store.read().getJSONArray("selected").toString());
     }
 
     static void testDownloadRevokedAroundReserveNeverStarts(Fixture f) throws Exception {
@@ -369,11 +444,46 @@ final class PreferredIpContextRemainingTest {
         until(() -> { f.publish(); return !f.state().busy; }, "matching worker_done settles the old round");
         JSONObject ledger = f.store.read().getJSONObject("download_ledger");
         eq(7 * 1048576L, ledger.getLong("used")); eq(0L, ledger.getLong("reserved")); eq(round, ledger.getString("id"));
-        eq(attempts + 3, f.backend.startAttempts.get()); // prepare, probe, this download; no automatic retry.
-        f.show(X); f.click(f.rowWidget(X, R.id.preferred_row_download)); f.settle(); f.publish();
-        eq(attempts + 3, f.backend.startAttempts.get()); // stale pool refuses another download Start.
+        f.actorDrain(); check(task.consumedDone, "matching old-round download worker_done really exited");
+        eq(attempts + 1, f.backend.startAttempts.get()); // Only this download occurred after the baseline.
+        f.show(X); View disabled = f.rowWidget(X, R.id.preferred_row_download);
+        JSONObject beforeInput = f.store.read();
+        long cancelVersion = ((AtomicLong) field(f.controller, "cancelVersion")).get();
+        attemptDisabledDownloadTouch(f, disabled);
+        f.actorDrain(); f.publish(); f.draw();
+        eq(attempts + 1, f.backend.startAttempts.get()); // Native input cannot restart the stale download.
+        eq(beforeInput.toString(), f.store.read().toString());
+        eq(cancelVersion, ((AtomicLong) field(f.controller, "cancelVersion")).get());
+        eq(false, f.onMain(disabled::isEnabled));
         eq("", f.state().activeDownload); check(f.store.read().getBoolean("enabled"), "old valid pool is retained");
         eq(pool.getJSONArray("selected").toString(), f.store.read().getJSONArray("selected").toString());
+        eq(pool.getJSONObject("validations").toString(), f.store.read().getJSONObject("validations").toString());
+        eq(pool.getLong("selection_version"), f.store.read().getLong("selection_version"));
+    }
+
+    /** Inject a real screen tap at a visible disabled button; no performClick/enable override. */
+    static void attemptDisabledDownloadTouch(Fixture f, View button) throws Exception {
+        f.main(() -> button.requestRectangleOnScreen(new Rect(0, 0, button.getWidth(), button.getHeight()), true));
+        f.draw();
+        float[] point = f.onMain(() -> {
+            check(!button.isEnabled() && button.isShown(), "stale download is visibly disabled");
+            Rect visible = new Rect(); check(button.getLocalVisibleRect(visible) && !visible.isEmpty(), "disabled download has a visible hit region");
+            int[] location = new int[2]; button.getLocationOnScreen(location);
+            return new float[]{location[0] + visible.exactCenterX(), location[1] + visible.exactCenterY()};
+        });
+        long down = SystemClock.uptimeMillis();
+        try {
+            for (int action : new int[]{MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP}) {
+                MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, point[0], point[1], 0);
+                event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+                try { f.i.sendPointerSync(event); } finally { event.recycle(); }
+            }
+        } finally {
+            MotionEvent cancel = MotionEvent.obtain(down, SystemClock.uptimeMillis(), MotionEvent.ACTION_CANCEL, point[0], point[1], 0);
+            cancel.setSource(InputDevice.SOURCE_TOUCHSCREEN);
+            try { f.i.sendPointerSync(cancel); } finally { cancel.recycle(); }
+        }
+        f.i.waitForIdleSync();
     }
 
     static void testPrepareRequiredMaintenanceStopsAfterNetworkRevoke(Fixture f) throws Exception {

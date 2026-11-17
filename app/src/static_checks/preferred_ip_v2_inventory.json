@@ -1,5 +1,5 @@
 {
-  "status": "implemented",
+  "status": "partial",
   "execution": "source-only; no local/CI product execution",
   "total_registered": 79,
   "cases": [
@@ -607,8 +607,8 @@
       "name": "testStoredIntentSurvivesLateValidationHeadClock",
       "kind": "stage-c-native-clock",
       "group": "G7a",
-      "assertions": "真实Clock在validation事务head阻塞：intent version先+1并落盘X、enabled/validations尚未写；第二个原生Y intent仅入队（selectionPending=1、磁盘仍version+1）；放行后旧head因version不匹配不覆盖，Y提交后最新validation写X+Y子集/tested_at=固定Clock值/version=2/revision=+3。",
-      "trigger_and_boundary": "Clock只在真实commitValidation store.update内部的clock.now阻塞；head/tail字节由AtomicFile直接read，不写State/Row/proof/Job。",
+      "assertions": "真实selectionIO Clock时间戳尾窗（不是Store首检）：X intent先落盘version+1，第二个Y原生intent只入队；放行后旧validation因version变化拒写，Y保存后最新validation写X+Y/tested_at固定/revision+3；validationCalls=2、gateHits=1，普通checkpoint不计validation。",
+      "trigger_and_boundary": "保留历史case名HeadClock以稳定登记；实际clock.now发生于Store首检与最终Profile检查之后，真实首检窗口仍是E2/G7 mandatory。Clock按该Controller selectionIO实际Thread限定，不写State/Row/proof/Job。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -617,8 +617,8 @@
       "name": "testCommittedPoolSurvivesTailClockNetworkRevoke",
       "kind": "stage-c-native-clock",
       "group": "G7b",
-      "assertions": "已提交含X的validation后，真实Clock在下一validation事务tail阻塞；Y intent先落盘version+1且旧validation字节/tested_at/enabled原样；切网后放行，validationCurrent失败不写，旧池X仍在、Y意图保留、revision仅+1、无新Start。",
-      "trigger_and_boundary": "切网发生在真实Store LOCK持有后的tail；只读旧validation对象比较，不伪造证明。",
+      "assertions": "已保存X有效池后Y intent先落盘version+1；selectionIO validation时间戳尾窗held，切B同步epoch+1；放行后validationCalls=1/gateHits=1，普通checkpoint透明；最终AtomicFile字节恰等held前、旧validation/tested_at/enabled保留、revision仅+1、无新Start。",
+      "trigger_and_boundary": "通过真实selection executor捕获Thread身份，普通Clock调用直接返回固定时间；gate资源及失败collector保证cleanup释放且错误不能PASS。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -657,8 +657,8 @@
       "name": "testLateReferenceReplyAfterNetworkRevokeIsNotMerged",
       "kind": "stage-c-native-late",
       "group": "G8a",
-      "assertions": "真实reference poll先并入1个complete结果；切网后旧admission的晚complete回复不并入（completed仍1），selected/validations不变；matching worker_done释放后不自动在新网络Start，旧池X仍选中/历史stale。",
-      "trigger_and_boundary": "晚回复用Task脚本在切网后注入；身份/网络不匹配由真实relevant判定，不写State。",
+      "assertions": "完整旧scan及X已保存后通过真实overflow重新开始/确认建立新prepare+held probe；仅未选Y complete（X不具新proof），nextPoll→control/selection/main后保存results字节/resultContexts归属/oldHistory副本；切B及晚complete后副本相等，当前completed=0，旧池validation/selection_version不变；matching done自然去partial，仅历史Y保留且UI历史标记，无自动续，Start严格+2。",
+      "trigger_and_boundary": "真实菜单/确认入口，不能用Continue等待不存在的prepare；Task固定S/A归属、resultContexts只读，晚回调与普通UI排空分开；旧pool已启用正例先成立。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -677,8 +677,8 @@
       "name": "testAdmittedOldRoundDownloadSettlesAndRefusesContinue",
       "kind": "stage-c-native-reserve",
       "group": "G8c",
-      "assertions": "旧轮下载Start已入场但ID返回被gate延迟时真实reservation=50MiB；切网放行后真实cancel；false/done=false正文7MiB仍保留50MiB，matching worker_done按实际正文结算used=7MiB/reserved=0且id不变；旧池enabled保留，再次点击下载不产生新Start。",
-      "trigger_and_boundary": "Start返回窗口由gate延迟真实backend.start；账本字段只读，结算走真实ledger.settle。",
+      "assertions": "保留holdDownload=true：真实旧轮admitted下载持久reserve=50MiB/Job.reserved只读、ID held时切B；false+nextPoll仍保预留，matching true计7MiB/归零且旧round不变；基线后恰一个Start（+1）；实际stale下载按钮disabled，合法原生DOWN/UP/CANCEL触摸后无Start、Root/selection_version/validation/cancelVersion不变、active空、旧池enabled保留。",
+      "trigger_and_boundary": "控件可见区域真实sendPointerSync，不强开控件、不调用要求enabled的click helper、不直接调用Controller；matching done后actorDrain才核终态。",
       "execution": "NOT RUN; Actions only",
       "source_path": "app/src/androidTest/java/com/x/client/app/PreferredIpContextRemainingTest.java"
     },
@@ -773,8 +773,39 @@
       "execution": "NOT RUN; Actions only"
     }
   ],
-  "mandatory_not_implemented": [],
-  "ci": "79 registered source cases; original41 preserved. Trial am instrument timeout900s/native step30min for bounded dialogs, 11-row ECH batches, refresh/theme/font/rotation and touch/a11y gates. Backend script poll wait30s remains checked/fail-closed. Non-native CI/Go/bind/cmp/cache/sign/publish/actions/deps untouched. All Android NOT RUN; the blocking production anchor finding still prevents final ready.",
+  "mandatory_not_implemented": [
+    {
+      "finding": "F4",
+      "group": "G7",
+      "stage": "E2",
+      "required": "真实Store validation首检稳定正例及B/ABA拒写；不同target在途最终server/advanced params/selected内存与持久version变化；部分通过仅selected交集、全失败保旧有效池与Resolver活性、未选地址不请求；合法Java不同fingerprint/Go canonical同reference的真实prepare回调复用；每个网络完成须matching exit/actor屏障。"
+    },
+    {
+      "finding": "F5",
+      "group": "G8",
+      "stage": "E2",
+      "required": "线程限定透明NetworkAccess证明worker确抵reserve前/Store锁等待；独立reserved=true且磁盘50MiB但Backend.start未调用的post-reserve窗口，分别B/ABA拒Start并释放未入场预留；异target validation prepare/probe各自held晚响应B及ABA矩阵，无dependent probe/提交且旧池活性保持。"
+    },
+    {
+      "finding": "F6",
+      "group": "G9",
+      "stage": "E3",
+      "required": "真实UI已admitted下载持久reserve后，身份匹配但round/reserved/used账务不匹配的worker_done；保reserved/旧used、active退出/ledgerBlocked、原生再输入无Start；真实新轮菜单cancel保持/confirm恢复、previous可追且不自动下载。"
+    },
+    {
+      "finding": "F7",
+      "group": "G10",
+      "stage": "E3",
+      "required": "C maintenance及D ECH例launch前真实Profile enable_ech=true且核request；合法ready立即过期wire触发同步prepare_required；成功维护expired-ready→可用ready/fallback；独立sticky fallback expires_at=0复用不强制TTL错误；Backend按实际请求/阶段验证合法metadata/error，禁用组为disabled。"
+    },
+    {
+      "finding": "F8",
+      "group": "G10",
+      "stage": "E3",
+      "required": "已有真实reference/非零used→行download reserve→同步prepare_required释放→同S/R空candidates/prefixes maintenance→一次download retry重预留；成功与再次拒绝独立变体，各阶段读真实ledger/保proof/time/queue/round/used，无第三派或预留泄漏。"
+    }
+  ],
+  "ci": "79 registered source cases; all Android NOT RUN. E1 adds no cases and changes no CI/timeout/summary, runner/parser names remain exact. Existing source guard still requires implemented and mandatory=[]; expected to reject this partial inventory until E2/E3 complete. No product build/test/CI/push/release executed.",
   "findings_map": [
     {
       "id": "F1",
@@ -808,8 +839,8 @@
     },
     {
       "id": "F7",
-      "status": "source-only-complete",
-      "evidence": "Stage A/B close G1/G3/G4/G6; C closes G7/G8; D closes G9/G10 source and registers 79 cases. No Android execution, no public-network/VPN proof; blocking anchor production finding remains separate."
+      "status": "partial",
+      "evidence": "此表为原b48七项finding，不是R2八项编号。R2确认G7–G10 mandatory未齐，先前source-only-complete声明撤回；见mandatory_not_implemented及r2_fix_findings。全部79例Android NOT RUN。"
     }
   ],
   "groups": [
@@ -845,23 +876,23 @@
     },
     {
       "id": "G7",
-      "status": "source-implemented",
-      "detail": "真实Clock transaction head/tail：intent先落盘、异target真实prepare/probe只写自身target_key子集、同canonical引用正例、following/independent/advanced conflict、多candidate旧validation子集累积；全Android NOT RUN。"
+      "status": "partial",
+      "detail": "已有target成功/subset/模式及真实Clock尾部反证保留；E1修Clock线程计数。F4完整首检/final Profile/version/通过子集/旧池/canonical回调仍mandatory，见清单。 全部Android NOT RUN。"
     },
     {
       "id": "G8",
-      "status": "source-implemented",
-      "detail": "晚reference complete回复不并入新网络、reserve前Store阻塞切网不Start、已入场旧下载false保留50MiB且matching worker_done按正文结算、拒绝旧池续下、prepare_required maintenance在Start返回窗口切网后不重试；全Android NOT RUN。"
+      "status": "partial",
+      "detail": "E1修真实重启晚reference/历史归属与当前completed=0、旧round下载+1/禁用原生输入；holdDownload=true保留。F5 reserve前确实到达/post-reserve未Start及异target prepare/probe B/ABA仍mandatory。 全部Android NOT RUN。"
     },
     {
       "id": "G9",
-      "status": "source-implemented",
-      "detail": "真实计费scan dialog cancel/Back/confirm、每IP下载dialog cancel/Back/confirm、跨UI task 7/57/100MiB、min(50,left)预留、false不结算/true归零、新scan不重置、失账拒续与显式新轮；全Android NOT RUN。"
+      "status": "partial",
+      "detail": "已有真实计费dialog/7-57-100MiB及菜单新轮保留；F6已admitted账务mismatch保reservation/blocked/主动恢复仍mandatory，死owner入场前拒绝不能替代。 全部Android NOT RUN。"
     },
     {
       "id": "G10",
-      "status": "source-implemented",
-      "detail": "同session两批自然probe复用ECH/queue/time/budget、TTL0仅一次maintenance与有界停止、成功维护保持proof与sticky fallback expires0不强刷；全Android NOT RUN。"
+      "status": "partial",
+      "detail": "已有人工脚本调度不能算合法ECH wire齐备；F7 enable_ech/ready过期/独立sticky及Backend合法性、F8真实download同步拒绝reserve释放/maintenance/retry两变体仍mandatory。 全部Android NOT RUN。"
     },
     {
       "id": "G11",
@@ -884,25 +915,91 @@
     "阶段C source=3e98dfb baseline=7a2；仅androidTest新9例+inventory/parser；真实Clock hook与Backend同步Start拒绝/指定admission gate只观真实事务窗口，不写State/Row/proof/Job。异target最终target的validation只写该最终Profile自身target_key子集（reference不嫁接），C以真实prepare/probe正例覆盖；锚点静态阻断仍独立未解。",
     "阶段D source=0a94704 baseline=7a2；仅新增androidTest 8例+inventory/parser/runner/CI计数；真实metered dialog/overflow新轮与同session ECH上界维护，不写State/Row/proof/ledger/Job。",
     "D终审另修正C例 testAdmittedOldRoundDownloadSettlesAndRefusesContinue 缺少 holdDownload 的fixture模式（断言与结算不变），并把 release.yml 注释/摘要同步为79例（6安全+73原生）。",
-    "D登记79例并清空mandatory_not_implemented；F7仅source-only-complete，全部Android NOT RUN；P-anchor-margin-coordinate仍阻断final ready。"
+    "D登记79例并清空mandatory_not_implemented；F7仅source-only-complete，全部Android NOT RUN；P-anchor-margin-coordinate仍阻断final ready。",
+    "2026-11-17 R2 fix-contract覆盖旧完成声明：source=a1affaf；E1仅F1–F3源码修复/登记，overall partial，F4–F8/E2/E3 mandatory，不自称Task25 ready；原findings_map仍指旧b48七项，R2八项另列r2_fix_findings。Task30已人工批准/修复/独立审过并在source，不重开或改main。"
   ],
   "stage": {
-    "completed_stage": "budget_ech_remaining",
+    "completed_stage": "r2_fix_e1",
     "stage_complete": true,
-    "source_commit": "0a9470450c851bda0f6eceda68cdcb7ca6e42671",
-    "baseline_commit": "7a2d5b27c653fc465b9dd72b9db1f40d68681bdc",
-    "meaning": "D source/registration/cleanup complete and all mandatory test cases registered; overall test status implemented only means source-complete, not Android execution or product static-ready. Frozen-main anchor coordinate defect still blocks product review/Task30 pending separately authorized repair and fresh review. All Android NOT RUN."
+    "source_commit": "a1affafef6c3fb0f926341079d98816bdb078cdf",
+    "baseline_commit": "a1affafef6c3fb0f926341079d98816bdb078cdf",
+    "meaning": "E1 F1/F2/F3 source/registration/cleanup complete only; overall partial until F4–F8/E2/E3. Neither fresh review nor Android PASS. All79 Android NOT RUN."
   },
   "blocking_production_findings": [
     {
       "id": "P-anchor-margin-coordinate",
-      "status": "confirmed-static-coordinate-defect-blocks-ready",
+      "status": "resolved-in-source-by-parent-reviewed-task30",
       "path": "app/src/main/java/com/x/client/app/PreferredIpActivity.java",
       "lines": "429/441/459 (7a2 frozen source)",
       "evidence": "Parent read-only verified 691 official APK SHA and 4DEX/11 complete methods: vertical decoratedStart=V-D-M; normal offset placement gives Vprime=P+O+D+M. Frozen 7a2 sets O=V-P, so non-boundary unchanged-anchor path adds D+M (current topMargin spacing_sm=8dp, no ItemDecoration). This is static byte/source evidence, not v2 execution or future dependency resolution proof.",
-      "contract": "No main repair permission. Keep exact real address/top/stableID and unchanged anchor height; use actual native gesture non-boundary31-row scenario and record decoratedTop/margin/padding/position. No tolerance/subtraction/extra scroll. Not Android run proof, but not merely ordinary runtime risk: blocks product static-ready/Task26 until independent resolution.",
+      "contract": "历史证据保留；最新fix-contract/sol-recovery覆盖旧未授权状态：Task30已批准并独立审过，0497d067 cherry-pick为a1affaf。E1不重开、不改main、不放宽严格anchor oracle。R3仍核集成单hunk。",
       "parent_evidence": "/opt/x-client/docs/cf-ip-plan/evidence/api24-anchor-9999c670/static-conclusion-and-proposal.md",
-      "tracking": "Task30 blocks26; no main repair authority granted to this writer."
+      "tracking": "Task30 source fix integrated at a1affaf; Android NOT RUN; fresh review and Actions remain parent gates."
+    }
+  ],
+  "r2_fix_findings": [
+    {
+      "id": "F1",
+      "status": "corrected-source-only",
+      "stage": "E1",
+      "cases": [
+        63,
+        64
+      ],
+      "detail": "selectionIO实际Thread限定validationCalls/gateHits，普通checkpoint透明；保尾部旧字节/revision/epoch及稳定正例。"
+    },
+    {
+      "id": "F2",
+      "status": "corrected-source-only",
+      "stage": "E1",
+      "cases": [
+        68
+      ],
+      "detail": "真实overflow/restart确认；晚回调前冻结results/归属副本，切网当前completed=0/历史行与旧池保持，matching drain/Start+2。"
+    },
+    {
+      "id": "F3",
+      "status": "corrected-source-only",
+      "stage": "E1",
+      "cases": [
+        70
+      ],
+      "detail": "holdDownload=true保留，Start+1；disabled可见按钮真实触摸后无Start/事务。"
+    },
+    {
+      "id": "F4",
+      "status": "mandatory-not-implemented",
+      "stage": "E2",
+      "group": "G7",
+      "detail": "真实Store validation首检稳定正例及B/ABA拒写；不同target在途最终server/advanced params/selected内存与持久version变化；部分通过仅selected交集、全失败保旧有效池与Resolver活性、未选地址不请求；合法Java不同fingerprint/Go canonical同reference的真实prepare回调复用；每个网络完成须matching exit/actor屏障。"
+    },
+    {
+      "id": "F5",
+      "status": "mandatory-not-implemented",
+      "stage": "E2",
+      "group": "G8",
+      "detail": "线程限定透明NetworkAccess证明worker确抵reserve前/Store锁等待；独立reserved=true且磁盘50MiB但Backend.start未调用的post-reserve窗口，分别B/ABA拒Start并释放未入场预留；异target validation prepare/probe各自held晚响应B及ABA矩阵，无dependent probe/提交且旧池活性保持。"
+    },
+    {
+      "id": "F6",
+      "status": "mandatory-not-implemented",
+      "stage": "E3",
+      "group": "G9",
+      "detail": "真实UI已admitted下载持久reserve后，身份匹配但round/reserved/used账务不匹配的worker_done；保reserved/旧used、active退出/ledgerBlocked、原生再输入无Start；真实新轮菜单cancel保持/confirm恢复、previous可追且不自动下载。"
+    },
+    {
+      "id": "F7",
+      "status": "mandatory-not-implemented",
+      "stage": "E3",
+      "group": "G10",
+      "detail": "C maintenance及D ECH例launch前真实Profile enable_ech=true且核request；合法ready立即过期wire触发同步prepare_required；成功维护expired-ready→可用ready/fallback；独立sticky fallback expires_at=0复用不强制TTL错误；Backend按实际请求/阶段验证合法metadata/error，禁用组为disabled。"
+    },
+    {
+      "id": "F8",
+      "status": "mandatory-not-implemented",
+      "stage": "E3",
+      "group": "G10",
+      "detail": "已有真实reference/非零used→行download reserve→同步prepare_required释放→同S/R空candidates/prefixes maintenance→一次download retry重预留；成功与再次拒绝独立变体，各阶段读真实ledger/保proof/time/queue/round/used，无第三派或预留泄漏。"
     }
   ]
 }
