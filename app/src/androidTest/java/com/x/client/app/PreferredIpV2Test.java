@@ -357,6 +357,15 @@ final class PreferredIpV2Test {
         final PreferredIpRuntime.Factory savedFactory;
         final String profileId = "preferred-v2-fixture";
         final PreferredIpStore store;
+        final PreferredIpFeedbackInstrumentation runner;
+        final PreferredIpFeedbackInstrumentation.Creating creationObserver;
+        PreferredIpFeedbackInstrumentation.Creating savedCreationObserver;
+        PreferredIpFeedbackInstrumentation.Created savedAfterCreate;
+        // Main-owned identity registry; never cleared, including while configuration cleanup recreates windows.
+        final List<Activity> createdActivities = new ArrayList<>();
+        final Set<Activity> activityIdentities = Collections.newSetFromMap(new IdentityHashMap<Activity, Boolean>());
+        final Set<Activity> verifiedActivityExits = Collections.newSetFromMap(new IdentityHashMap<Activity, Boolean>());
+        boolean activityObservationReliable = true;
         PreferredIpActivity activity; Activity cover; PreferredIpController controller;
         ScheduledExecutorService control; ExecutorService selection;
         boolean dispatchedStop; ReadFault fault; PreferredIpTestControl.StateTrace trace;
@@ -364,6 +373,8 @@ final class PreferredIpV2Test {
         final List<AutoCloseable> resources = new ArrayList<>();
         Fixture(Instrumentation i) throws Exception {
             this.i = i; target = i.getTargetContext();
+            runner = (PreferredIpFeedbackInstrumentation) i;
+            creationObserver = this::observeActivityCreation;
             prefs = target.getSharedPreferences(Preferences.PREFS_NAME, Context.MODE_MULTI_PROCESS);
             original = new HashMap<>(prefs.getAll()); savedFactory = PreferredIpRuntime.factory;
             dir = new File(target.getFilesDir(), "preferred-v2-" + System.nanoTime()); check(dir.mkdirs(), "case directory");
@@ -392,12 +403,93 @@ final class PreferredIpV2Test {
                     () -> clockHook == null ? 1730000003000L : clockHook.now());
                 return controller;
             };
+            main(() -> {
+                savedCreationObserver = runner.activityCreationObserver;
+                savedAfterCreate = runner.afterActivityCreate;
+                check(savedCreationObserver == null, "previous Fixture creation observer must be restored");
+                runner.activityCreationObserver = creationObserver;
+                check(runner.activityCreationObserver == creationObserver, "Fixture creation observation installed before any launch");
+            });
             } catch (Throwable failure) {
+                main(() -> { if (runner.activityCreationObserver == creationObserver) runner.activityCreationObserver = savedCreationObserver; });
                 PreferredIpRuntime.factory = savedFactory; restorePreferences(prefs, original); delete(dir);
                 if (failure instanceof Exception) throw (Exception) failure;
                 if (failure instanceof Error) throw (Error) failure;
                 throw new AssertionError(failure);
             }
+        }
+        void observeActivityCreation(Activity window) {
+            try { rememberActivity(window); }
+            catch (Throwable failure) { activityObservationReliable = false; failures.add(failure); }
+        }
+        void rememberActivity(Activity window) {
+            check(Looper.myLooper() == Looper.getMainLooper(), "Activity identity registration stays on main");
+            if (window != null && activityIdentities.add(window)) createdActivities.add(window);
+        }
+        List<Activity> activitySnapshot() {
+            List<Activity> snapshot = new ArrayList<>();
+            main(() -> snapshot.addAll(createdActivities));
+            return snapshot;
+        }
+        void verifyActivityExits() throws Exception {
+            check(Looper.myLooper() == Looper.getMainLooper(), "Activity exit seal is atomic with creation observation");
+            check(activityObservationReliable && runner.activityCreationObserver == creationObserver, "creation observation stayed reliable through all window exits");
+            check(runner.afterActivityCreate == savedAfterCreate, "existing first-bind creation hook safely restored by its owner");
+            for (Activity window : createdActivities) {
+                check(verifiedActivityExits.contains(window) && window.isDestroyed(), "every created Activity has an acknowledged real onDestroy");
+                if (window instanceof PreferredIpActivity)
+                    check(((ExecutorService) field(window, "differ")).isTerminated(), "each created Activity's own differ has terminated");
+            }
+        }
+        boolean closeActivities() {
+            Set<Activity> attempted = Collections.newSetFromMap(new IdentityHashMap<Activity, Boolean>());
+            boolean exited = true;
+            try { main(() -> {
+                if ((cover != null && !activityIdentities.contains(cover)) || (activity != null && !activityIdentities.contains(activity))) {
+                    activityObservationReliable = false;
+                    failures.add(new IllegalStateException("a live test window missed actual lifecycle creation observation"));
+                }
+                rememberActivity(cover); rememberActivity(activity); // Best-effort exit still includes an unobserved window, but cannot pass the seal.
+            }); }
+            catch (Throwable failure) { failures.add(failure); exited = false; }
+            // Finish/destroy acknowledgements are terminal for each instance. New generations observed
+            // during those acknowledgements extend the batch; idle alone is never an exit condition.
+            for (int generation = 0; generation < 100; generation++) {
+                List<Activity> windows;
+                try { windows = activitySnapshot(); }
+                catch (Throwable failure) { failures.add(failure); return false; }
+                for (Activity window : windows) {
+                    if (!attempted.add(window)) continue;
+                    boolean destroyed = false, differExited = !(window instanceof PreferredIpActivity);
+                    try {
+                        main(() -> {
+                            if (window == activity && dispatchedStop && !window.isDestroyed()) {
+                                i.callActivityOnRestart(activity); i.callActivityOnStart(activity); i.callActivityOnResume(activity); dispatchedStop = false;
+                            }
+                            if (!window.isDestroyed() && !window.isFinishing()) window.finish();
+                        });
+                    } catch (Throwable failure) { failures.add(failure); exited = false; }
+                    try { until(() -> onMain(window::isDestroyed), "every created Activity real onDestroy"); destroyed = true; }
+                    catch (Throwable failure) { failures.add(failure); exited = false; }
+                    // Independent from finish/destroy failure: always try this window's own differ too.
+                    if (window instanceof PreferredIpActivity) try {
+                        ExecutorService differ = onMain(() -> (ExecutorService) field(window, "differ"));
+                        check(differ.awaitTermination(10, TimeUnit.SECONDS), "every created Activity differ terminated after onDestroy");
+                        differExited = true;
+                    } catch (Throwable failure) { failures.add(failure); exited = false; }
+                    if (destroyed && differExited) try { main(() -> verifiedActivityExits.add(window)); }
+                    catch (Throwable failure) { failures.add(failure); exited = false; }
+                }
+                try {
+                    boolean sameGeneration = onMain(() -> {
+                        if (createdActivities.size() != windows.size()) return false;
+                        verifyActivityExits(); return true;
+                    });
+                    if (sameGeneration) return exited;
+                } catch (Throwable failure) { failures.add(failure); return false; }
+            }
+            failures.add(new IllegalStateException("Activity creation did not converge to acknowledged window/differ exits"));
+            return false;
         }
         void main(Runnable r) { if (Looper.myLooper() == Looper.getMainLooper()) r.run(); else i.runOnMainSync(r); }
         <T> T onMain(Callable<T> action) throws Exception {
@@ -451,6 +543,7 @@ final class PreferredIpV2Test {
         void launch() throws Exception {
             activity = (PreferredIpActivity) i.startActivitySync(new Intent(target, PreferredIpActivity.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra(ProfileEditActivity.EXTRA_PROFILE_ID, profileId));
+            main(() -> check(activityIdentities.contains(activity), "actual Instrumentation creation observation captured the initial Activity"));
             control = (ScheduledExecutorService) field(controller, "control"); selection = (ExecutorService) field(controller, "selectionIO");
             settle(); until(() -> state() != null, "initial State");
         }
@@ -569,23 +662,8 @@ final class PreferredIpV2Test {
                     try { actorDrain(); actorsIdle = true; } catch (Throwable e) { failures.add(e); }
                 }
             }
-            List<Activity> windows = new ArrayList<>(); if (cover != null) windows.add(cover); if (activity != null) windows.add(activity);
-            for (Activity window : windows) failures.attempt(() -> main(() -> {
-                if (window == activity && dispatchedStop) {
-                    i.callActivityOnRestart(activity); i.callActivityOnStart(activity); i.callActivityOnResume(activity); dispatchedStop = false;
-                }
-                if (!window.isDestroyed() && !window.isFinishing()) window.finish();
-            }));
-            boolean windowsExited = true;
-            for (Activity window : windows) {
-                try {
-                    until(() -> onMain(window::isDestroyed), "real Activity onDestroy");
-                    if (window instanceof PreferredIpActivity) {
-                        ExecutorService differ = onMain(() -> (ExecutorService) field(window, "differ"));
-                        check(differ.awaitTermination(10, TimeUnit.SECONDS), "Activity differ terminated after onDestroy");
-                    }
-                } catch (Throwable e) { failures.add(e); windowsExited = false; }
-            }
+            boolean windowsExited = closeActivities();
+            final PreferredIpController closingController = controller;
             boolean traceRestored = trace == null, controllersExited = controller == null;
             if (drained && actorsIdle && windowsExited) {
                 if (trace != null) {
@@ -602,9 +680,23 @@ final class PreferredIpV2Test {
                     main(() -> { }); // Drain all final same-Looper publications, never remove them ourselves.
                 }
             }
+            boolean observationRestored = false;
             if (controllersExited && windowsExited && traceRestored) {
-                failures.attempt(() -> check(backend.admitted.isEmpty(), "no admitted fixture slot"));
-                failures.attempt(() -> check(network.callback == null, "network unwatched"));
+                // Keep observing through Controller shutdown/final main dispatch, then recheck every identity.
+                boolean finalWindowsExited = closeActivities();
+                if (finalWindowsExited) try {
+                    onMain(() -> {
+                        verifyActivityExits();
+                        check(controller == closingController, "no replacement Controller was created during final window exit");
+                        check(backend.admitted.isEmpty() && network.callback == null, "no worker slot or network watch remains live");
+                        runner.activityCreationObserver = savedCreationObserver;
+                        check(runner.activityCreationObserver == savedCreationObserver, "Fixture creation observer restored only after all exits");
+                        return null;
+                    });
+                    observationRestored = true;
+                } catch (Throwable failure) { failures.add(failure); }
+            }
+            if (controllersExited && windowsExited && traceRestored && observationRestored) {
                 PreferredIpRuntime.factory = savedFactory;
                 failures.attempt(() -> restorePreferences(prefs, original));
                 failures.attempt(() -> delete(dir));

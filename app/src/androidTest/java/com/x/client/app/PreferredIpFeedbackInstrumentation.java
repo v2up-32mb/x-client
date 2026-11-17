@@ -11,10 +11,16 @@ import android.util.Log;
  * Network fixture assertions are NOT public-network/ECHAccepted/VPN authentication evidence. */
 public final class PreferredIpFeedbackInstrumentation extends Instrumentation {
     private static final int TOTAL = PreferredIpFeedbackTest.TOTAL + PreferredIpV2Test.NAMES.length + PreferredIpV2ContinuationTest.NAMES.length + PreferredIpUiRemainingTest.NAMES.length + PreferredIpConfigurationCancelTest.NAMES.length + PreferredIpContextRemainingTest.NAMES.length + PreferredIpBudgetEchRemainingTest.NAMES.length + PreferredIpValidationRemainingTest.NAMES.length + PreferredIpDownloadRemainingTest.NAMES.length;
+    interface Creating { void creating(Activity activity); }
+    Creating activityCreationObserver; // Fixture identity tracking, independent of the first-bind afterCreate hook.
     interface Created { void afterCreate(Activity activity); }
     Created afterActivityCreate;
     @Override public void callActivityOnCreate(Activity activity, Bundle saved) {
-        super.callActivityOnCreate(activity, saved);
+        // Track even a partially failed creation. The original lifecycle dispatch still runs exactly once.
+        try {
+            Creating tracking = activityCreationObserver;
+            if (tracking != null) tracking.creating(activity);
+        } finally { super.callActivityOnCreate(activity, saved); }
         Created observer = afterActivityCreate;
         if (observer != null) observer.afterCreate(activity);
     }

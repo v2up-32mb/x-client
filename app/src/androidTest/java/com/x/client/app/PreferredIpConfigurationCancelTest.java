@@ -35,7 +35,6 @@ import static com.x.client.app.PreferredIpUiRemainingTest.Anchor;
 import static com.x.client.app.PreferredIpUiRemainingTest.assertWidgets;
 import static com.x.client.app.PreferredIpUiRemainingTest.header;
 import static com.x.client.app.PreferredIpUiRemainingTest.middleByGesture;
-import static com.x.client.app.PreferredIpUiRemainingTest.nextVisible;
 import static com.x.client.app.PreferredIpUiRemainingTest.select;
 import static com.x.client.app.PreferredIpUiRemainingTest.verticalGesture;
 
@@ -122,9 +121,6 @@ final class PreferredIpConfigurationCancelTest {
     static final class ConfigurationGuard implements AutoCloseable {
         final Fixture f;
         final PreferredIpUiRemainingTest.NativeAccess ui;
-        final PreferredIpFeedbackInstrumentation runner;
-        final PreferredIpFeedbackInstrumentation.Created savedHook;
-        final List<Activity> created = new ArrayList<>();
         final float originalFont;
         final int originalTheme, originalNight;
         int originalOrientation = -1, originalRequested = -1;
@@ -141,13 +137,7 @@ final class PreferredIpConfigurationCancelTest {
             Object persisted = f.original.get(Preferences.THEME_MODE);
             originalTheme = persisted instanceof Integer ? (Integer) persisted : Preferences.THEME_SYSTEM;
             originalNight = AppCompatDelegate.getDefaultNightMode();
-            runner = (PreferredIpFeedbackInstrumentation) f.i;
-            savedHook = runner.afterActivityCreate;
-            f.resources.add(this); // closes BEFORE NativeAccess restores serviceInfo
-            f.main(() -> runner.afterActivityCreate = activity -> {
-                created.add(activity);
-                if (savedHook != null) savedHook.afterCreate(activity);
-            });
+            f.resources.add(this); // closes BEFORE NativeAccess restores serviceInfo; Fixture tracks all creations through restoration.
         }
 
         @Override public void close() throws Exception {
@@ -189,8 +179,7 @@ final class PreferredIpConfigurationCancelTest {
                 f.failures.add(new IllegalStateException("configuration restore withheld under live actors; fail closed"));
             }
             f.failures.attempt(this::current);
-            try { f.main(() -> runner.afterActivityCreate = savedHook); }
-            catch (Throwable failure) { f.failures.add(failure); }
+            // Fixture creation observation stays installed without replacing afterActivityCreate's first-bind hook.
         }
 
         // ---------------------------------------------------------------- real Activity identity
@@ -222,7 +211,7 @@ final class PreferredIpConfigurationCancelTest {
         int instanceCount() throws Exception {
             return f.onMain(() -> {
                 Set<Activity> ids = new HashSet<>();
-                for (Activity activity : created) if (activity instanceof PreferredIpActivity) ids.add(activity);
+                for (Activity activity : f.activitySnapshot()) if (activity instanceof PreferredIpActivity) ids.add(activity);
                 return ids.size();
             });
         }
@@ -252,11 +241,11 @@ final class PreferredIpConfigurationCancelTest {
         }
 
         void restoreOrientation() throws Exception {
-            PreferredIpActivity live = current();
-            if (f.onMain(() -> live.getResources().getConfiguration().orientation) != originalOrientation) rotateTo(originalOrientation);
-            live = current();
-            if (f.onMain(live::getRequestedOrientation) != originalRequested) {
-                f.main(() -> live.setRequestedOrientation(originalRequested));
+            final PreferredIpActivity beforeRotation = current();
+            if (f.onMain(() -> beforeRotation.getResources().getConfiguration().orientation) != originalOrientation) rotateTo(originalOrientation);
+            final PreferredIpActivity afterRotation = current();
+            if (f.onMain(afterRotation::getRequestedOrientation) != originalRequested) {
+                f.main(() -> afterRotation.setRequestedOrientation(originalRequested));
                 f.i.waitForIdleSync();
                 ui.automation.waitForIdle(100, 2000);
                 current();
@@ -271,33 +260,62 @@ final class PreferredIpConfigurationCancelTest {
 
         // ---------------------------------------------------------------- real nodes
 
+        void retainRoot(List<AccessibilityNodeInfo> roots, AccessibilityNodeInfo root) {
+            if (root == null) return;
+            boolean retained = false;
+            try { roots.add(root); retained = true; }
+            finally { if (!retained) f.failures.attempt(root::recycle); }
+        }
+        void recycleWindows(List<AccessibilityWindowInfo> windows) {
+            if (windows != null) for (AccessibilityWindowInfo window : windows)
+                f.failures.attempt(window::recycle); // One recycle failure must not skip any other window.
+        }
+        void recycleFailedRoots(List<AccessibilityNodeInfo> roots) {
+            for (AccessibilityNodeInfo root : roots) f.failures.attempt(root::recycle);
+        }
         List<AccessibilityNodeInfo> allRoots() {
             List<AccessibilityNodeInfo> roots = new ArrayList<>();
-            for (AccessibilityWindowInfo window : ui.automation.getWindows()) {
-                AccessibilityNodeInfo root = window.getRoot();
-                if (root != null) roots.add(root);
+            List<AccessibilityWindowInfo> windows = null;
+            boolean transferred = false;
+            try {
+                windows = ui.automation.getWindows();
+                for (AccessibilityWindowInfo window : windows) retainRoot(roots, window.getRoot());
+                if (roots.isEmpty()) retainRoot(roots, ui.automation.getRootInActiveWindow());
+                transferred = true; return roots; // Caller owns only these roots, never the window list.
+            } catch (RuntimeException | Error failure) { f.failures.add(failure); throw failure; }
+            finally {
+                recycleWindows(windows);
+                if (!transferred) recycleFailedRoots(roots);
             }
-            if (roots.isEmpty()) {
-                AccessibilityNodeInfo root = ui.automation.getRootInActiveWindow();
-                if (root != null) roots.add(root);
-            }
-            return roots;
         }
 
         List<AccessibilityNodeInfo> freshRoots(Set<Integer> before) {
             List<AccessibilityNodeInfo> roots = new ArrayList<>();
-            for (AccessibilityWindowInfo window : ui.automation.getWindows()) {
-                if (before.contains(window.getId())) continue;
-                AccessibilityNodeInfo root = window.getRoot();
-                if (root != null) roots.add(root);
+            List<AccessibilityWindowInfo> windows = null;
+            boolean transferred = false;
+            try {
+                windows = ui.automation.getWindows();
+                for (AccessibilityWindowInfo window : windows) {
+                    if (before.contains(window.getId())) continue;
+                    retainRoot(roots, window.getRoot());
+                }
+                transferred = true; return roots;
+            } catch (RuntimeException | Error failure) { f.failures.add(failure); throw failure; }
+            finally {
+                recycleWindows(windows);
+                if (!transferred) recycleFailedRoots(roots);
             }
-            return roots;
         }
 
         Set<Integer> windowIds() {
             Set<Integer> ids = new HashSet<>();
-            for (AccessibilityWindowInfo window : ui.automation.getWindows()) ids.add(window.getId());
-            return ids;
+            List<AccessibilityWindowInfo> windows = null;
+            try {
+                windows = ui.automation.getWindows();
+                for (AccessibilityWindowInfo window : windows) ids.add(window.getId());
+                return ids;
+            } catch (RuntimeException | Error failure) { f.failures.add(failure); throw failure; }
+            finally { recycleWindows(windows); }
         }
 
         List<AccessibilityNodeInfo> collect(List<AccessibilityNodeInfo> roots, Match match) {
@@ -413,6 +431,7 @@ final class PreferredIpConfigurationCancelTest {
             for (int attempt = 0; attempt < 100; attempt++) {
                 f.main(() -> {
                     live[0] = null;
+                    List<Activity> created = f.activitySnapshot();
                     for (int n = created.size() - 1; n >= 0; n--) {
                         Activity activity = created.get(n);
                         if (activity instanceof SettingsActivity && !activity.isDestroyed() && !activity.isFinishing()) {
@@ -763,6 +782,10 @@ final class PreferredIpConfigurationCancelTest {
         select(f, X, true);
         f.show(X); f.click(f.widget(X, R.id.preferred_row_heading)); f.publish(); f.draw();
         check(f.controller.expanded.contains(X), "native fold before the configuration change");
+        f.show(V6); f.click(f.widget(V6, R.id.preferred_row_heading)); f.publish(); f.draw();
+        check(f.controller.expanded.contains(V6), "native IPv6 heading expanded before any configuration change");
+        eq(View.VISIBLE, f.onMain(() -> f.rowWidget(V6, R.id.preferred_row_detail).getVisibility()));
+        check(f.onMain(() -> f.rowWidget(V6, R.id.preferred_row_detail).isShown()), "expanded IPv6 detail is actually shown");
         long version = f.store.read().getLong("selection_version");
         config.theme(theme);
         float scale = config.font(large);
@@ -772,6 +795,8 @@ final class PreferredIpConfigurationCancelTest {
         // Selection and fold are address identity, so they must survive the real recreation.
         f.show(X); eq(true, f.checked(X)); check(f.controller.expanded.contains(X), "fold retained by address");
         f.show(V6);
+        check(f.controller.expanded.contains(V6), "IPv6 fold retained through actual configuration change");
+        eq(View.VISIBLE, f.onMain(() -> f.rowWidget(V6, R.id.preferred_row_detail).getVisibility()));
         f.onMain(() -> {
             View row = f.rowWidget(V6, 0);
             View heading = row.findViewById(R.id.preferred_row_heading), choice = row.findViewById(R.id.preferred_choice);
@@ -791,8 +816,18 @@ final class PreferredIpConfigurationCancelTest {
         middleByGesture(f);
         check(scrolled.get() > 0, "real vertical native motion after the configuration change");
         Anchor anchor = new Anchor(f);
-        String secondary = nextVisible(f, anchor);
+        String secondary = f.onMain(() -> {
+            for (int n = 0; n < f.list().getChildCount(); n++) {
+                View row = f.list().getChildAt(n); Object address = row.getTag();
+                if (!(address instanceof String) || address.equals(anchor.address) || X.equals(address) || V6.equals(address)) continue;
+                View heading = row.findViewById(R.id.preferred_row_heading);
+                if (heading != null && heading.isShown()) return (String) address;
+            }
+            throw new AssertionError("an actual visible secondary heading distinct from anchor/X/expanded V6 is required");
+        });
+        check(!f.controller.expanded.contains(secondary), "secondary starts folded; the IPv6 retention premise is not toggled away");
         f.click(f.widget(secondary, R.id.preferred_row_heading)); f.publish(); f.draw();
+        check(f.controller.expanded.contains(secondary), "real secondary heading changed its own content");
         anchor.assertPreserved(f); // Exact production anchor contract; no margin compensation or tolerance.
         assertWidgets(f);
         for (int n = 0; n < 16; n++) {
