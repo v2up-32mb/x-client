@@ -17,7 +17,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** One process-retained UI session, one Go network slot, independent short selection transactions.
- * State belongs to control; blocking Go polling NEVER occupies control, canceller or selectionIO. */
+ * State belongs to control; blocking Go polling NEVER occupies control, canceller or storageIO. */
 final class PreferredIpController {
     interface Listener {
         void changed(State state);
@@ -63,8 +63,7 @@ final class PreferredIpController {
     private final ScheduledExecutorService control = Executors.newSingleThreadScheduledExecutor();
     private final ExecutorService networkIO = Executors.newSingleThreadExecutor();
     private final ExecutorService canceller = Executors.newSingleThreadExecutor();
-    private final ExecutorService selectionIO = Executors.newSingleThreadExecutor();
-    private final ExecutorService historyIO = Executors.newSingleThreadExecutor();
+    private final ExecutorService storageIO = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
     private final AtomicLong scanEpoch = new AtomicLong(), selectionVersion = new AtomicLong(), cancelVersion = new AtomicLong();
     private volatile Listener listener;
@@ -112,11 +111,11 @@ final class PreferredIpController {
         store = new PreferredIpStore(this.context); history = new PreferredIpHistory(this.context);
         ledger = new PreferredIpLedger(store); network = net.id();
         control.scheduleWithFixedDelay(() -> safe(() -> { checkContext(); schedule(); if (dirty) publish(); }), 0, 500, TimeUnit.MILLISECONDS);
-        selectionIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 JSONObject loaded = store.read();
                 post(() -> { acceptData(loaded); message = "勾选即保存；下次连接生效，不重连VPN"; });
-                historyIO.execute(() -> loadHistory(loaded));
+                storageIO.execute(() -> loadHistory(loaded));
             } catch (Exception e) { error(e); }
         });
     }
@@ -144,7 +143,7 @@ final class PreferredIpController {
         listener = next; foreground = true;
         net.watch(this::networkChanged);
         networkChanged();
-        selectionIO.execute(() -> { try { JSONObject latest = store.read(); post(() -> acceptData(latest)); } catch (Exception e) { error(e); } });
+        storageIO.execute(() -> { try { JSONObject latest = store.read(); post(() -> acceptData(latest)); } catch (Exception e) { error(e); } });
         post(() -> { dirty = true; publish(); });
     }
     void detach(boolean rotating) {
@@ -158,7 +157,7 @@ final class PreferredIpController {
         post(() -> { if (active == null) shutdown(); else disposeWhenDone = true; });
     }
     private boolean disposeWhenDone;
-    private void shutdown() { control.shutdown(); networkIO.shutdown(); canceller.shutdown(); selectionIO.shutdown(); historyIO.shutdown(); sourceIO.shutdown(); }
+    private void shutdown() { control.shutdown(); networkIO.shutdown(); canceller.shutdown(); storageIO.shutdown(); }
     private void post(Work work) { if (!control.isShutdown()) control.execute(() -> safe(work)); }
     private void safe(Work work) { try { work.run(); } catch (Exception e) { message = shortError(e); dirty = true; } }
     private void error(Exception e) { post(() -> { message = shortError(e); dirty = true; }); }
@@ -218,7 +217,7 @@ final class PreferredIpController {
         // Advanced credentials are only hashed, never persisted or displayed.
         return PreferredIpIds.opaque("reference", id + "|" + merged.toString());
     }
-    /** Safe on control and selectionIO: never read control-owned maps/JSON or relabel a proof.
+    /** Safe on control and storageIO: never read control-owned maps/JSON or relabel a proof.
      * The final epoch check also rejects A→B→A during the reference/network reads. */
     private boolean contextCurrent(ScanContext proof) {
         if (proof == null || proof != scanContext || proof.epoch != scanEpoch.get()
@@ -257,7 +256,7 @@ final class PreferredIpController {
         });
     }
     void parseReplacement(String content, String id) {
-        sourceIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 if (content.getBytes(StandardCharsets.UTF_8).length > 2 * 1024 * 1024) throw new IllegalArgumentException("文本超过2MiB");
                 JSONObject response = new JSONObject(backend.parse(content, id, "manual"));
@@ -330,7 +329,7 @@ final class PreferredIpController {
         preparingDisk = true; phase = "准备候选 / ECH"; dirty = true;
         final ScanContext proof = scanContext;
         final long cancellation = cancelVersion.get();
-        selectionIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 String roundId = ledger.beforePrepare(newRound);
                 JSONObject latest = store.read();
@@ -656,7 +655,7 @@ final class PreferredIpController {
                 return;
             }
             selectionVersion.incrementAndGet(); selectionPending++; validationAllowed = true; dirty = true;
-            selectionIO.execute(() -> {
+            storageIO.execute(() -> {
                 try {
                     JSONObject saved = store.update(root -> {
                         if (selected && !selectionContextCurrent(proof, profileSignature)) throw new IllegalStateException("上下文已变化，未保存新增选择");
@@ -800,7 +799,7 @@ final class PreferredIpController {
         }
         dirty = true;
         if (addresses.length() == 0) return; // A failed new check never destroys a user's historical effective pool.
-        selectionIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 JSONObject saved = store.update(root -> {
                     if (!validationCurrent(proofContext, version, profileSignature)
@@ -849,7 +848,7 @@ final class PreferredIpController {
     }
     void disable() {
         selectionVersion.incrementAndGet();
-        selectionIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 JSONObject saved = store.update(root -> {
                     root.put("enabled", false).put("user_disabled", true);
@@ -862,7 +861,7 @@ final class PreferredIpController {
     void enable() {
         post(() -> {
             selectionVersion.incrementAndGet(); validationSeen.clear(); validationAllowed = true;
-            selectionIO.execute(() -> {
+            storageIO.execute(() -> {
                 try {
                     JSONObject saved = store.update(root -> root.put("user_disabled", false));
                     post(() -> { acceptData(saved); message = "允许启用；当前真实节点验证通过后生效"; validateSelections(true); });
@@ -886,13 +885,12 @@ final class PreferredIpController {
                 if (response.getJSONArray("errors").length() > 0) {
                     parsed = response; parseSource = id; parseKind = kind; parseUrl = url; parseAppend = false;
                     message = "来源含无效行，保留旧快照；请确认只导入有效行";
-                } else sourceIO.execute(() -> replaceSource(id, url, kind, response, false));
+                } else storageIO.execute(() -> replaceSource(id, url, kind, response, false));
             }));
         });
     }
-    private final ExecutorService sourceIO = Executors.newSingleThreadExecutor();
     void parse(String content, String id, String kind) {
-        sourceIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 if (content.getBytes(StandardCharsets.UTF_8).length > 2 * 1024 * 1024) throw new IllegalArgumentException("文本超过2MiB");
                 JSONObject response = new JSONObject(backend.parse(content, id, kind));
@@ -902,7 +900,7 @@ final class PreferredIpController {
         });
     }
     void importFile(Uri uri) {
-        sourceIO.execute(() -> {
+        storageIO.execute(() -> {
             try (InputStream in = context.getContentResolver().openInputStream(uri); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 if (in == null) throw new IllegalStateException("无法读取 TXT");
                 byte[] buffer = new byte[8192]; int n;
@@ -917,7 +915,7 @@ final class PreferredIpController {
         });
     }
     void legacy() {
-        sourceIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 StringBuilder text = new StringBuilder(); Preferences prefs = new Preferences(context);
                 for (Preferences.ProfileInfo profile : prefs.getProfileList()) {
@@ -941,7 +939,7 @@ final class PreferredIpController {
         post(() -> {
             if (parsed == null) return;
             JSONObject response = parsed; String id = parseSource, kind = parseKind, url = parseUrl; boolean append = parseAppend;
-            sourceIO.execute(() -> replaceSource(id, url, kind, response, append));
+            storageIO.execute(() -> replaceSource(id, url, kind, response, append));
             parsed = null; dirty = true;
         });
     }
@@ -963,7 +961,7 @@ final class PreferredIpController {
     void enableSource(String id, boolean enabled) { changeSource(id, enabled, false); }
     void deleteSource(String id) { changeSource(id, false, true); }
     private void changeSource(String id, boolean enabled, boolean delete) {
-        sourceIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 JSONObject saved = store.update(root -> {
                     JSONArray old = root.getJSONArray("sources"), kept = new JSONArray();
@@ -1017,7 +1015,7 @@ final class PreferredIpController {
         JSONObject snapshot = historySnapshot(); if (snapshot.length() == 0) return;
         // Called at batch completion / pause only, never at the 500ms render cadence.
         JSONObject frozen = new JSONObject(snapshot.toString());
-        historyIO.execute(() -> {
+        storageIO.execute(() -> {
             try {
                 history.write(frozen, false);
                 if ("completed".equals(frozen.optString("state"))) history.write(frozen, true);
