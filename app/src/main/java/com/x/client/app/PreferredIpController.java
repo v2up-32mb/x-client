@@ -878,7 +878,11 @@ final class PreferredIpController {
             JSONObject request = new JSONObject().put("operation", "fetch").put("network_id", network)
                     .put("source", new JSONObject().put("id", id).put("url", url).put("kind", kind));
             launch(new Job(null, request, "fetch", response -> {
-                if (!"completed".equals(response.optString("state"))) { message = "来源更新未完成，保留旧快照"; return; }
+                if (!"completed".equals(response.optString("state"))) {
+                    String err = response.optString("error");
+                    message = (err != null && !err.isEmpty()) ? err : "来源更新未完成，保留旧快照";
+                    return;
+                }
                 if (response.getJSONArray("errors").length() > 0) {
                     parsed = response; parseSource = id; parseKind = kind; parseUrl = url; parseAppend = false;
                     message = "来源含无效行，保留旧快照；请确认只导入有效行";

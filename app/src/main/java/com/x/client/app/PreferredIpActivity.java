@@ -57,6 +57,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
     private long interaction;
     private int initialSample = 256, initialConcurrency = 8, initialReference;
     private android.os.Parcelable pendingScroll;
+    private String pendingAction = null;
+    private String pendingActionTarget = null;
 
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved);
@@ -156,19 +158,42 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         sourceUrl.setText(controller.urlDraft);
         manual.setText(controller.manualDraft);
 
-        btnFetchV4.setOnClickListener(v -> controller.fetch("cf-v4", "https://www.cloudflare.com/ips-v4", "cidr4"));
-        btnFetchV6.setOnClickListener(v -> controller.fetch("cf-v6", "https://www.cloudflare.com/ips-v6", "cidr6"));
+        btnFetchV4.setOnClickListener(v -> {
+            pendingAction = "fetch_v4";
+            pendingActionTarget = "cf-v4";
+            controller.fetch("cf-v4", "https://www.cloudflare.com/ips-v4", "cidr4");
+        });
+        btnFetchV6.setOnClickListener(v -> {
+            pendingAction = "fetch_v6";
+            pendingActionTarget = "cf-v6";
+            controller.fetch("cf-v6", "https://www.cloudflare.com/ips-v6", "cidr6");
+        });
         sourceNetworkButtons.add(btnFetchV4);
         sourceNetworkButtons.add(btnFetchV6);
 
         btnFetchList.setOnClickListener(v -> {
             String url = sourceUrl.getText().toString().trim();
-            if (!url.startsWith("https://")) { sourceUrl.setError("请使用 HTTPS URL"); return; }
+            if (!url.startsWith("https://")) {
+                sourceUrl.setError("请使用 HTTPS URL");
+                confirm("URL 格式错误", "第三方列表必须使用 https:// 开头的有效链接", () -> {});
+                return;
+            }
+            pendingAction = "fetch_list";
+            pendingActionTarget = url;
             controller.fetch(PreferredIpIds.opaque("list", url), url, "list");
         });
         sourceNetworkButtons.add(btnFetchList);
 
-        btnParseManual.setOnClickListener(v -> controller.parse(manual.getText().toString(), "manual", "manual"));
+        btnParseManual.setOnClickListener(v -> {
+            String text = manual.getText().toString().trim();
+            if (text.isEmpty()) {
+                manual.setError("请输入或粘贴 IP 内容");
+                return;
+            }
+            pendingAction = "parse_manual";
+            pendingActionTarget = "manual";
+            controller.parse(text, "manual", "manual");
+        });
         btnLegacy.setOnClickListener(v -> controller.legacy());
         accept.setOnClickListener(v -> controller.acceptParsed());
 
@@ -296,7 +321,92 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         else start.run();
     }
 
+    private static boolean isSourcePresent(JSONArray sources, String id) {
+        if (sources == null || id == null) return false;
+        for (int i = 0; i < sources.length(); i++) {
+            JSONObject s = sources.optJSONObject(i);
+            if (s != null && id.equals(s.optString("id"))) return true;
+        }
+        return false;
+    }
+
+    private void handlePendingActionResult(PreferredIpController.State next) {
+        String action = pendingAction;
+        String target = pendingActionTarget;
+        pendingAction = null;
+        pendingActionTarget = null;
+
+        if ("fetch_list".equals(action)) {
+            String sourceId = PreferredIpIds.opaque("list", target);
+            boolean added = isSourcePresent(next.data.optJSONArray("sources"), sourceId);
+            if (next.parse != null) {
+                JSONArray cands = next.parse.optJSONArray("candidates");
+                JSONArray errs = next.parse.optJSONArray("errors");
+                int candCount = cands == null ? 0 : cands.length();
+                int errCount = errs == null ? 0 : errs.length();
+                if (candCount > 0) {
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle("第三方列表解析结果")
+                            .setMessage("已获取到 " + candCount + " 个有效中转 IP" + (errCount > 0 ? "（另有 " + errCount + " 行不合规或注释行已自动过滤）" : "") + "。\n\n是否立即加入已配置来源？")
+                            .setNegativeButton("放弃", null)
+                            .setPositiveButton("立即导入有效候选", (d, w) -> {
+                                controller.acceptParsed();
+                                Toast.makeText(this, "已成功导入 " + candCount + " 个中转 IP", Toast.LENGTH_SHORT).show();
+                            })
+                            .show();
+                } else {
+                    confirm("未解析到有效 IP", "该列表中未发现符合「IP:端口」格式的有效中转 IP（共 " + errCount + " 行不合规）。请检查该列表内容。\n\n标准格式示例：\n104.16.24.5:443#香港", () -> {});
+                }
+            } else if (added) {
+                Toast.makeText(this, "第三方列表已成功加入！", Toast.LENGTH_SHORT).show();
+            } else {
+                String errMsg = next.message;
+                if (errMsg == null || errMsg.isEmpty() || errMsg.contains("已保存")) {
+                    errMsg = "无法从该链接获取内容或列表内容为空，请检查链接可达性。";
+                }
+                confirm("获取第三方列表失败", errMsg, () -> {});
+            }
+        } else if ("fetch_v4".equals(action) || "fetch_v6".equals(action)) {
+            boolean added = isSourcePresent(next.data.optJSONArray("sources"), target);
+            if (added) {
+                Toast.makeText(this, "官方 IP 来源已更新", Toast.LENGTH_SHORT).show();
+            } else {
+                String errMsg = next.message;
+                if (errMsg == null || errMsg.isEmpty()) errMsg = "更新官方地址库失败，请检查网络连接。";
+                confirm("更新失败", errMsg, () -> {});
+            }
+        } else if ("refresh_source".equals(action)) {
+            if (next.message != null && (next.message.contains("失败") || next.message.contains("错误") || next.message.contains("未完成"))) {
+                confirm("刷新来源失败", next.message, () -> {});
+            } else {
+                Toast.makeText(this, "来源已刷新", Toast.LENGTH_SHORT).show();
+            }
+        } else if ("parse_manual".equals(action)) {
+            if (next.parse != null) {
+                JSONArray cands = next.parse.optJSONArray("candidates");
+                JSONArray errs = next.parse.optJSONArray("errors");
+                int candCount = cands == null ? 0 : cands.length();
+                int errCount = errs == null ? 0 : errs.length();
+                if (candCount > 0) {
+                    new MaterialAlertDialogBuilder(this)
+                            .setTitle("手动录入解析结果")
+                            .setMessage("已识别到 " + candCount + " 个有效中转 IP" + (errCount > 0 ? "（" + errCount + " 行不合规）" : "") + "。\n\n是否立即导入？")
+                            .setNegativeButton("取消", null)
+                            .setPositiveButton("立即导入", (d, w) -> {
+                                controller.acceptParsed();
+                                Toast.makeText(this, "已导入 " + candCount + " 个中转 IP", Toast.LENGTH_SHORT).show();
+                            })
+                            .show();
+                } else {
+                    confirm("未能解析到有效 IP", "未发现有效的 IP:端口 地址行。示例：104.16.24.5:443#香港", () -> {});
+                }
+            }
+        }
+    }
+
     @Override public void changed(PreferredIpController.State next) {
+        boolean wasBusy = state != null && state.busy;
+        boolean nowBusy = next.busy;
         state = next;
         selectedAddresses.clear();
         JSONArray selected = next.data.optJSONArray("selected");
@@ -313,10 +423,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0)
                 + (next.ledgerBlocked ? " · 未结清/失账，须确认新轮" : "") + (next.stale ? "\n旧上下文仅为历史" : "") + "\n" + next.message;
 
-        // 无障碍依然能读取完整汇总
         if (status != null) {
             status.setContentDescription(fullSummary);
-            // 界面上只呈现当前最新提示或关键警告，不再倾倒多行冗长字符
             if (next.message != null && !next.message.isEmpty()) {
                 status.setText(next.message);
                 status.setVisibility(View.VISIBLE);
@@ -336,7 +444,6 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             sourceStatus.setVisibility(next.message != null && !next.message.isEmpty() ? View.VISIBLE : View.GONE);
         }
 
-        // 精致仪表盘数据绑定
         if (phaseBadge != null) {
             String p = (next.phase == null || next.phase.isEmpty()) ? "准备就绪" : PreferredIpPresentation.phase(next.phase);
             phaseBadge.setText(p);
@@ -358,6 +465,11 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         primary.setText(next.busy ? (next.paused ? "取消 / 等待退出" : "暂停") : next.sessionId.isEmpty() || next.stale ? "开始测试" : "继续测试");
         for (View view : sourceNetworkButtons) view.setEnabled(!next.busy);
         renderSources(); adapter.reconcileVisibleSelections(); adapter.submitLatest();
+
+        // 当异步操作（抓取/更新）执行结束时，主动给用户反馈与弹窗
+        if (wasBusy && !nowBusy && pendingAction != null) {
+            handlePendingActionResult(next);
+        }
     }
 
     @Override public void selectionSettled(String address) {
@@ -391,7 +503,11 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 if (!url.isEmpty()) {
                     refresh.setVisibility(View.VISIBLE);
                     refresh.setEnabled(!state.busy);
-                    refresh.setOnClickListener(v -> controller.fetch(id, url, source.optString("kind")));
+                    refresh.setOnClickListener(v -> {
+                        pendingAction = "refresh_source";
+                        pendingActionTarget = id;
+                        controller.fetch(id, url, source.optString("kind"));
+                    });
                 } else {
                     refresh.setVisibility(View.GONE);
                 }

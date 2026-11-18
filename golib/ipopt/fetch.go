@@ -39,7 +39,8 @@ func fetchSource(ctx context.Context, s Source, rt http.RoundTripper) (fetchOutp
 	if err != nil {
 		return out, err
 	}
-	req.Header.Set("Accept", "text/plain")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/plain, text/*, */*")
 	req.Header.Set("Accept-Encoding", "identity")
 	resp, err := client.Do(req)
 	if err != nil {
