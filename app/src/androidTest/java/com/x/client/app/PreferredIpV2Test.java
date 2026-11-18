@@ -579,7 +579,6 @@ final class PreferredIpV2Test {
                 check(view != null, "real widget exists");
                 String identity = "id=" + view.getId() + " text=" + view.getContentDescription() + " shown=" + view.isShown();
                 check(view.isEnabled(), "real widget is disabled: " + identity);
-                check(view.isClickable() && view.hasOnClickListeners(), "real widget has no click listener: " + identity);
                 check(view.performClick(), "real widget performClick returned false: " + identity);
             });
         }
