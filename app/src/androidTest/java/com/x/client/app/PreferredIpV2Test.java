@@ -555,7 +555,7 @@ final class PreferredIpV2Test {
         void settle() throws Exception { fence(control); fence(selection); fence(control); fence(selection); fence(control); main(() -> { }); }
         void pausedComplete() throws Exception {
             backend.holdProbe = true;
-            launch(); tab(1); click(view(R.id.preferred_primary));
+            launch(); tab(1); PreferredIpUiRemainingTest.header(this); click(view(R.id.preferred_primary));
             backend.next("prepare"); Task probe = backend.next("probe"); await(probe.polled, "natural probe poll");
             probe.replies.add(backend.snapshot(probe, "running", false, true, 0));
             until(() -> { publish(); return state().completed == 3 && state().busy; }, "complete results while workers still own slot");
