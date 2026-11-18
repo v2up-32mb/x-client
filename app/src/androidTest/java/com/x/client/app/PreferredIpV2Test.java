@@ -574,7 +574,15 @@ final class PreferredIpV2Test {
             until(() -> { final int[] p = {-1}; main(() -> p[0] = ((ViewPager) activity.findViewById(R.id.preferred_pager)).getCurrentItem()); return p[0] == page; }, "tab page");
             i.waitForIdleSync();
         }
-        void click(View view) { main(() -> check(view != null && view.isEnabled() && view.performClick(), "real enabled widget click")); }
+        void click(View view) {
+            main(() -> {
+                check(view != null, "real widget exists");
+                String identity = "id=" + view.getId() + " text=" + view.getContentDescription() + " shown=" + view.isShown();
+                check(view.isEnabled(), "real widget is disabled: " + identity);
+                check(view.isClickable() && view.hasOnClickListeners(), "real widget has no click listener: " + identity);
+                check(view.performClick(), "real widget performClick returned false: " + identity);
+            });
+        }
         RecyclerView list() {
             final RecyclerView[] found = new RecyclerView[1]; main(() -> found[0] = activity.findViewById(R.id.preferred_results)); return found[0];
         }
