@@ -96,7 +96,7 @@
                 android:layout_marginStart="@dimen/spacing_xs"
                 android:src="@drawable/ic_chevron_right"
                 app:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="展开详情" />
+                android:contentDescription="@string/preferred_expand_detail" />
         </LinearLayout>
 
         <!-- 展开详情区 -->
@@ -137,7 +137,7 @@
                     app:icon="@drawable/ic_speed"
                     app:iconSize="16dp"
                     app:iconGravity="textStart"
-                    android:text="测速 · 50MiB / 10秒" />
+                    android:text="@string/preferred_speed_test_btn" />
             </LinearLayout>
         </LinearLayout>
 

@@ -28,7 +28,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="参考目标节点"
+                android:text="@string/preferred_reference_title"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
                 android:textColor="?attr/colorOnSurface" />
 
@@ -79,7 +79,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="@dimen/spacing_xs"
-                    android:hint="抽样数量 (1-4096)">
+                    android:hint="@string/preferred_sample_hint">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/preferred_sample_input"
@@ -95,7 +95,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="@dimen/spacing_xs"
-                    android:hint="并发线程 (1-32)">
+                    android:hint="@string/preferred_concurrency_hint">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/preferred_concurrency_input"
@@ -142,7 +142,7 @@
                     android:paddingEnd="8dp"
                     android:paddingTop="2dp"
                     android:paddingBottom="2dp"
-                    android:text="准备就绪"
+                    android:text="@string/preferred_ready"
                     android:textAppearance="?attr/textAppearanceLabelMedium"
                     android:textColor="?attr/colorOnSurface" />
 
@@ -156,7 +156,7 @@
                     android:paddingEnd="8dp"
                     android:paddingTop="2dp"
                     android:paddingBottom="2dp"
-                    android:text="直连网络"
+                    android:text="@string/preferred_direct_net"
                     android:textAppearance="?attr/textAppearanceLabelMedium"
                     android:textColor="?attr/colorOnSurfaceVariant" />
             </LinearLayout>
@@ -189,7 +189,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="完成 / 总量"
+                        android:text="@string/preferred_metric_completed_total"
                         android:textAppearance="?attr/textAppearanceLabelSmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
@@ -217,7 +217,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="成功节点"
+                        android:text="@string/preferred_metric_success_nodes"
                         android:textAppearance="?attr/textAppearanceLabelSmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
@@ -243,7 +243,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="已勾选"
+                        android:text="@string/preferred_metric_checked_nodes"
                         android:textAppearance="?attr/textAppearanceLabelSmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
                 </LinearLayout>
@@ -283,14 +283,14 @@
         app:icon="@drawable/ic_speed"
         app:iconSize="18dp"
         app:iconGravity="textStart"
-        android:text="开始测试" />
+        android:text="@string/preferred_start_test" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:gravity="center"
-        android:text="仅前台直连 · 勾选自动保存 · 手动测速计入流量统计"
+        android:text="@string/preferred_test_footer_hint"
         android:textAppearance="?attr/textAppearanceLabelSmall"
         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -300,7 +300,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/spacing_md"
         android:layout_marginBottom="2dp"
-        android:text="候选中转节点"
+        android:text="@string/preferred_candidate_nodes"
         android:textAppearance="?attr/textAppearanceTitleSmall"
         android:textColor="?attr/colorOnSurface" />
 

@@ -80,12 +80,12 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         setContentView(R.layout.activity_preferred_ip);
         MaterialToolbar toolbar = findViewById(R.id.preferred_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
-        toolbar.getMenu().add(0, R.id.preferred_restart, 0, "重新开始测试");
-        toolbar.getMenu().add(0, R.id.preferred_enable, 1, "启用全局（需实际节点验证）");
+        toolbar.getMenu().add(0, R.id.preferred_restart, 0, getString(R.string.preferred_restart_test));
+        toolbar.getMenu().add(0, R.id.preferred_enable, 1, getString(R.string.preferred_enable_global_action));
         toolbar.getMenu().add(0, R.id.preferred_disable_action, 2, R.string.preferred_disable);
         toolbar.setOnMenuItemClickListener(item -> {
             int action = item.getItemId();
-            if (action == R.id.preferred_restart) confirm("重新开始", "将使用当前来源和设置建立新上下文，旧成绩仅为历史；已选池保留。请先暂停并等待退出。", this::startScan);
+            if (action == R.id.preferred_restart) confirm(getString(R.string.preferred_restart_confirm_title), getString(R.string.preferred_restart_confirm_msg), this::startScan);
             else if (action == R.id.preferred_enable) controller.enable();
             else if (action == R.id.preferred_disable_action) confirm(getString(R.string.preferred_disable), getString(R.string.preferred_disable_body), () -> controller.disable());
             return true;
@@ -180,8 +180,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         btnFetchList.setOnClickListener(v -> {
             String url = sourceUrl.getText().toString().trim();
             if (!url.startsWith("https://")) {
-                sourceUrl.setError("请使用 HTTPS URL");
-                confirm("URL 格式错误", "第三方列表必须使用 https:// 开头的有效链接", () -> {});
+                sourceUrl.setError(getString(R.string.preferred_err_https_url));
+                confirm(getString(R.string.preferred_err_url_format_title), getString(R.string.preferred_err_url_format_msg), () -> {});
                 return;
             }
             pendingAction = "fetch_list";
@@ -193,7 +193,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         btnParseManual.setOnClickListener(v -> {
             String text = manual.getText().toString().trim();
             if (text.isEmpty()) {
-                manual.setError("请输入或粘贴 IP 内容");
+                manual.setError(getString(R.string.preferred_err_input_empty));
                 return;
             }
             pendingAction = "parse_manual";
@@ -305,25 +305,25 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
 
     private void newDownloadRound() {
         if (profiles.isEmpty() || reference.getSelectedItemPosition() < 0) {
-            confirm("缺少参考节点", getString(R.string.preferred_no_profiles), () -> { }); return;
+            confirm(getString(R.string.preferred_no_profile_title), getString(R.string.preferred_no_profiles), () -> { }); return;
         }
         controller.newDownloadRound(profiles.get(reference.getSelectedItemPosition()).id,
                 number(sample, -1), number(concurrency, -1));
     }
 
     private void primaryAction() {
-        if (state != null && state.busy) { controller.pause("用户暂停，等待网络退出"); return; }
+        if (state != null && state.busy) { controller.pause(getString(R.string.preferred_pause_user)); return; }
         if (state != null && !state.sessionId.isEmpty() && !state.stale) controller.resume(); else startScan();
     }
 
     private void startScan() {
-        if (profiles.isEmpty()) { confirm("缺少参考节点", getString(R.string.preferred_no_profiles), () -> { }); return; }
+        if (profiles.isEmpty()) { confirm(getString(R.string.preferred_no_profile_title), getString(R.string.preferred_no_profiles), () -> { }); return; }
         int count = number(sample, -1), workers = number(concurrency, -1);
-        if (count < 1 || count > 4096) { sample.setError("请输入1–4096"); return; }
-        if (workers < 1 || workers > 32) { concurrency.setError("请输入1–32"); return; }
+        if (count < 1 || count > 4096) { sample.setError(getString(R.string.preferred_err_sample_range)); return; }
+        if (workers < 1 || workers > 32) { concurrency.setError(getString(R.string.preferred_err_concurrency_range)); return; }
         String id = profiles.get(reference.getSelectedItemPosition()).id;
         Runnable start = () -> controller.test(id, count, workers, PreferredIpController.PROBE_DOWNLOAD);
-        if (state != null && state.metered) confirm("计费网络确认", "扫描不下载正文测速样本，但TCP/TLS/HTTPS与ECH/DNS检查仍消耗流量。是否继续？", start);
+        if (state != null && state.metered) confirm(getString(R.string.preferred_metered_confirm_title), getString(R.string.preferred_metered_confirm_msg), start);
         else start.run();
     }
 
@@ -352,40 +352,40 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 int errCount = errs == null ? 0 : errs.length();
                 if (candCount > 0) {
                     new MaterialAlertDialogBuilder(this)
-                            .setTitle("第三方列表解析结果")
+                            .setTitle(R.string.preferred_dialog_list_parse_title)
                             .setMessage("已获取到 " + candCount + " 个有效中转 IP" + (errCount > 0 ? "（另有 " + errCount + " 行不合规或注释行已自动过滤）" : "") + "。\n\n是否立即加入已配置来源？")
-                            .setNegativeButton("放弃", null)
-                            .setPositiveButton("立即导入有效候选", (d, w) -> {
+                            .setNegativeButton(R.string.preferred_btn_discard, null)
+                            .setPositiveButton(R.string.preferred_btn_import_valid, (d, w) -> {
                                 controller.acceptParsed();
                                 Toast.makeText(this, "已成功导入 " + candCount + " 个中转 IP", Toast.LENGTH_SHORT).show();
                             })
                             .show();
                 } else {
-                    confirm("未解析到有效 IP", "该列表中未发现符合「IP:端口」格式的有效中转 IP（共 " + errCount + " 行不合规）。请检查该列表内容。\n\n标准格式示例：\n104.16.24.5:443#香港", () -> {});
+                    confirm(getString(R.string.preferred_err_no_valid_ip_title), "该列表中未发现符合「IP:端口」格式的有效中转 IP（共 " + errCount + " 行不合规）。请检查该列表内容。\n\n标准格式示例：\n104.16.24.5:443#香港", () -> {});
                 }
             } else if (added) {
-                Toast.makeText(this, "第三方列表已成功加入！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.preferred_msg_list_added, Toast.LENGTH_SHORT).show();
             } else {
                 String errMsg = next.message;
                 if (errMsg == null || errMsg.isEmpty() || errMsg.contains("已保存")) {
                     errMsg = "无法从该链接获取内容或列表内容为空，请检查链接可达性。";
                 }
-                confirm("获取第三方列表失败", errMsg, () -> {});
+                confirm(getString(R.string.preferred_err_fetch_list_failed), errMsg, () -> {});
             }
         } else if ("fetch_v4".equals(action) || "fetch_v6".equals(action)) {
             boolean added = isSourcePresent(next.data.optJSONArray("sources"), target);
             if (added) {
-                Toast.makeText(this, "官方 IP 来源已更新", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.preferred_msg_official_updated, Toast.LENGTH_SHORT).show();
             } else {
                 String errMsg = next.message;
                 if (errMsg == null || errMsg.isEmpty()) errMsg = "更新官方地址库失败，请检查网络连接。";
-                confirm("更新失败", errMsg, () -> {});
+                confirm(getString(R.string.preferred_err_update_failed), errMsg, () -> {});
             }
         } else if ("refresh_source".equals(action)) {
             if (next.message != null && (next.message.contains("失败") || next.message.contains("错误") || next.message.contains("未完成"))) {
-                confirm("刷新来源失败", next.message, () -> {});
+                confirm(getString(R.string.preferred_err_refresh_source_failed), next.message, () -> {});
             } else {
-                Toast.makeText(this, "来源已刷新", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, R.string.preferred_msg_source_refreshed, Toast.LENGTH_SHORT).show();
             }
         } else if ("parse_manual".equals(action)) {
             if (next.parse != null) {
@@ -395,16 +395,16 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 int errCount = errs == null ? 0 : errs.length();
                 if (candCount > 0) {
                     new MaterialAlertDialogBuilder(this)
-                            .setTitle("手动录入解析结果")
+                            .setTitle(R.string.preferred_dialog_manual_parse_title)
                             .setMessage("已识别到 " + candCount + " 个有效中转 IP" + (errCount > 0 ? "（" + errCount + " 行不合规）" : "") + "。\n\n是否立即导入？")
-                            .setNegativeButton("取消", null)
-                            .setPositiveButton("立即导入", (d, w) -> {
+                            .setNegativeButton(R.string.preferred_btn_cancel, null)
+                            .setPositiveButton(R.string.preferred_btn_import_now, (d, w) -> {
                                 controller.acceptParsed();
                                 Toast.makeText(this, "已导入 " + candCount + " 个中转 IP", Toast.LENGTH_SHORT).show();
                             })
                             .show();
                 } else {
-                    confirm("未能解析到有效 IP", "未发现有效的 IP:端口 地址行。示例：104.16.24.5:443#香港", () -> {});
+                    confirm(getString(R.string.preferred_err_no_valid_ip_title), "未发现有效的 IP:端口 地址行。示例：104.16.24.5:443#香港", () -> {});
                 }
             }
         }
@@ -512,7 +512,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                     refresh.setVisibility(View.GONE);
                 }
 
-                delete.setOnClickListener(v -> confirm("删除来源", "已选地址仍保留，当前队列不变。是否删除此来源？", () -> controller.deleteSource(id)));
+                delete.setOnClickListener(v -> confirm(getString(R.string.preferred_delete_source_title), getString(R.string.preferred_delete_source_msg), () -> controller.deleteSource(id)));
                 sourceRows.addView(rowView);
             }
         }
@@ -721,13 +721,13 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             holder.detail.setText(expanded && row.detail.isEmpty() ? "读取详情…" : row.detail);
 
             boolean downloading = row.address.equals(state.activeDownload);
-            holder.download.setText(downloading ? "取消测速" : "测速 · 50MiB / 10秒");
+            holder.download.setText(downloading ? getString(R.string.preferred_cancel_speed_test) : getString(R.string.preferred_speed_test_btn));
             holder.download.setEnabled(downloading || row.downloadable);
             holder.download.setOnClickListener(v -> {
                 if (!row.address.equals(holder.address)) return;
-                if (row.address.equals(state.activeDownload)) { controller.pause("取消测速；等待退出后按实际正文结算"); return; }
+                if (row.address.equals(state.activeDownload)) { controller.pause(getString(R.string.preferred_pause_speed_test)); return; }
                 Runnable download = () -> controller.download(row.address);
-                if (state.metered) confirm("计费网络手动测速", "仅测试此 IP，单次最多消耗 50MiB 流量（测试时长 10 秒）。是否继续？", download);
+                if (state.metered) confirm(getString(R.string.preferred_metered_speed_title), getString(R.string.preferred_metered_speed_msg), download);
                 else download.run();
             });
         }

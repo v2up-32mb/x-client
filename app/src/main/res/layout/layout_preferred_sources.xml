@@ -48,7 +48,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/spacing_xs"
-                        android:text="优选 IP 来源管理"
+                        android:text="@string/preferred_sources_title"
                         android:textAppearance="?attr/textAppearanceTitleSmall"
                         android:textColor="?attr/colorOnSurface" />
                 </LinearLayout>
@@ -77,7 +77,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_lg"
-            android:text="已配置来源"
+            android:text="@string/preferred_sources_configured"
             android:textAppearance="?attr/textAppearanceLabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -102,7 +102,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_lg"
-            android:text="官方 IP 地址段"
+            android:text="@string/preferred_official_prefixes"
             android:textAppearance="?attr/textAppearanceLabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -125,7 +125,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="从 Cloudflare 官方拉取全球 CIDR 地址库（测试按段抽样）"
+                    android:text="@string/preferred_official_desc"
                     android:textAppearance="?attr/textAppearanceBodySmall"
                     android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -142,7 +142,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:minHeight="40dp"
-                        android:text="更新官网 IPv4" />
+                        android:text="@string/preferred_fetch_v4_btn" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/preferred_btn_fetch_v6"
@@ -152,7 +152,7 @@
                         android:layout_marginStart="@dimen/spacing_sm"
                         android:layout_weight="1"
                         android:minHeight="40dp"
-                        android:text="更新官网 IPv6" />
+                        android:text="@string/preferred_fetch_v6_btn" />
                 </LinearLayout>
 
                 <TextView
@@ -170,7 +170,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_lg"
-            android:text="第三方列表订阅"
+            android:text="@string/preferred_third_party_title"
             android:textAppearance="?attr/textAppearanceLabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -228,7 +228,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_lg"
-            android:text="手动录入"
+            android:text="@string/preferred_manual_title"
             android:textAppearance="?attr/textAppearanceLabelLarge"
             android:textColor="?attr/colorOnSurfaceVariant" />
 

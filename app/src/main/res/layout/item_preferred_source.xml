@@ -27,7 +27,7 @@
             android:id="@+id/source_checkbox"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:contentDescription="启用此来源" />
+            android:contentDescription="@string/preferred_enable_source" />
 
         <!-- 来源名称与数据量 -->
         <LinearLayout
@@ -84,7 +84,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="刷新来源"
+            android:contentDescription="@string/preferred_refresh_source"
             android:padding="8dp"
             android:src="@drawable/ic_refresh"
             app:tint="?attr/colorPrimary" />
@@ -94,7 +94,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:contentDescription="删除来源"
+            android:contentDescription="@string/preferred_delete_source"
             android:padding="8dp"
             android:src="@drawable/ic_delete"
             app:tint="?attr/xError" />
