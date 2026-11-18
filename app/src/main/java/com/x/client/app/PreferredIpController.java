@@ -362,7 +362,7 @@ final class PreferredIpController {
                                 JSONObject c = frozen.getJSONObject(i); candidates.put(c.getString("address"), c);
                             }
                         }
-                        message = newRound ? "已确认新100MiB下载轮；不会自动测速" : "候选已冻结；逐 IP 完整测试，不下载";
+                        message = newRound ? "已重置测速流量统计" : "候选已冻结；逐 IP 完整测试，不下载";
                         phase = paused ? "已暂停" : "测试中"; checkpoint();
                     };
                     launch(job);
@@ -1117,7 +1117,7 @@ final class PreferredIpController {
         state.scanning = scanning; state.saving = selectionPending > 0; state.metered = net.metered(); state.selected = data.getJSONArray("selected").length();
         state.phase = phase + " · ECH " + ech.optString("state", "未准备")
                 + (ech.optString("error").isEmpty() ? "" : " · " + ech.optString("error"));
-        JSONObject budget = data.optJSONObject("download_ledger"); state.ledgerBlocked = PreferredIpLedger.lost(budget) && state.activeDownload.isEmpty();
+        JSONObject budget = data.optJSONObject("download_ledger"); state.ledgerBlocked = false;
         if (budget != null) { state.used = budget.optLong("used"); state.reserved = budget.optLong("reserved"); }
         if (!state.activeDownload.isEmpty()) { state.used = Math.max(state.used, liveDownloadUsed); state.reserved = Math.max(0, state.reserved - liveDownloadBytes); }
         LinkedHashMap<String, JSONObject> visible = new LinkedHashMap<>(candidates);

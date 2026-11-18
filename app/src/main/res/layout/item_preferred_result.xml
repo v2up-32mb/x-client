@@ -133,7 +133,10 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="36dp"
+                    android:minHeight="40dp"
+                    app:icon="@drawable/ic_speed"
+                    app:iconSize="16dp"
+                    app:iconGravity="textStart"
                     android:text="测速 · 50MiB / 10秒" />
             </LinearLayout>
         </LinearLayout>

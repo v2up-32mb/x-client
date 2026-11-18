@@ -81,13 +81,11 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         MaterialToolbar toolbar = findViewById(R.id.preferred_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         toolbar.getMenu().add(0, R.id.preferred_restart, 0, "重新开始测试");
-        toolbar.getMenu().add(0, R.id.preferred_new_round, 1, "开启新一轮100MiB下载额度");
-        toolbar.getMenu().add(0, R.id.preferred_enable, 2, "启用全局（需实际节点验证）");
-        toolbar.getMenu().add(0, R.id.preferred_disable_action, 3, R.string.preferred_disable);
+        toolbar.getMenu().add(0, R.id.preferred_enable, 1, "启用全局（需实际节点验证）");
+        toolbar.getMenu().add(0, R.id.preferred_disable_action, 2, R.string.preferred_disable);
         toolbar.setOnMenuItemClickListener(item -> {
             int action = item.getItemId();
-            if (action == R.id.preferred_restart) confirm("重新开始", "将使用当前来源和设置建立新上下文，旧成绩仅为历史；已选池及下载额度保留。请先暂停并等待退出。", this::startScan);
-            else if (action == R.id.preferred_new_round) confirm("新增100MiB下载额度", "明确开启新的100MiB正文额度（另有协议开销）。旧轮预留/已用仍留审计记录。不会自动下载；计费网络也将消耗流量。", this::newDownloadRound);
+            if (action == R.id.preferred_restart) confirm("重新开始", "将使用当前来源和设置建立新上下文，旧成绩仅为历史；已选池保留。请先暂停并等待退出。", this::startScan);
             else if (action == R.id.preferred_enable) controller.enable();
             else if (action == R.id.preferred_disable_action) confirm(getString(R.string.preferred_disable), getString(R.string.preferred_disable_body), () -> controller.disable());
             return true;
@@ -419,17 +417,13 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
 
         String fullSummary = next.phase + " · 已完成 " + next.completed + "/" + next.total + "（成功 " + next.success + " / 失败 " + (next.completed - next.success) + "）"
                 + "\n已选 " + next.selected + (next.saving ? " · 保存中" : "") + " · " + next.network
-                + String.format(Locale.getDefault(), "\n下载已用 %.1f / 100MiB · 预留 %.1fMiB · 剩余 %.1fMiB", next.used / 1048576.0, next.reserved / 1048576.0,
-                Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0)
-                + (next.ledgerBlocked ? " · 未结清/失账，须确认新轮" : "") + (next.stale ? "\n旧上下文仅为历史" : "") + "\n" + next.message;
+                + String.format(Locale.getDefault(), "\n测速已用流量 %.1f MiB", next.used / 1048576.0)
+                + (next.stale ? "\n旧上下文仅为历史" : "") + "\n" + next.message;
 
         if (status != null) {
             status.setContentDescription(fullSummary);
             if (next.message != null && !next.message.isEmpty()) {
                 status.setText(next.message);
-                status.setVisibility(View.VISIBLE);
-            } else if (next.ledgerBlocked) {
-                status.setText("⚠️ 未结清/失账，须确认开启新一轮额度");
                 status.setVisibility(View.VISIBLE);
             } else if (next.stale) {
                 status.setText("ℹ️ 当前旧上下文仅为历史");
@@ -455,10 +449,8 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         if (metricSuccess != null) metricSuccess.setText(String.valueOf(next.success));
         if (metricSelected != null) metricSelected.setText(String.valueOf(next.selected));
         if (ledgerText != null) {
-            String ledgerStr = String.format(Locale.getDefault(), "⚡ 下载测速额度：已用 %.1f / 100.0 MiB · 剩余 %.1f MiB",
-                    next.used / 1048576.0,
-                    Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0);
-            if (next.ledgerBlocked) ledgerStr += " (超额受限)";
+            String ledgerStr = String.format(Locale.getDefault(), "⚡ 测速流量消耗：已用 %.1f MiB",
+                    next.used / 1048576.0);
             ledgerText.setText(ledgerStr);
         }
 
@@ -727,7 +719,7 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
                 if (!row.address.equals(holder.address)) return;
                 if (row.address.equals(state.activeDownload)) { controller.pause("取消测速；等待退出后按实际正文结算"); return; }
                 Runnable download = () -> controller.download(row.address);
-                if (state.metered) confirm("计费网络手动测速", "仅此 IP，最多50MiB/10秒，计入当前100MiB下载轮（另有协议开销）。先暂停扫描，结束保持暂停。是否继续？", download);
+                if (state.metered) confirm("计费网络手动测速", "仅测试此 IP，单次最多消耗 50MiB 流量（测试时长 10 秒）。是否继续？", download);
                 else download.run();
             });
         }

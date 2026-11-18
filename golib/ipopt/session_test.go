@@ -238,23 +238,27 @@ func TestV2LedgerAcrossTasksScansAndExplicitRound(t *testing.T) {
 		d := downloadV2(r)
 		d.Candidates = []Candidate{r.Candidates[i-1]}
 		s := startV2(t, m, d)
-		if s.DownloadBytes != maxManualDownloadBytes || s.DownloadRoundUsed != int64(i)*maxManualDownloadBytes || s.DownloadRoundRemaining != int64(2-i)*maxManualDownloadBytes || s.DownloadRoundID != prep.DownloadRoundID || s.Results[0].ProbeComplete || s.Results[0].ScoreReady || s.Results[0].Status != "untested" || s.DownloadReservedBytes != maxManualDownloadBytes {
+		if s.DownloadBytes != maxManualDownloadBytes || s.DownloadRoundUsed != int64(i)*maxManualDownloadBytes || s.DownloadRoundID != prep.DownloadRoundID || s.Results[0].ProbeComplete || s.Results[0].ScoreReady || s.Results[0].Status != "untested" || s.DownloadReservedBytes != maxManualDownloadBytes {
 			t.Fatal(s)
 		}
 	}
 	if probes.Load() != 2 {
 		t.Fatal("download reprobed")
 	}
-	if _, err := m.Start(requestJSON(t, downloadV2(r))); err == nil {
-		t.Fatal("budget exceeded")
+	// Manual download budget is unlocked; downloads continue and record cumulative traffic used.
+	d3 := downloadV2(r)
+	d3.Candidates = []Candidate{r.Candidates[0]}
+	s3 := startV2(t, m, d3)
+	if s3.DownloadRoundUsed != 3*maxManualDownloadBytes {
+		t.Fatal("cumulative download traffic not recorded")
 	}
-	// New scan/network inherits exhausted ledger, not a new allowance.
+	// New scan/network inherits ledger, not a fresh zero.
 	n := testRequest(1)
 	n.Operation = "prepare"
 	n.NetworkID = "cell-2"
 	n.DownloadRoundID = prep.DownloadRoundID
 	s := startV2(t, m, n)
-	if s.SessionID == prep.SessionID || s.DownloadRoundUsed != maxTotalDownloadBytes {
+	if s.SessionID == prep.SessionID || s.DownloadRoundUsed != 3*maxManualDownloadBytes {
 		t.Fatal(s)
 	}
 	if _, err := m.Start(requestJSON(t, r)); err == nil {
@@ -264,7 +268,7 @@ func TestV2LedgerAcrossTasksScansAndExplicitRound(t *testing.T) {
 	n.Candidates = nil
 	n.NewDownloadRound = true
 	s = startV2(t, m, n)
-	if s.DownloadRoundID == prep.DownloadRoundID || s.DownloadRoundUsed != 0 || s.DownloadRoundRemaining != maxTotalDownloadBytes {
+	if s.DownloadRoundID == prep.DownloadRoundID || s.DownloadRoundUsed != 0 {
 		t.Fatal(s)
 	}
 	if probe.Results[0].Score == 0 || !probe.Results[0].ProbeComplete {

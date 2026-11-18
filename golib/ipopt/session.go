@@ -41,8 +41,8 @@ type downloadLedger struct {
 
 func (l *downloadLedger) fill(s *Snapshot) { l.mu.Lock(); defer l.mu.Unlock(); l.fillLocked(s) }
 func (l *downloadLedger) fillLocked(s *Snapshot) {
-	s.DownloadRoundID, s.DownloadRoundLimit, s.DownloadRoundUsed = l.id, maxTotalDownloadBytes, l.used
-	s.DownloadRoundRemaining = maxTotalDownloadBytes - l.used
+	s.DownloadRoundID, s.DownloadRoundLimit, s.DownloadRoundUsed = l.id, 0, l.used
+	s.DownloadRoundRemaining = 0
 }
 
 func opaqueID() (string, error) {
@@ -130,14 +130,6 @@ func (m *Manager) validateSessionRequest(r *Request) error {
 		e, ok := s.ech[echKey(r.NetworkID, r.Options)]
 		if !ok || (e.info.ExpiresAt != 0 && m.now().UnixMilli() >= e.info.ExpiresAt) {
 			return fmt.Errorf("prepare_required: ECH配置缺失或过期，请统一prepare（不清队列/账本）")
-		}
-	}
-	if r.Operation == "download" {
-		m.ledger.mu.Lock()
-		left := maxTotalDownloadBytes - m.ledger.used
-		m.ledger.mu.Unlock()
-		if left <= 0 {
-			return fmt.Errorf("budget_exhausted: 100MiB下载轮已用完；仅显式new_download_round可追加")
 		}
 	}
 	return nil

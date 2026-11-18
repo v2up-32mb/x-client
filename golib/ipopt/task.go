@@ -121,9 +121,6 @@ func (m *Manager) Start(requestJSON string) (string, error) {
 		}
 		if r.Operation == "download" {
 			t.snapshot.DownloadReservedBytes = r.Options.DownloadBytesPerIP
-			if t.snapshot.DownloadReservedBytes > t.snapshot.DownloadRoundRemaining {
-				t.snapshot.DownloadReservedBytes = t.snapshot.DownloadRoundRemaining
-			}
 		}
 	}
 	m.tasks[id] = t

@@ -277,8 +277,12 @@
         android:id="@+id/preferred_primary"
         style="@style/Widget.XClient.Button"
         android:layout_width="match_parent"
-        android:layout_height="48dp"
+        android:layout_height="wrap_content"
+        android:minHeight="40dp"
         android:layout_marginTop="@dimen/spacing_md"
+        app:icon="@drawable/ic_speed"
+        app:iconSize="18dp"
+        app:iconGravity="textStart"
         android:text="开始测试" />
 
     <TextView
@@ -286,7 +290,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:gravity="center"
-        android:text="仅前台直连 · 勾选自动保存 · 扫描不消耗下载额度"
+        android:text="仅前台直连 · 勾选自动保存 · 手动测速计入流量统计"
         android:textAppearance="?attr/textAppearanceLabelSmall"
         android:textColor="?attr/colorOnSurfaceVariant" />
 
