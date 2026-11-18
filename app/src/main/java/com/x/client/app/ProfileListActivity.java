@@ -59,6 +59,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     private EmptyStateView emptyState;
     private FloatingActionButton fabMain;
     private Preferences prefs;
+    private static volatile boolean profileMutation;
     private boolean pendingVpnStart = false;
     private boolean vpnStarting = false;
     private boolean vpnDisconnecting = false;
@@ -354,11 +355,13 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void showFabMenu() {
+        if (profileMutation) return;
         PopupMenu popup = new PopupMenu(this, fabMain);
         popup.getMenu().add(0, 1, 0, "导入");
         popup.getMenu().add(0, 2, 0, "新增");
         popup.getMenu().add(0, 3, 0, "设置");
         popup.getMenu().add(0, 4, 0, getString(R.string.view_runtime_logs));
+        popup.getMenu().add(0, 5, 0, getString(R.string.preferred_ip_title));
 
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -373,6 +376,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                     return true;
                 case 4:
                     startActivity(new Intent(this, RuntimeLogActivity.class));
+                    return true;
+                case 5:
+                    startActivity(new Intent(this, PreferredIpActivity.class));
                     return true;
             }
             return false;
@@ -393,6 +399,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void toggleVpn() {
+        if (profileMutation) return;
         // 双向防抖：连接中/断开中均吞掉 tap（review §7.3）
         if (vpnStarting || vpnDisconnecting) {
             return;
@@ -473,6 +480,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
     @Override
     public void onProfileClick(String profileId) {
+        if (profileMutation) return;
         // 只在配置真正改变时才刷新列表
         String currentId = prefs.getCurrentProfileId();
         if (profileId == null || !profileId.equals(currentId)) {
@@ -501,6 +509,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
     @Override
     public void onEditClick(String profileId) {
+        if (profileMutation) return;
         // 编辑配置
         editProfile(profileId);
     }
@@ -562,6 +571,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void editProfile(String profileId) {
+        if (profileMutation) return;
         Intent intent = new Intent(this, ProfileEditActivity.class);
         intent.putExtra(ProfileEditActivity.EXTRA_PROFILE_ID, profileId);
         startActivity(intent);
@@ -585,9 +595,11 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                         name = originalName;
                     }
                     String newId = UUID.randomUUID().toString();
-                    prefs.copyProfile(profileId, newId, name);
-                    refreshProfileList();
-                    Toast.makeText(this, "配置已复制: " + name, Toast.LENGTH_SHORT).show();
+                    String copyName = name;
+                    mutateProfile(() -> prefs.copyProfile(profileId, newId, copyName), () -> {
+                        refreshProfileList();
+                        Toast.makeText(this, "配置已复制: " + copyName, Toast.LENGTH_SHORT).show();
+                    });
                 })
                 .setNegativeButton("取消", null)
                 .show();
@@ -608,32 +620,59 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 .setTitle("删除配置")
                 .setMessage("确认删除配置 " + prefs.getProfileName(profileId) + "?")
                 .setPositiveButton("确定", (dialog, which) -> {
-                    // 删除配置
-                    prefs.removeProfile(profileId);
-
-                    // 如果删除的是当前配置，自动选择第一个剩余配置（如果还有）
-                    if (isDeletingCurrent) {
-                        Set<String> remainingIds = prefs.getProfileIds();
-                        if (!remainingIds.isEmpty()) {
-                            String nextId = remainingIds.iterator().next();
-                            prefs.setCurrentProfileId(nextId);
+                    mutateProfile(() -> {
+                        if (prefs.getEnable() && profileId.equals(prefs.getCurrentProfileId())) {
+                            throw new IllegalStateException("VPN正在运行，无法删除当前配置");
                         }
-                    }
-
-                    // 刷新列表
-                    refreshProfileList();
-                    Toast.makeText(this, "配置已删除", Toast.LENGTH_SHORT).show();
+                        prefs.removeProfile(profileId);
+                        if (profileId.equals(prefs.getCurrentProfileId())) {
+                            Set<String> remainingIds = prefs.getProfileIds();
+                            if (!remainingIds.isEmpty()) prefs.setCurrentProfileId(remainingIds.iterator().next());
+                        }
+                    }, () -> {
+                        refreshProfileList();
+                        Toast.makeText(this, "配置已删除", Toast.LENGTH_SHORT).show();
+                    });
                 })
                 .setNegativeButton("取消", null)
                 .show();
     }
 
+    private interface ProfileMutation { void run() throws Exception; }
+
+    /** Pool JSON may be large: keep copy/delete/import mode IO off the UI thread. */
+    private void mutateProfile(ProfileMutation mutation, Runnable after) {
+        if (profileMutation) return;
+        profileMutation = true;
+        new Thread(() -> {
+            String failure = null;
+            try { mutation.run(); } catch (Exception error) { failure = error.getMessage() == null ? error.toString() : error.getMessage(); }
+            String message = failure;
+            runOnUiThread(() -> {
+                profileMutation = false;
+                if (isFinishing() || isDestroyed()) return;
+                if (message != null) Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+                else after.run();
+            });
+        }, "preferred-ip-profile").start();
+    }
+
     // ======================== 导入/导出功能 ========================
 
     private void exportProfile(String profileId) {
-        // 临时切换到目标配置以读取数据
-        String originalId = prefs.getCurrentProfileId();
-        prefs.setCurrentProfileId(profileId);
+        new Thread(() -> exportProfileSnapshot(profileId), "preferred-ip-share").start();
+    }
+
+    private void exportProfileSnapshot(String profileId) {
+        Preferences prefs = this.prefs.forProfile(profileId);
+        org.json.JSONObject effective;
+        try {
+            effective = PreferredIpResolver.baseParams(prefs);
+            PreferredIpResolver.apply(prefs, effective, new PreferredIpStore(this).read());
+        } catch (Exception error) {
+            runOnUiThread(() -> Toast.makeText(this, "无法生成有效入口快照：" + error.getMessage(), Toast.LENGTH_LONG).show());
+            return;
+        }
 
         // 生成协议字符串
         String protocolValue = prefs.getProtocol();
@@ -643,7 +682,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         if (wssAddr.startsWith("wss://")) {
             wssAddr = wssAddr.substring(6);
         }
-        String prefIp = prefs.getPrefIp();
+        String prefIp = effective.optString("relay_ips");
         String fallbackIp = prefs.getFallbackIp();
         String userId = prefs.getUserID();
         boolean disableEch = prefs.getDisableEch();
@@ -651,24 +690,21 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         boolean enableDynamicPool = prefs.getEnableDynamicPool();
         int dynamicPoolMax = prefs.getDynamicPoolMax();
 
-        // X-Tunnel 配置：读取协议参数（必须在恢复当前配置之前读取）
-        String xtToken = prefs.getXtToken();
-        String xtRelayNodes = prefs.getXtRelayNodes();
-        int xtConnections = prefs.getXtConnections();
-        boolean xtDisableEch = prefs.getXtDisableEch();
-        boolean xtInsecure = prefs.getXtInsecure();
-        boolean xtEnableHotPair = prefs.getXtEnableHotPair();
-        int xtHotPairCount = prefs.getXtHotPairCount();
-        String xtIpStrategy = prefs.getXtIpStrategy();
-        String xtServerAddr = prefs.getXtServerAddr();
+        // X-Tunnel 配置：使用高级JSON与全局模式合并后的有效快照
+        String xtToken = effective.optString("token");
+        String xtRelayNodes = effective.optString("relay_nodes");
+        int xtConnections = effective.optInt("connections", 3);
+        boolean xtDisableEch = !effective.optBoolean("enable_ech", true);
+        boolean xtInsecure = effective.optBoolean("insecure");
+        boolean xtEnableHotPair = effective.optBoolean("enable_hot_pair");
+        int xtHotPairCount = effective.optInt("hot_pair_count", 1);
+        String xtIpStrategy = effective.optString("ip_strategy", Preferences.DEFAULT_XT_IP_STRATEGY);
+        String xtServerAddr = effective.optString("server_addr");
         if (xtServerAddr.startsWith("wss://")) {
             xtServerAddr = xtServerAddr.substring(6);
         } else if (xtServerAddr.startsWith("ws://")) {
             xtServerAddr = xtServerAddr.substring(5);
         }
-
-        // 恢复原配置
-        prefs.setCurrentProfileId(originalId);
 
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
             // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/insecure/hotpair
@@ -714,7 +750,8 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 // 忽略，使用原始名称
             }
             xtProtocol += "#" + xtName;
-            showExportDialog(xtProtocol);
+            String snapshot = xtProtocol;
+            runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) showExportDialog(snapshot); });
             return;
         }
 
@@ -756,13 +793,14 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         protocol += "#" + profileName;
 
         // 显示导出对话框
-        showExportDialog(protocol);
+        String snapshot = protocol;
+        runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) showExportDialog(snapshot); });
     }
 
     private void showExportDialog(String protocol) {
         // 创建自定义对话框，包含 QR 码和协议文本
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("导出配置");
+        builder.setTitle("导出配置（当前有效入口快照）");
 
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_export, null);
         TextView textProtocol = dialogView.findViewById(R.id.text_protocol);
@@ -1063,11 +1101,10 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                         name = defaultName;
                     }
                     // 添加配置
+                    if (profileMutation) return;
                     prefs.addProfile(id, name);
 
-                    // 临时切换到新配置以设置参数
-                    String originalId = prefs.getCurrentProfileId();
-                    prefs.setCurrentProfileId(id);
+                    Preferences prefs = this.prefs.forProfile(id);
 
                     // 设置协议与参数
                     prefs.setProtocol(protocol);
@@ -1092,12 +1129,15 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                         prefs.setDynamicPoolMax(dynamicPoolMax);
                     }
 
-                    // 恢复原配置
-                    prefs.setCurrentProfileId(originalId);
-
-                    // 刷新列表
-                    refreshProfileList();
-                    Toast.makeText(this, "配置已导入", Toast.LENGTH_SHORT).show();
+                    mutateProfile(() -> {
+                        // New URI profiles keep an unset mode, just like new manual profiles.
+                        // Original URI addresses remain effective until this profile is verified
+                        // and the user confirms the global preview. Never invent an explicit opt-out.
+                        new PreferredIpStore(this).read();
+                    }, () -> {
+                        refreshProfileList();
+                        Toast.makeText(this, "配置已导入；原入口保留，全局跟随需在优选页验证并确认", Toast.LENGTH_LONG).show();
+                    });
                 })
                 .setNegativeButton("取消", null)
                 .show();

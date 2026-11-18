@@ -32,6 +32,9 @@ keystore.properties
 /INTEGRATION_PLAN.md
 /docs/
 
+# 本地测速参考源码，不推送远程仓库
+/reference/
+
 # Pi Agent
 .pi
 .agents

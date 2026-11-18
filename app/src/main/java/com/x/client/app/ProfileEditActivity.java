@@ -80,12 +80,30 @@ public class ProfileEditActivity extends BaseActivity {
     private EditText edittext_xt_adv_max_socks5;
     private EditText edittext_xt_adv_udp_ports;
 
+    private final java.util.concurrent.ExecutorService preferredWorker = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private Spinner preferredMode;
+    private boolean preferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
+    private boolean preferredDraftDirty, preferredImportedAddresses;
+    private String preferredSavedSummary = "";
+    // Unknown keys and confirmed deletions live here, never reloaded from saved prefs on save.
+    private String xtAdvancedDraft;
+    private String pendingPreferredImport;
+    private String preferredOriginalMode, restoredPreferredMode;
+    private static final String[] PREFERRED_MODES = {"global", "independent", "default"};
+
     private Button btn_import;
     private Button btn_save;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
+            preferredDraftDirty = savedInstanceState.getBoolean("preferred_dirty_draft");
+            preferredImportedAddresses = savedInstanceState.getBoolean("preferred_imported_addresses");
+            xtAdvancedDraft = savedInstanceState.getString("xt_advanced_draft");
+            pendingPreferredImport = savedInstanceState.getString("pending_preferred_import");
+        }
 
         prefs = new Preferences(this);
 
@@ -205,23 +223,176 @@ public class ProfileEditActivity extends BaseActivity {
         // 加载配置数据
         loadProfileData();
 
+        setupPreferredIp();
+
         // 设置导入按钮点击事件
         btn_import.setOnClickListener(v -> showImportDialog());
 
         // 设置保存按钮点击事件
         btn_save.setOnClickListener(v -> {
+            if (!preferredLoaded) return;
             if (savePrefs()) {
                 hasBeenSaved = true;
-                Toast.makeText(this, getString(R.string.toast_profile_saved), Toast.LENGTH_SHORT).show();
-                finish();
+                String mode = PREFERRED_MODES[preferredMode.getSelectedItemPosition()];
+                boolean saveMode = preferredDraftDirty || !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
+                btn_save.setEnabled(false);
+                preferredWorker.execute(() -> {
+                    try {
+                        if (saveMode) PreferredIpStore.setMode(this, profileId, mode);
+                        runOnUiThread(() -> {
+                            hasBeenSaved = true;
+                            Toast.makeText(this, getString(R.string.toast_profile_saved), Toast.LENGTH_SHORT).show();
+                            finish();
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> {
+                            btn_save.setEnabled(true);
+                            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                                    .setMessage("节点已保存，但优选模式写入失败：" + error.getMessage())
+                                    .setPositiveButton(R.string.ok, null).show();
+                        });
+                    }
+                });
             }
         });
+    }
+
+    private boolean preferredLocked() {
+        return prefs.getEnable() && profileId.equals(prefs.getCurrentProfileId());
+    }
+
+    private void setupPreferredIp() {
+        preferredMode = findViewById(R.id.preferred_mode_spinner);
+        preferredMode.setEnabled(false);
+        btn_save.setEnabled(false);
+        btn_import.setEnabled(false);
+        preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
+                if (preferredConflict && position != 1) {
+                    preferredMode.setSelection(1);
+                    return;
+                }
+                boolean independent = position == 1 && !preferredLocked();
+                setFieldEnabled(edittext_pref_ip, independent);
+                setFieldEnabled(edittext_xt_relay_nodes, independent);
+                if (preferredLoaded) showPreferredSummary();
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> a) { }
+        });
+        findViewById(R.id.preferred_manage).setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setMessage("管理页仅使用已保存的节点参数。请先保存未提交的目标/ECH更改；本页原值不会被全局池覆盖。")
+                .setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.preferred_ip_title, (d, w) -> startActivity(new Intent(this, PreferredIpActivity.class)
+                        .putExtra(EXTRA_PROFILE_ID, profileId))).show());
+        findViewById(R.id.preferred_clear_conflict).setOnClickListener(v -> new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setMessage(R.string.preferred_clear_conflict_body).setNegativeButton(R.string.cancel, null)
+                .setPositiveButton(R.string.ok, (d, w) -> {
+                    try {
+                        JSONObject draft = parseXtAdvancedDraft();
+                        draft.remove("relay_nodes");
+                        xtAdvancedDraft = draft.toString();
+                        preferredDraftDirty = true;
+                        refreshPreferredConflict(getSelectedProtocol());
+                        preferredMode.setSelection(0);
+                        showPreferredSummary();
+                    } catch (JSONException error) {
+                        Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
+                    }
+                }).show());
+        loadPreferredMode(false);
+    }
+
+    private void showPreferredSummary() {
+        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(preferredSavedSummary
+                + "\n当前选择草稿：" + getResources().getStringArray(R.array.preferred_modes)[Math.max(0, preferredMode.getSelectedItemPosition())]
+                + "（需保存节点；全局接管另需兼容检查及确认）\n"
+                + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
+    }
+
+    private void loadPreferredMode(boolean refresh) {
+        preferredWorker.execute(() -> {
+            try {
+                JSONObject pool = new PreferredIpStore(this).read();
+                String mode = PreferredIpStore.mode(pool, profileId);
+                String decision;
+                Preferences savedProfile = prefs.forProfile(profileId);
+                try {
+                    decision = PreferredIpResolver.apply(savedProfile, PreferredIpResolver.baseParams(savedProfile), pool).summary;
+                } catch (Exception error) { decision = "未接管，参数异常：" + error.getMessage(); }
+                String summary = "已保存 revision " + pool.optLong("revision") + " · 全局池"
+                        + (pool.optBoolean("enabled") ? "已启用" : "未启用")
+                        + " · 池中 " + pool.getJSONArray("selected").length() + " 个IP\n" + decision
+                        + "\n以上是已保存参数的下次连接效果，不是草稿或正在运行的连接。";
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (refresh && preferredOriginalMode != null && (preferredDraftDirty
+                            || !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode))) return;
+                    refreshPreferredConflict(getSelectedProtocol());
+                    String displayMode = preferredConflict ? "independent"
+                            : restoredPreferredMode != null ? restoredPreferredMode : mode;
+                    for (int i = 0; i < PREFERRED_MODES.length; i++) if (PREFERRED_MODES[i].equals(displayMode)) preferredMode.setSelection(i);
+                    restoredPreferredMode = null;
+                    preferredOriginalMode = preferredConflict ? "independent" : mode;
+                    preferredInitialImplicit = !pool.optJSONObject("profile_modes").has(profileId);
+                    preferredLoaded = true;
+                    preferredMode.setEnabled(!preferredLocked());
+                    btn_save.setEnabled(!preferredLocked());
+                    btn_import.setEnabled(!preferredLocked());
+                    preferredSavedSummary = summary;
+                    showPreferredSummary();
+                    if (pendingPreferredImport != null) {
+                        String pending = pendingPreferredImport;
+                        pendingPreferredImport = null;
+                        importFromProtocol(pending);
+                    }
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败，请先修复：" + error.getMessage()));
+            }
+        });
+    }
+
+    @Override protected void onResume() {
+        super.onResume();
+        if (preferredResumed && preferredMode != null) loadPreferredMode(true);
+        preferredResumed = true;
+    }
+
+    @Override protected void onSaveInstanceState(Bundle out) {
+        if (preferredMode != null && preferredLoaded) out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
+        out.putBoolean("preferred_dirty_draft", preferredDraftDirty);
+        out.putBoolean("preferred_imported_addresses", preferredImportedAddresses);
+        out.putString("xt_advanced_draft", xtAdvancedDraft);
+        out.putString("pending_preferred_import", pendingPreferredImport);
+        super.onSaveInstanceState(out);
+    }
+
+    @Override protected void onDestroy() {
+        preferredWorker.shutdown();
+        super.onDestroy();
     }
 
     private void updateFieldVisibility(String protocol) {
         boolean isXtunnel = Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
         gcm_fields.setVisibility(isXtunnel ? View.GONE : View.VISIBLE);
         xtunnel_fields.setVisibility(isXtunnel ? View.VISIBLE : View.GONE);
+        if (preferredMode != null) refreshPreferredConflict(protocol);
+    }
+
+    private JSONObject parseXtAdvancedDraft() throws JSONException {
+        return xtAdvancedDraft == null || xtAdvancedDraft.trim().isEmpty()
+                ? new JSONObject() : new JSONObject(xtAdvancedDraft);
+    }
+
+    private void refreshPreferredConflict(String protocol) {
+        boolean hasRelay = false;
+        preferredConflict = false;
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            try { preferredConflict = hasRelay = parseXtAdvancedDraft().has("relay_nodes"); }
+            catch (JSONException error) { preferredConflict = true; } // do not silently discard bad JSON
+        }
+        if (preferredConflict) preferredMode.setSelection(1);
+        findViewById(R.id.preferred_clear_conflict).setVisibility(hasRelay && !preferredLocked() ? View.VISIBLE : View.GONE);
     }
 
     // IP 策略真实值 → 下拉选项索引；未知值（含存量 "default"）回落首项（4,6，IPv4 优先）
@@ -246,9 +417,8 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void loadProfileData() {
-        // 临时切换到目标配置以读取数据
-        String originalId = prefs.getCurrentProfileId();
-        prefs.setCurrentProfileId(profileId);
+        Preferences activePrefs = prefs;
+        Preferences prefs = activePrefs.forProfile(profileId);
 
         // 加载配置名称
         edittext_profile_name.setText(prefs.getProfileName(profileId));
@@ -278,14 +448,12 @@ public class ProfileEditActivity extends BaseActivity {
         checkbox_xt_enable_hot_pair.setChecked(prefs.getXtEnableHotPair());
         edittext_xt_hot_pair_count.setText(String.valueOf(prefs.getXtHotPairCount()));
         setFieldEnabled(edittext_xt_hot_pair_count, prefs.getXtEnableHotPair());
-        loadXtAdvancedParams(prefs.getXtAdvancedParams());
-
-        // 恢复原配置
-        prefs.setCurrentProfileId(originalId);
+        if (xtAdvancedDraft == null) xtAdvancedDraft = prefs.getXtAdvancedParams();
+        loadXtAdvancedParams(xtAdvancedDraft);
 
         // 检查是否是当前激活的配置且 VPN 正在运行
         boolean isVpnRunning = prefs.getEnable();
-        boolean isCurrentProfile = profileId.equals(prefs.getCurrentProfileId());
+        boolean isCurrentProfile = profileId.equals(activePrefs.getCurrentProfileId());
 
         if (isVpnRunning && isCurrentProfile) {
             // VPN 运行时禁用当前配置的修改（输入框连同外层 TextInputLayout 一起置灰）
@@ -330,7 +498,15 @@ public class ProfileEditActivity extends BaseActivity {
     public void onBackPressed() {
         // 如果是新配置且未保存，删除该配置
         if (isNewProfile && !hasBeenSaved) {
-            prefs.removeProfile(profileId);
+            preferredWorker.execute(() -> {
+                try {
+                    prefs.removeProfile(profileId);
+                    runOnUiThread(this::finish);
+                } catch (IllegalStateException error) {
+                    runOnUiThread(() -> Toast.makeText(this, error.getMessage(), Toast.LENGTH_LONG).show());
+                }
+            });
+            return;
         }
         super.onBackPressed();
     }
@@ -442,7 +618,7 @@ public class ProfileEditActivity extends BaseActivity {
         }
 
         // 收集并校验 X-Tunnel 高级参数（每项留空表示使用默认值）
-        String xtAdvancedParams = "";
+        String xtAdvancedParams = xtAdvancedDraft;
         if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
             // 就近报错：先定位格式非法的高级参数输入框（判定规则与 collectXtAdvancedParams 一致）
             EditText invalidAdvField = findInvalidXtAdvField();
@@ -463,9 +639,8 @@ public class ProfileEditActivity extends BaseActivity {
             }
         }
 
-        // 临时切换到目标配置以保存数据
-        String originalId = prefs.getCurrentProfileId();
-        prefs.setCurrentProfileId(profileId);
+        // Scoped accessor writes only this profile; the selected profile never changes.
+        Preferences prefs = this.prefs.forProfile(profileId);
 
         // 保存配置名称
         prefs.setProfileName(profileId, profileName);
@@ -475,7 +650,7 @@ public class ProfileEditActivity extends BaseActivity {
 
         // 保存 GCM 配置级参数（保留，切换协议时不丢失）
         prefs.setWorkerHost(edittext_worker_host.getText().toString().trim());
-        prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
+        if (preferredImportedAddresses || preferredMode.getSelectedItemPosition() == 1) prefs.setPrefIp(edittext_pref_ip.getText().toString().trim());
         prefs.setUserID(edittext_user_id.getText().toString().trim());
         prefs.setFallbackIp(edittext_fallback_ip.getText().toString().trim());
         prefs.setDisableEch(checkbox_disable_ech.isChecked());
@@ -490,7 +665,7 @@ public class ProfileEditActivity extends BaseActivity {
         // 保存 X-Tunnel 参数
         prefs.setXtServerAddr(edittext_xt_server_addr.getText().toString().trim());
         prefs.setXtToken(edittext_xt_token.getText().toString().trim());
-        prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
+        if (preferredImportedAddresses || preferredMode.getSelectedItemPosition() == 1) prefs.setXtRelayNodes(edittext_xt_relay_nodes.getText().toString().trim());
         prefs.setXtConnections(xtConnections);
         prefs.setXtDisableEch(checkbox_xt_disable_ech.isChecked());
         prefs.setXtInsecure(checkbox_xt_insecure.isChecked());
@@ -498,9 +673,6 @@ public class ProfileEditActivity extends BaseActivity {
         prefs.setXtHotPairCount(xtHotPairCount);
         prefs.setXtIpStrategy(xtIpStrategy);
         prefs.setXtAdvancedParams(xtAdvancedParams);
-
-        // 恢复原配置
-        prefs.setCurrentProfileId(originalId);
 
         return true;
     }
@@ -630,7 +802,10 @@ public class ProfileEditActivity extends BaseActivity {
     // 从各输入框收集高级参数并组装 JSON；数值非法时返回 null（留空项不写入，使用默认值）
     private String collectXtAdvancedParams() {
         try {
-            JSONObject adv = new JSONObject();
+            JSONObject adv = parseXtAdvancedDraft();
+            for (String key : new String[]{"backpressure_limit", "write_queue_wait_timeout", "dial_timeout",
+                    "handshake_timeout", "read_timeout", "write_timeout", "ping_interval", "reconnect_delay",
+                    "connect_timeout", "max_socks5_connections", "udp_blocked_ports"}) adv.remove(key);
             String mb = edittext_xt_adv_backpressure.getText().toString().trim();
             if (!mb.isEmpty()) {
                 int n = Integer.parseInt(mb);
@@ -672,7 +847,8 @@ public class ProfileEditActivity extends BaseActivity {
                 }
                 adv.put("udp_blocked_ports", ports);
             }
-            return adv.length() > 0 ? adv.toString() : "";
+            xtAdvancedDraft = adv.length() > 0 ? adv.toString() : "";
+            return xtAdvancedDraft;
         } catch (JSONException e) {
             return null;
         } catch (NumberFormatException e) {
@@ -802,6 +978,15 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void importFromProtocol(String protocol) {
+        if (preferredLocked()) {
+            Toast.makeText(this, "当前节点正在运行，不能导入覆盖", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!preferredLoaded) {
+            // A scan result can arrive before asynchronous pool loading after recreation.
+            pendingPreferredImport = protocol;
+            return;
+        }
         // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
         boolean isXtunnel = protocol.startsWith("xtunnel://");
         if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
@@ -950,12 +1135,26 @@ public class ProfileEditActivity extends BaseActivity {
             }
         }
 
+        // Confirm before changing any form field or mode. Re-enter only after the draft
+        // no longer contains these overrides; cancellation leaves the whole editor intact.
+        if (isXtunnel && !confirmXtImportOverrides(protocol)) return;
+        // A first import with no explicit mode is NOT a user request to opt out forever.
+        // Keep the automatic mode; before activation it uses the URI's original addresses,
+        // after activation it still requires this profile's own saved target validation.
+        boolean implicitImport = preferredInitialImplicit && !preferredDraftDirty
+                && PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode);
+        preferredImportedAddresses = true;
+        if (!implicitImport) {
+            preferredDraftDirty = true;
+            preferredMode.setSelection(1); // replacing an explicitly configured node is an independent URI snapshot
+        }
+
         if (isXtunnel) {
             // X-Tunnel 配置
             setProtocolSelection(Preferences.PROTOCOL_X_TUNNEL);
             edittext_xt_server_addr.setText(wssAddr);
-            if (!token.isEmpty()) edittext_xt_token.setText(token);
-            if (!relayNodes.isEmpty()) edittext_xt_relay_nodes.setText(relayNodes);
+            edittext_xt_token.setText(token);
+            edittext_xt_relay_nodes.setText(relayNodes); // absent/empty means domain default, not the old IP
             edittext_xt_connections.setText(String.valueOf(connections));
             checkbox_xt_disable_ech.setChecked(disableEch);
             checkbox_xt_insecure.setChecked(insecure);
@@ -967,9 +1166,7 @@ public class ProfileEditActivity extends BaseActivity {
             // GCM 配置
             setProtocolSelection(Preferences.PROTOCOL_GCM);
             edittext_worker_host.setText(wssAddr);
-            if (!prefIp.isEmpty()) {
-                edittext_pref_ip.setText(prefIp);
-            }
+            edittext_pref_ip.setText(prefIp); // complete URI snapshot: empty clears the old entry
             if (!fallbackIp.isEmpty()) {
                 edittext_fallback_ip.setText(fallbackIp);
             }
@@ -984,6 +1181,39 @@ public class ProfileEditActivity extends BaseActivity {
             edittext_profile_name.setText(profileName);
         }
 
+        refreshPreferredConflict(isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM);
+        showPreferredSummary();
         Toast.makeText(this, getString(R.string.toast_imported_check), Toast.LENGTH_LONG).show();
+    }
+
+    private boolean confirmXtImportOverrides(String protocol) {
+        try {
+            JSONObject draft = parseXtAdvancedDraft();
+            java.util.List<String> conflicts = new java.util.ArrayList<>();
+            // These are supplied by the URI or its defaults. Legacy domain/dns URI fields
+            // use global settings, so their old advanced overrides must also be cleared.
+            for (String key : new String[]{"server_addr", "token", "relay_nodes", "connections",
+                    "enable_ech", "ech_domain", "dns_server", "insecure", "ip_strategy",
+                    "enable_hot_pair", "hot_pair_count"}) {
+                if (draft.has(key)) conflicts.add(key);
+            }
+            if (conflicts.isEmpty()) return true;
+            new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                    .setMessage("导入将删除高级JSON中的以下覆盖键，使用链接字段及默认值（ECH域名/DNS使用全局设置）：\n"
+                            + android.text.TextUtils.join(", ", conflicts)
+                            + "\n其他高级参数保留；取消不会修改当前编辑内容。确认后仍需保存才生效。")
+                    .setNegativeButton(R.string.cancel, null)
+                    .setPositiveButton(R.string.ok, (d, w) -> {
+                        if (isFinishing() || isDestroyed() || preferredLocked()) return;
+                        for (String key : conflicts) draft.remove(key);
+                        xtAdvancedDraft = draft.toString();
+                        preferredDraftDirty = true;
+                        refreshPreferredConflict(getSelectedProtocol());
+                        importFromProtocol(protocol);
+                    }).show();
+        } catch (JSONException error) {
+            Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
+        }
+        return false;
     }
 }

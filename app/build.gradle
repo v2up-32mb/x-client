@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 
+// 仅显式 -PTRIAL_BUILD=true 的 debug 构建使用独立安装包；namespace/JNI 类名不变。
+def trialBuild = providers.gradleProperty('TRIAL_BUILD').orElse('false').get() == 'true'
+
 android {
     namespace "com.x.client.app"
     compileSdkVersion 34
@@ -27,6 +30,19 @@ android {
     buildTypes {
         debug {
             minifyEnabled false
+            if (trialBuild) {
+                applicationIdSuffix ".trial"
+                signingConfig signingConfigs.debug
+            }
+        }
+    }
+
+    // debug 资源覆盖 main 的 app_name，不向 main 注入同名 resValue。
+    if (trialBuild) {
+        sourceSets {
+            debug {
+                res.srcDir 'src/trial/res'
+            }
         }
     }
 
