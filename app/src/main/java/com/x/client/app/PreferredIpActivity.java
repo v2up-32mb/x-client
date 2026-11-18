@@ -109,7 +109,15 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
 
     @Override protected void onStart() { super.onStart(); controller.attach(this); }
     @Override protected void onStop() { remember(); controller.detach(isChangingConfigurations()); super.onStop(); }
-    @Override protected void onDestroy() { destroyed = true; differ.shutdown(); main.removeCallbacksAndMessages(null); super.onDestroy(); }
+    @Override protected void onDestroy() {
+        destroyed = true;
+        differ.shutdown();
+        main.removeCallbacksAndMessages(null);
+        if (isFinishing()) {
+            PreferredIpRuntime.forget();
+        }
+        super.onDestroy();
+    }
 
     private void remember() {
         if (manual != null) controller.manualDraft = manual.getText().toString();
