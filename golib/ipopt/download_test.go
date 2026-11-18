@@ -66,6 +66,11 @@ func TestDownloadResponseValidation(t *testing.T) {
 			t.Fatal("error response accepted", r)
 		}
 	}
+	for _, ct := range []string{"application/octet-stream", "application/binary", "application/x-binary", "application/zip", "application/x-download", "binary/octet-stream", "image/png", "video/mp4"} {
+		if err := validateDownloadResponse(&http.Response{StatusCode: 200, Header: http.Header{"Content-Type": []string{ct}}, ContentLength: 12}); err != nil {
+			t.Fatalf("valid binary type rejected: %s: %v", ct, err)
+		}
+	}
 }
 
 func TestDownloadHTTPSPathQueryHostAndCandidatePort(t *testing.T) {

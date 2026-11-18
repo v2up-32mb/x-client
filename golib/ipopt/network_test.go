@@ -1,6 +1,8 @@
 package ipopt
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"errors"
 	"io"
@@ -41,6 +43,19 @@ func TestFetchOfficialCIDRAndThirdParty(t *testing.T) {
 	}))
 	if err != nil || len(out.candidates) != 1 || out.candidates[0].SourceKind != "third_party" || len(out.errors) != 2 {
 		t.Fatalf("%+v %v", out, err)
+	}
+
+	// Test gzip decompression
+	var gzBuf bytes.Buffer
+	gw := gzip.NewWriter(&gzBuf)
+	_, _ = gw.Write([]byte("1.1.1.1:2008#third\n127.0.0.1:443\nnope"))
+	_ = gw.Close()
+	out, err = fetchSource(context.Background(), Source{"gz", "https://example.com/gz.txt", "list"}, roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		h := http.Header{"Content-Type": []string{"text/plain"}, "Content-Encoding": []string{"gzip"}}
+		return &http.Response{StatusCode: 200, Header: h, Body: io.NopCloser(bytes.NewReader(gzBuf.Bytes())), ContentLength: int64(gzBuf.Len()), Request: req}, nil
+	}))
+	if err != nil || len(out.candidates) != 1 {
+		t.Fatalf("gzip fetch failed: %+v, %v", out, err)
 	}
 }
 

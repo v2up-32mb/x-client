@@ -1,9 +1,12 @@
 package ipopt
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -53,10 +56,19 @@ func fetchSource(ctx context.Context, s Source, rt http.RoundTripper) (fetchOutp
 	if resp.ContentLength > maxSourceBytes {
 		return out, fmt.Errorf("来源超过2MiB")
 	}
-	if enc := resp.Header.Get("Content-Encoding"); enc != "" && enc != "identity" {
-		return out, fmt.Errorf("来源返回了不支持的压缩正文")
+	var bodyReader io.Reader = resp.Body
+	enc := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Encoding")))
+	if enc == "gzip" {
+		gz, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return out, fmt.Errorf("来源 gzip 解压失败: %w", err)
+		}
+		defer gz.Close()
+		bodyReader = gz
+	} else if enc != "" && enc != "identity" {
+		return out, fmt.Errorf("来源返回了不支持的压缩正文: %s", enc)
 	}
-	body, err := readLimited(resp.Body, maxSourceBytes)
+	body, err := readLimited(bodyReader, maxSourceBytes)
 	if err != nil {
 		return out, err
 	}

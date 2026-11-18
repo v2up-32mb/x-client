@@ -72,7 +72,10 @@ func validateDownloadResponse(resp *http.Response) error {
 		return fmt.Errorf("下载禁止压缩正文")
 	}
 	ct := strings.ToLower(strings.TrimSpace(strings.Split(resp.Header.Get("Content-Type"), ";")[0]))
-	if ct != "application/octet-stream" && ct != "application/binary" && ct != "application/x-binary" && ct != "application/zip" && !strings.HasPrefix(ct, "image/") {
+	isBinary := ct == "application/octet-stream" || ct == "application/binary" || ct == "application/x-binary" ||
+		ct == "application/zip" || ct == "application/x-download" || ct == "binary/octet-stream" ||
+		strings.HasPrefix(ct, "image/") || strings.HasPrefix(ct, "video/") || strings.HasPrefix(ct, "audio/")
+	if !isBinary {
 		return fmt.Errorf("下载需要二进制正文，拒绝错误页或未知类型: %s", ct)
 	}
 	if resp.ContentLength == 0 {
