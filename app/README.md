@@ -86,19 +86,19 @@ app/src/main/res/values[-night]/
 
 ## 构建
 
-**所有 Go / AAR / APK 编译和测试均走 GitHub Actions**（本地仅允许静态检查）：
+**构建和 Go 核心测试走 GitHub Actions；Android App 行为由用户在设备上手工验证**（本地不运行项目构建）：
 
 | 工作流 | 触发 | 说明 |
 |---|---|---|
 | `build-aar.yml` | main 推送（`golib/**`）/ 手动 | gomobile AAR 构建，预热默认分支缓存 |
-| `release.yml` | `v*` tag / 手动 | tag=构建+签名+发版；手动=release 类型 CI 构建验证（unsigned，不发版） |
+| `release.yml` | `v*` tag / 手动 | tag=构建+签名+发版；手动=unsigned CI/试用 APK 构建，试用还执行 Go race 与 gomobile/API 检查；不运行 App 测试 |
 | `check-keystore.yml` | 手动 | 验证签名密钥 secrets |
 
-## 全局优选 IP v2（Android 实现；待新 CI / 设备验收）
+## 全局优选 IP v2（Android 实现；行为需设备手工验证）
 
 入口仍为主页「更多 → 优选 IP」及节点编辑页「管理全局优选 IP」。原生 Java / Material 3，
 `TabLayout + ViewPager/PagerAdapter` 两页「来源 / 测试」，不新增依赖。没有已选页、优选日志框、
-推荐按钮或确认保存流程；`PreferredIpLog` 仅作为旧六组安全回归用到的纯工具保留，页面不调用它。
+推荐按钮或确认保存流程；`PreferredIpLog` 保留为兼容工具，但页面不调用它。
 
 ### 会话与线程边界
 
@@ -205,171 +205,6 @@ Go 返回的完整规范地址，不截端口。语义 Material 3 颜色、无�
   再CAS成轻量引用；失败保原库。批次完成/暂停才写历史，不按500ms全量写。超限明确提示历史未
   完整保存，不静默截断，也不回滚用户已保存池。
 
-### 非公开测试接缝（供后续 API24 真 Activity instrumentation）
+### App 手工验证
 
-所有接口/构造器/字段均 package-private，仅 `com.x.client.app` 同包测试代码可用，
-**无Intent extra、Preference开关、public测试API、私网放行或自动fake进度**：
-
-```java
-PreferredIpRuntime.Factory savedFactory = PreferredIpRuntime.factory;
-// 必须先让上一用例提供 matching worker_done 并完全退出；forget 不放弃 drain。
-PreferredIpRuntime.forget();
-PreferredIpRuntime.factory = (context, reference) -> new PreferredIpController(
-    context, reference, backend, network, clock);
-// 然后用真实 Instrumentation.startActivitySync 启动 PreferredIpActivity。
-// finally: Activity.finish；确认任务退出；forget；恢复 savedFactory；清理测试数据。
-```
-
-- `PreferredIpRuntime.Backend`：parse/start/poll/cancel；生产默认 RealBackend 直调真实 Xclient。
-  测试 start 记录完整JSON/返回ID，poll 用闩锁模拟真实阻塞与逐IP新wire快照，cancel可立即记录，
-  **先返回 cancelled + worker_done=false，再 true** 验证单槽。勿把旧 status=valid fixture
-  直接当新proof：须提供 result_kind/target_key/probe_complete/score_ready/score_version 和真实
-  会话/网络字段；完整五score分项参见 golib/README.md。source fetch 也有 worker_done。
-- `NetworkAccess`：id/label/requireDirect/ipv6/metered/watch/unwatch；测试保留watch的Runnable，
-  改id后触发以覆盖切网。生产只用 ConnectivityManager + VPN阻止，无允许私网开关。
-- `Clock.now()` 用于持久时间戳；轮询/刷新间隔仍真实500ms，测试用闩锁/条件等待而不是伪时钟
-  驱动自动进度。ECH过期/TTL0可通过 Backend Start 的 prepare_required 和准备快照覆盖。
-- `PreferredIpStore` / `PreferredIpHistory` 用真实 Android AtomicFile。可用 ContextWrapper 的
-  getFilesDir 隔离每例文件（同时覆盖 getApplicationContext 返回此 wrapper）；故障用该测试目录文件错误/陈旧revision注入，不能改正式数据。
-  UI读取Profile仍用真实Preferences；创建/清理测试Profile并验证不改当前Profile指针。
-- 控件ID：preferred_pager/tabs/results/primary/reference/sample_input/concurrency_input/status；
-  行中 preferred_choice/row_heading/row_detail/row_download，行/checkbox/heading tag均为规范
-  address。测试必须真正点击、横滑、滚动、展开、重排中勾选和旋转，不只调用 Controller。
-- Controller Listener/State 提供不可变发布快照；测试可另行实例化Controller attach观察。
-  retained `expanded/tab/scroll/uiSample/uiConcurrency/uiReference` 是UI状态，不是网络proof。
-  不要直接改State.data；它是已发布不可变对象。`dispose/forget` 仅在已完成退出的用例清理使用。
-- 原内部 `prepareSave/commitPreview/recommend` 已删除；不要为旧JSON fixture重新加回保存页。
-  原六组安全用例保留：Resolver的3→9配置通道、partial subset、独立/default/target变化/高级冲突、
-  无下载非推荐仍兼容、第三方URL与手动备注、纯日志工具界限。`compatible` 保留原低层谓词供旧
-  第4例；新选择走额外 `eligible` 完整性/上下文门槛。第6例可继续测保留工具，同时新增“页面无日志”。
-- 原 `app/src/static_checks/preferred_ip_feedback.py` 仍断言旧保存预览/日志页面，**本轮未改测试lane**；
-  下一lane应改为v2结构断言并保留原六安全场景，不以运行旧fixture替代新UI动作。
-
-#### 切网时序接缝（后续 API24 lane；本轮未编写/运行 instrumentation）
-
-无需修改 `PreferredIpRuntime` 或增加生产测试开关。沿用上面的 factory/backend/network/clock 和真实
-AtomicFile；可反射本应用私有 `control`、`selectionIO`、`scanContext`、`resultContexts`、`scanEpoch`、
-`stale`、`eligible`、`validateSelections`、`commitValidation` 及 `PreferredIpStore.LOCK`。
-控制器内部状态只在 control 上读取/反射调用，用 CountDownLatch/Future 建立先后关系，不用 sleep 猜竞态；
-不得修改已经发布的 JSONObject、强填 valid/enabled，或用公开 fake 开关替代真实 Activity 操作。
-
-1. **保留旧完整 reference**：真实启动 Activity，Backend按实际wire返回 prepare(SA/KA/network A)
-   和完整 reference（至少一条合格），等控制器已merge并保存好旧 `scanContext`/结果归属。
-   先真实暂停并给 matching worker_done，保留结果，不重建/清空扫描。选中历史项的用例先在 A 正常
-   走选择与验证落盘；未选中项另留一条。用旧对象身份与 JSON 副本作断言，不能重新注入结果。
-2. **invalidate 尚在队列**：反射取得 control，在一个 control Runnable 内先排 `select(address,true)`
-   和验证检查，再把注入网络置 B、同步调用 watch 保存的 changed Runnable；invalidate 排在它们之后。
-   为避免500ms周期任务抢先标 stale 导致假阴性，**同一个仍未返回的 Runnable 内**反射检查
-   `stale` 仍为 false、旧结果仍完整，而 `eligible` 已为 false，并直接调用 `validateSelections(true)`。
-   这是确定性的“失效通知已发、invalidate不能运行”窗口；随后放行队列，检查无新增选择/证明/启用。
-   再在同一个窗口内依次通知 B、A，确认旧对象仍被拒绝，不能只比 network字符串。
-3. **已排队 Store 事务**：测试线程持有反射取得的 `PreferredIpStore.LOCK` monitor，另一线程在
-   control 触发新增选择，或基于已经落盘的 selected 触发 reference复用/异target完成提交。
-   用 control栅栏确认提交已入 selectionIO，保持 Store锁期间同步通知 B（另例 B→A），再释放锁。
-   真实 update 获锁后的检查必须拒绝旧提交，旧 selected/validations/profile_modes/enabled保持不变；
-   不要同JVM另拿重叠 FileChannel锁，也不要持 Store锁等待 selectionIO完成，以免用例自身死锁。
-   通过 selectionIO→control 双栅栏确认错误回调已处理。分别覆盖“新增intent尚未落盘”和
-   “intent已落盘、兼容证明尚未落盘”。后者尤其核 enabled 不能从false变true或覆盖较新池。
-4. **晚到/维护回调**：Backend.poll 用闩锁阻塞异target prepare/probe或prepare_required后的维护；
-   切网后才返回旧 SA/A 的 completed+worker_done。不可派生新validation/retry/download或落新proof；
-   即使网络回 A 也不可。另例 Start 前卡下载 Store预留再切网：允许按原账本释放未入场预留，但不能
-   调 Backend.start。已启动下载则必须 drain及计费，参考六字段之外保持不变。
-5. **稳定正例/版本与安全回归**：网络一直 A 时新选择、同target复用无需额外Go probe应成功；Go
-   规范化target相同的prepare回调也应复用。稳定时ECH维护/显式新轮后原reference仍可选/下载。
-   真正切tab、快速勾选、Store revision变更不改变scanEpoch；选择/最终Profile变化使晚验证拒绝。
-   切网后旧checked仍能取消、最后一项取消能disable。阻塞poll与Store时取消仍独立可达，
-   cancelled+worker_done=false不能启动第二槽，true结算后才能继续。用例结束前释放所有闩锁并drain。
-
-这些时序说明是测试设计，不是执行证据；真实按钮/列表操作、API24编译运行及Actions报告仍由后续lane完成。
-
-#### 勾选完成/拒绝回滚接缝（后续 API24 lane；仅设计，未编写/执行测试）
-
-选择完成与早期拒绝现在都先发布真实 Store 快照，再在 main FIFO 发出 `selectionSettled(address)`。
-Activity 按**当前 adapter 地址**定点 `notifyItemChanged`，不依赖 `saving=true` 中间帧或 Row 内容变化；
-bind 暂时移除 listener 后，从最新已发布 Store 的 `selectedAddresses` 设置 checkbox，仍保留
-holder.address / binding position guard。旧 diff 即使晚到，也不能用旧 Row.checked 覆盖较新确认。
-这是显式地址重绑，不是 Root revision / scanEpoch 确认；无落盘序号、无事件历史或全列表重绑。
-`selectedAddresses` 只镜像当前有界 Root 的 selected，不累计操作记录。事件到达时地址若已移除，
-无需保留位置；以后重绑仍读取最新 Store 选择。交互期间保留的已移除行也如此，不移动焦点或锚点。
-
-下一 lane 必须以真实 Activity checkbox 点击（不是直接 select 或改 State）做以下确定性回归：
-
-1. **无 saving 帧的双向快失败**：先通过既有 Backend/NetworkAccess 接缝形成稳定 A 的完整
-   reference，真正暂停并 drain matching worker_done。分别准备 X 未选和 X 已选的落盘正例。
-   用例专属 retained Controller 可反射暂停 control 的周期任务（只操作该实例的 scheduled future，
-   不停止 control/selectionIO，不加生产开关），在 control 手动调用真实 publish 建立初帧。
-   在隔离目录制造真实 AtomicFile openRead 快故障，例如在持 Store.LOCK 时将原 base/.bak
-   安全移存到同一用例目录，再把 base 换成非空目录；不得改正式库，也不得用伪 Store 返回值。
-   松锁后真实点击 X；用 selectionIO→control 栅栏等失败回调，而非 sleep。观察初帧与完成帧之间
-   **没有 saving=true**，且 pending 确实 0→1→0。完成帧仍须触发地址重绑，新增失败回 false、
-   取消失败回 true；恢复故障文件后真实 read 核 selected/validations/enabled 和原字节未被改写。
-   这是 AtomicFile 读故障；若另测写故障，须单独证明实际写入失败及恢复语义，不能冒称同一覆盖。
-2. **晚 diff / 地址身份**：在 differ 先放闩锁，捕获完成前的旧 before/after，再让失败或成功完成，
-   确认 main 已收到较新快照与地址确认后才放旧 diff。分别让 diff 内容相等/变化/含排序及另一地址 Y，
-   覆盖旧 diff 已运行和仍排队两种窗口。断言 X 的实际 checked 始终最终等于最新 Store，Y 不受误写；
-   对 TalkBack/触摸/滚动的 held removed row 也核取消成功显示 false，延后移位/anchor/fold 不变。
-3. **成功/重复/拒绝**：无故障新增保存与取消保存为正例，最后取消 disable；同地址快速重复意图、
-   新增后取消、失败后再次成功分别以真实点击建立，不强填 proof/valid/enabled。用 control 栅栏
-   在点击入队后、intent 执行前通知网络变化，确定性触发早期拒绝；仍须恢复 checkbox，不能只验消息。
-   统计 Store 实际提交与 selected/selection_version，确认重绑 setChecked 不递归产生选择事务。
-   另保留稳定成功后的普通 Root revision / tab 切换不推进 scanEpoch 的原回归。
-4. **清理**：每例 finally 释放所有闩锁、恢复故障路径及真实 Preferences；网络任务按原
-   package-private 接缝完成 drain 后再 forget / 恢复 factory。暂停周期任务的实例直接清理，
-   不复用于下一例。不能留下 differ/control 阻塞、故障文件或假网络工厂；不公开 fake / 私网开关。
-
-以上仅源码层设计与静态推演；API24 原生操作、真实 AtomicFile 故障和晚 diff 尚未执行。
-
-#### 同实例后台返回的选择协调（后续 API24 lane；仅设计，未执行）
-
-`onStop` 会 detach 并清空 Controller listener；此时 main 消费的完成 State/地址通知可以全部丢弃。
-不能把一次性通知当持久确认。Activity 现在在每份权威 State 更新 selectedAddresses 后，仅遍历
-RecyclerView 当前 attached children，核对当前 binding position 对应的地址与 holder.address，
-**只对 checked 不一致的控件**解绑 listener、设置最新 Store selected、恢复带地址/position guard
-的 listener。没有整行 bind、排序或焦点/展开/anchor 修改，更没有全列表通知或落盘 ack。
-
-同样的有界检查还放在列表 pre-draw：首次 State 可能早于 layout/holder 就绪，测试 tab 也可能隐藏，
-仅一次遍历空列表不能消费掉补偿机会。后续显示、缓存 holder 重新进入视口或晚 diff 后，每次实际
-绘制前都会按当前地址重核；无有效 position/地址不匹配的 holder 本次跳过，后续 bind/pre-draw
-仍按最新 Store 协调，不保存旧 position/checked、不依赖延时或启动网络。普通帧只比较可见控件，
-不每500ms重绑全列表。前台完成通知和晚 diff 的最新 Store 绑定仍保留。
-
-下一 API24 lane 追加真实生命周期回归，沿用既有 package-private factory/网络 fixture 和隔离
-AtomicFile，不增加公开 fake/私网开关，也不直接改 State/proof：
-
-1. **双向失败漏通知**：稳定 A、完整 reference、真实暂停并 drain 后，X 折叠；分别以真实保存
-   建立未选和已选初态。按上一节暂停测试实例周期任务，建立初帧；main 栅栏确认 native checked。
-   测试线程持 Store.LOCK，在同一 main Runnable 内真实点击 X、用 control 栅栏确认 intent 已进
-   selectionIO，随后在返回绘制前真实执行同一 Activity 的 onStop（未 onDestroy）；main 栅栏
-   核 listener=null、实例身份未变且 native checked 仍是点击后的临时值。
-   在同一隔离目录安全移存 base/.bak、制造真实 AtomicFile openRead 故障后放 Store 锁；
-   selectionIO→control 栅栏确认失败完成、pending 0→1→0；main 栅栏确认发布和通知已在
-   listener=null 时消费，初帧至完成没有 saving=true。不要在 main/control 持锁等待彼此而死锁。
-2. **同实例返回**：恢复故障文件，真实 onStart 返回原实例；control/selectionIO→control→main
-   栅栏确认 attach 的快照和真实读库更新都已到达，再等待实际 layout/pre-draw。断言即使
-   sameRows 为 true，新增失败回 false、取消失败回 true，selected/validations/enabled/
-   selection_version 与恢复后的真实库一致；监听重设未新增任何 Store 事务或递归 select。
-3. **holder 未就绪与晚 diff**：用 main 和 differ 闩锁分别建立 State 先于首轮 layout、tab 隐藏、
-   holder 回收/缓存复用、NO_POSITION 后恢复、held removed row，以及旧 diff 已算完/仍排队的窗口。
-   返回时先消费权威 State，再放 layout/differ，或反序交错；不能因为首遍无 holder 就通过断言。
-   真正显示并绘制后核 X，与另一地址 Y 的 tag/holder 身份一致、不误改 Y；fold/TalkBack 焦点、
-   触控延期移位和 anchor 保持。pre-draw 只修 checked 差异，不得视为执行了整行 bind。
-4. **正例/拒绝/旋转**：补成功完成通知在后台丢弃、早期拒绝通知在后台丢弃及失败后成功的正反例；
-   最后取消仍 disable，无自动 I/O。另做真实旋转，新 Activity 从 retained Controller 最新 State
-   绑定，与未销毁返回分开计数。原前台快失败/重复意图/晚 diff/地址 guard 用例继续保留。
-5. **清理与报告**：finally 放开 main/differ/selectionIO/control 各闩锁、恢复真实文件与 Preferences，
-   按既定 worker_done drain→forget→恢复 factory 顺序清理；不复用被暂停周期任务的实例。
-   报告分别说明真实 AtomicFile 读故障与写故障覆盖，具名记录真实生命周期和绘制断言，不能用
-   sleep、直接 select 或伪 Store 成功/失败替代。本节未编写/执行测试，不代表编译或运行通过。
-
-### 验证边界
-
-本次 checkbox 修复仅改 Controller 完成/拒绝通知、Activity 地址重绑及最新 Store 选择绑定，
-并做纯静态词法/源码契约与 Git 范围检查；源码已实现不代表 Java 编译或 UI/并发测试通过。
-
-本次冻结上下文修复仅做 Controller 词法括号/调用参数个数、冻结归属/事务门槛/下载六字段等源码断言，
-允许路径核对及 `git diff --check`；这些纯静态检查不证明 Java 类型检查或并发运行正确。
-
-原 Android v2 交付仅做纯Python XML/资源引用/词法括号/API24源码守卫、契约静态检查及 git diff --check。
-**未执行任何 Go/Android 构建、依赖解析、Gradle/javac/SDK/adb/emulator 或 CI**。ViewPager实际
-classpath、四API绑定、API24真实点击/横滑/生命周期/跨进程AtomicFile、深浅主题/大字体/IPv6、
-公网ECH/VPN/WSS认证与下载计量必须由后续 GitHub Actions 和设备验收，不沿用旧CI通过记录。
+GitHub Actions 的 trial workflow 只执行 Go race、gomobile bind/API 检查与 APK 构建/签名校验，不运行 Android App 模拟测试。所有 App 行为验证均由用户在设备上手工完成；当前仓库不保留模拟网络的 `androidTest` 套件、Instrumentation runner 或对应报告 parser。CI 成功只代表上述构建/Go 检查通过，不代表 App 行为已通过测试。
