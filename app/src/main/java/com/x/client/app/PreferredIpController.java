@@ -30,7 +30,7 @@ final class PreferredIpController {
         Map<String, String> sourceMessages;
         List<Row> rows;
         String message, network, referenceId, referenceSummary, phase, sessionId, activeDownload;
-        boolean busy, paused, stale, scanning, parseThirdParty, saving, metered, ledgerBlocked;
+        boolean busy, paused, stale, scanning, parseThirdParty, saving, metered;
         int completed, success, total, selected;
         long used, reserved;
     }
@@ -1117,7 +1117,7 @@ final class PreferredIpController {
         state.scanning = scanning; state.saving = selectionPending > 0; state.metered = net.metered(); state.selected = data.getJSONArray("selected").length();
         state.phase = phase + " · ECH " + ech.optString("state", "未准备")
                 + (ech.optString("error").isEmpty() ? "" : " · " + ech.optString("error"));
-        JSONObject budget = data.optJSONObject("download_ledger"); state.ledgerBlocked = false;
+        JSONObject budget = data.optJSONObject("download_ledger");
         if (budget != null) { state.used = budget.optLong("used"); state.reserved = budget.optLong("reserved"); }
         if (!state.activeDownload.isEmpty()) { state.used = Math.max(state.used, liveDownloadUsed); state.reserved = Math.max(0, state.reserved - liveDownloadBytes); }
         LinkedHashMap<String, JSONObject> visible = new LinkedHashMap<>(candidates);

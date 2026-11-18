@@ -9,9 +9,6 @@ final class PreferredIpLedger {
     private static final String PROCESS = UUID.randomUUID().toString();
     private final PreferredIpStore store;
     PreferredIpLedger(PreferredIpStore store) { this.store = store; }
-    static boolean lost(JSONObject ledger) {
-        return false;
-    }
     /** Called once for each explicit new scan / reset, not for ordinary maintenance. */
     String beforePrepare(boolean confirmedNewRound) throws Exception {
         JSONObject saved = store.update(root -> {
