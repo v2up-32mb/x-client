@@ -1,6 +1,5 @@
 package com.x.client.app;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -24,7 +23,6 @@ import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.util.*;
@@ -33,7 +31,6 @@ import java.util.concurrent.Executors;
 
 /** Native two-page UI. There is no service, fake progress, save preview or selected/log page. */
 public class PreferredIpActivity extends BaseActivity implements PreferredIpController.Listener {
-    private static final int OPEN_TXT = 502;
     private PreferredIpController controller;
     private PreferredIpController.State state;
     // Latest published Store selection, independent of any older in-flight adapter diff.
@@ -154,7 +151,6 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         MaterialButton btnFetchV6 = view.findViewById(R.id.preferred_btn_fetch_v6);
         MaterialButton btnFetchList = view.findViewById(R.id.preferred_btn_fetch_list);
         MaterialButton btnParseManual = view.findViewById(R.id.preferred_btn_parse_manual);
-        MaterialButton btnImportFile = view.findViewById(R.id.preferred_btn_import_file);
         MaterialButton btnLegacy = view.findViewById(R.id.preferred_btn_legacy_nodes);
 
         sourceUrl.setText(controller.urlDraft);
@@ -173,7 +169,6 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         sourceNetworkButtons.add(btnFetchList);
 
         btnParseManual.setOnClickListener(v -> controller.parse(manual.getText().toString(), "manual", "manual"));
-        btnImportFile.setOnClickListener(v -> startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("text/*").addCategory(Intent.CATEGORY_OPENABLE), OPEN_TXT));
         btnLegacy.setOnClickListener(v -> controller.legacy());
         accept.setOnClickListener(v -> controller.acceptParsed());
 
@@ -301,44 +296,62 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         else start.run();
     }
 
-    @Override protected void onActivityResult(int request, int result, Intent data) {
-        super.onActivityResult(request, result, data);
-        if (request == OPEN_TXT && result == RESULT_OK && data != null && data.getData() != null) controller.importFile(data.getData());
-    }
-
     @Override public void changed(PreferredIpController.State next) {
         state = next;
         selectedAddresses.clear();
         JSONArray selected = next.data.optJSONArray("selected");
         for (int i = 0; selected != null && i < selected.length(); i++)
             selectedAddresses.add(selected.optJSONObject(i).optString("address"));
-        referenceDetail.setText(next.referenceSummary);
-        String statusText = next.phase + " · 已完成 " + next.completed + "/" + next.total + "（成功 " + next.success + " / 失败 " + (next.completed - next.success) + "）"
+
+        if (referenceDetail != null) {
+            referenceDetail.setText(next.referenceSummary != null ? next.referenceSummary.trim() : "");
+        }
+
+        String fullSummary = next.phase + " · 已完成 " + next.completed + "/" + next.total + "（成功 " + next.success + " / 失败 " + (next.completed - next.success) + "）"
                 + "\n已选 " + next.selected + (next.saving ? " · 保存中" : "") + " · " + next.network
                 + String.format(Locale.getDefault(), "\n下载已用 %.1f / 100MiB · 预留 %.1fMiB · 剩余 %.1fMiB", next.used / 1048576.0, next.reserved / 1048576.0,
                 Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0)
                 + (next.ledgerBlocked ? " · 未结清/失账，须确认新轮" : "") + (next.stale ? "\n旧上下文仅为历史" : "") + "\n" + next.message;
-        if (!statusText.contentEquals(status.getText())) status.setText(statusText);
-        if (sourceStatus != null) {
-            sourceStatus.setText(next.message);
-            sourceStatus.setVisibility(next.message.isEmpty() ? View.GONE : View.VISIBLE);
+
+        // 无障碍依然能读取完整汇总
+        if (status != null) {
+            status.setContentDescription(fullSummary);
+            // 界面上只呈现当前最新提示或关键警告，不再倾倒多行冗长字符
+            if (next.message != null && !next.message.isEmpty()) {
+                status.setText(next.message);
+                status.setVisibility(View.VISIBLE);
+            } else if (next.ledgerBlocked) {
+                status.setText("⚠️ 未结清/失账，须确认开启新一轮额度");
+                status.setVisibility(View.VISIBLE);
+            } else if (next.stale) {
+                status.setText("ℹ️ 当前旧上下文仅为历史");
+                status.setVisibility(View.VISIBLE);
+            } else {
+                status.setVisibility(View.GONE);
+            }
         }
 
+        if (sourceStatus != null) {
+            sourceStatus.setText(next.message);
+            sourceStatus.setVisibility(next.message != null && !next.message.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+
+        // 精致仪表盘数据绑定
         if (phaseBadge != null) {
-            String p = next.phase.isEmpty() ? "准备就绪" : PreferredIpPresentation.phase(next.phase);
+            String p = (next.phase == null || next.phase.isEmpty()) ? "准备就绪" : PreferredIpPresentation.phase(next.phase);
             phaseBadge.setText(p);
         }
         if (networkBadge != null) {
-            networkBadge.setText(next.network.isEmpty() ? "直连网络" : next.network);
+            networkBadge.setText((next.network == null || next.network.isEmpty()) ? "直连网络" : next.network);
         }
         if (metricProgress != null) metricProgress.setText(next.completed + " / " + next.total);
         if (metricSuccess != null) metricSuccess.setText(String.valueOf(next.success));
         if (metricSelected != null) metricSelected.setText(String.valueOf(next.selected));
         if (ledgerText != null) {
-            String ledgerStr = String.format(Locale.getDefault(), "下载额度：已用 %.1f / 100MiB · 预留 %.1fMiB · 剩余 %.1fMiB",
-                    next.used / 1048576.0, next.reserved / 1048576.0,
+            String ledgerStr = String.format(Locale.getDefault(), "⚡ 下载测速额度：已用 %.1f / 100.0 MiB · 剩余 %.1f MiB",
+                    next.used / 1048576.0,
                     Math.max(0, PreferredIpLedger.LIMIT - next.used - next.reserved) / 1048576.0);
-            if (next.ledgerBlocked) ledgerStr += " · (未结清/失账，须确认新轮)";
+            if (next.ledgerBlocked) ledgerStr += " (超额受限)";
             ledgerText.setText(ledgerStr);
         }
 
@@ -359,42 +372,28 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             sourceSummary.setText(sources == null || sources.length() == 0 ? getString(R.string.preferred_empty_sources) : "来源修改不改变本轮冻结队列；重新开始时采用。");
             for (int i = 0; sources != null && i < sources.length(); i++) {
                 JSONObject source = sources.optJSONObject(i);
-                String id = source.optString("id"), url = source.optString("url"), kind = source.optString("kind");
+                String id = source.optString("id"), url = source.optString("url");
                 View rowView = LayoutInflater.from(this).inflate(R.layout.item_preferred_source, sourceRows, false);
 
                 MaterialCheckBox on = rowView.findViewById(R.id.source_checkbox);
                 TextView title = rowView.findViewById(R.id.source_title);
                 TextView chip = rowView.findViewById(R.id.source_count_chip);
                 TextView statusText = rowView.findViewById(R.id.source_status_text);
-                MaterialButton refresh = rowView.findViewById(R.id.btn_refresh_source);
-                MaterialButton edit = rowView.findViewById(R.id.btn_edit_source);
-                MaterialButton delete = rowView.findViewById(R.id.btn_delete_source);
+                ImageButton refresh = rowView.findViewById(R.id.btn_refresh_source);
+                ImageButton delete = rowView.findViewById(R.id.btn_delete_source);
 
                 title.setText(PreferredIpPresentation.source(source));
                 on.setChecked(source.optBoolean("enabled", true));
                 on.setOnCheckedChangeListener((b, checked) -> controller.enableSource(id, checked));
-                chip.setText(source.optJSONArray("candidates").length() + " IP · " + source.optJSONArray("prefixes").length() + " 网段");
+                chip.setText(source.optJSONArray("candidates").length() + " IP · " + source.optJSONArray("prefixes").length() + " 段");
                 statusText.setText(state.sourceMessages.getOrDefault(id, "已有来源快照"));
 
                 if (!url.isEmpty()) {
                     refresh.setVisibility(View.VISIBLE);
                     refresh.setEnabled(!state.busy);
-                    refresh.setOnClickListener(v -> controller.fetch(id, url, kind));
-                    if ("list".equals(kind)) {
-                        edit.setVisibility(View.VISIBLE);
-                        edit.setText("编辑 URL");
-                        edit.setOnClickListener(v -> showEditUrlDialog(id, url, kind));
-                    } else {
-                        edit.setVisibility(View.GONE);
-                    }
-                } else if ("manual".equals(kind)) {
-                    refresh.setVisibility(View.GONE);
-                    edit.setVisibility(View.VISIBLE);
-                    edit.setText("编辑列表");
-                    edit.setOnClickListener(v -> editManual(source));
+                    refresh.setOnClickListener(v -> controller.fetch(id, url, source.optString("kind")));
                 } else {
                     refresh.setVisibility(View.GONE);
-                    edit.setVisibility(View.GONE);
                 }
 
                 delete.setOnClickListener(v -> confirm("删除来源", "已选地址仍保留，当前队列不变。是否删除此来源？", () -> controller.deleteSource(id)));
@@ -418,50 +417,6 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             }
         }
         if (parseSummary != null) parseSummary.setText(parsed);
-    }
-
-    private void showEditUrlDialog(String id, String url, String kind) {
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        int p = dimen(R.dimen.spacing_lg);
-        body.setPadding(p, p, p, p);
-        TextInputLayout box = new TextInputLayout(this);
-        box.setHint(getString(R.string.preferred_url));
-        box.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        TextInputEditText editor = new TextInputEditText(box.getContext());
-        editor.setText(url);
-        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
-        box.addView(editor);
-        body.addView(box);
-        new MaterialAlertDialogBuilder(this).setTitle("编辑第三方来源 URL").setView(body).setNegativeButton(R.string.cancel, null)
-                .setPositiveButton("主动更新", (d, w) -> {
-                    String changed = editor.getText().toString().trim();
-                    if (changed.startsWith("https://")) controller.fetch(id, changed, kind);
-                    else confirm("未更新", "只允许 HTTPS URL，保留原来源", () -> { });
-                }).show();
-    }
-
-    private void editManual(JSONObject source) {
-        StringBuilder text = new StringBuilder(); JSONArray rows = source.optJSONArray("candidates");
-        for (int i = 0; rows != null && i < rows.length(); i++) {
-            JSONObject row = rows.optJSONObject(i); text.append(row.optString("address"));
-            if (!row.optString("comment").isEmpty()) text.append('#').append(row.optString("comment")); text.append('\n');
-        }
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        int p = dimen(R.dimen.spacing_lg);
-        body.setPadding(p, p, p, p);
-        TextInputLayout box = new TextInputLayout(this);
-        box.setHint(getString(R.string.preferred_content));
-        box.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        TextInputEditText editor = new TextInputEditText(box.getContext());
-        editor.setText(text.toString());
-        editor.setMinLines(4);
-        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-        box.addView(editor);
-        body.addView(box);
-        new MaterialAlertDialogBuilder(this).setTitle("编辑手动来源").setView(body).setNegativeButton(R.string.cancel, null)
-                .setPositiveButton("解析替换", (d, w) -> controller.parseReplacement(editor.getText().toString(), source.optString("id"))).show();
     }
 
     private boolean deferMoves() {
@@ -640,12 +595,13 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
             }
 
             holder.addressText.setText(row.address.replace(":", ":\u200b"));
-            holder.score.setText(row.score.isEmpty() ? "尚未测试" : ("评分 " + row.score));
+            holder.score.setText(row.score.isEmpty() ? "未测试" : ("评分 " + row.score));
 
             boolean expanded = controller.expanded.contains(row.address);
             holder.heading.setContentDescription(row.location + "，" + row.address + "，评分 " + row.score + (expanded ? "，已展开，点击收起" : "，已折叠，点击展开"));
             holder.expanded.setVisibility(expanded ? View.VISIBLE : View.GONE);
-            if (holder.chevron != null) holder.chevron.setRotation(expanded ? 180f : 0f);
+            // 折叠状态显示 > (0度)，展开状态旋转 90 度指向下方
+            if (holder.chevron != null) holder.chevron.setRotation(expanded ? 90f : 0f);
             holder.detail.setText(expanded && row.detail.isEmpty() ? "读取详情…" : row.detail);
 
             boolean downloading = row.address.equals(state.activeDownload);
