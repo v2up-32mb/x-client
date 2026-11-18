@@ -579,7 +579,12 @@ final class PreferredIpV2Test {
                 check(view != null, "real widget exists");
                 String identity = "id=" + view.getId() + " text=" + view.getContentDescription() + " shown=" + view.isShown();
                 check(view.isEnabled(), "real widget is disabled: " + identity);
-                check(view.performClick(), "real widget performClick returned false: " + identity);
+                if (view instanceof CompoundButton) {
+                    CompoundButton choice = (CompoundButton) view;
+                    boolean before = choice.isChecked();
+                    view.performClick();
+                    check(choice.isChecked() != before, "real checkbox did not toggle: " + identity);
+                } else check(view.performClick(), "real widget performClick returned false: " + identity);
             });
         }
         RecyclerView list() {
