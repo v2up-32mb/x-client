@@ -1,293 +1,378 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-        <string name="app_name">X 代理</string>
-        <string name="socks_port">本地代理端口：</string>
-        <string name="ipv4">IPv4</string>
-        <string name="ipv6">IPv6</string>
-        <string name="global">全局代理</string>
-        <string name="apps">分应用代理</string>
-        <string name="save">保存</string>
-        <string name="control_enable">启动</string>
-        <string name="control_disable">停止</string>
-        <string name="worker_host">服务器地址（Worker 域名）：</string>
-        <string name="pref_ip">优选中转节点（IP:端口，逗号分隔多个）：</string>
-        <string name="user_id">用户 ID：</string>
-        <string name="fallback_ip">出口代理 IP（逗号分隔多个，发往 Worker）：</string>
-        <string name="ech_dns">DoH 服务器（用于 DNS/ECH 查询，默认 https://doh.pub/dns-query）：</string>
-        <string name="ech_domain">ECH 查询域名：</string>
-        <string name="disable_ech">禁用 ECH（标准 TLS 1.3）</string>
-        <string name="enable_dns_warmup">启用 DNS 预热（启动时预解析常见域名，加快首次连接，但可能导致冷启动延迟）</string>
-        <string name="ws_conn">WebSocket 连接数：</string>
-        <string name="enable_dynamic_pool">启用连接池动态扩容</string>
-        <string name="dynamic_pool_max">动态扩容连接上限：</string>
 
-        <!-- Profile Management -->
-        <string name="profile_label">配置节点：</string>
-        <string name="btn_add">添加</string>
-        <string name="btn_rename">重命名</string>
-        <string name="btn_delete">删除</string>
-        <string name="default_profile_name">默认节点</string>
-        <string name="dialog_title_add">添加节点</string>
-        <string name="dialog_title_rename">重命名节点</string>
-        <string name="dialog_title_delete">确认删除？</string>
-        <string name="dialog_hint_name">节点名称</string>
-        <string name="toast_profile_exists">节点名称已存在</string>
-        <string name="toast_name_empty">节点名称不能为空</string>
-        <string name="toast_saved">保存成功</string>
-        <string name="toast_cannot_delete_last">不能删除最后一个节点</string>
-        <string name="ok">确定</string>
-        <string name="cancel">取消</string>
-        
-        <!-- Export/Import -->
-        <string name="btn_export">导出</string>
-        <string name="btn_import">导入</string>
-        <string name="dialog_title_export">导出配置</string>
-        <string name="dialog_title_import">导入配置</string>
-        <string name="dialog_option_manual">手动输入</string>
-        <string name="dialog_option_scan">扫描二维码</string>
-        <string name="dialog_hint_protocol">gcm://...</string>
-        <string name="toast_copied">已复制到剪贴板</string>
-        <string name="toast_imported">配置已导入</string>
-        <string name="toast_invalid_protocol">无效的协议格式</string>
-        <string name="scan_prompt">将二维码放入框内扫描</string>
-        <string name="copy">复制</string>
-        <string name="close">关闭</string>
-        <string name="disable_ipv6_route">禁用 IPv6 路由</string>
+    <!-- ===== Basic Configuration & Connection ===== -->
+    <string name="app_name">X Client</string>
+    <string name="socks_port">SOCKS Port:</string>
+    <string name="ipv4">IPv4</string>
+    <string name="ipv6">IPv6</string>
+    <string name="global">Global Proxy</string>
+    <string name="apps">Per-App Proxy</string>
+    <string name="save">Save</string>
+    <string name="control_enable">Start</string>
+    <string name="control_disable">Stop</string>
+    <string name="worker_host">Server Address (Worker Domain):</string>
+    <string name="pref_ip">Optimal Relay Nodes (IP:Port, comma separated):</string>
+    <string name="user_id">User ID:</string>
+    <string name="fallback_ip">Egress Proxy IPs (comma separated, sent to Worker):</string>
+    <string name="ech_dns">DoH Server (for DNS/ECH, default https://doh.pub/dns-query):</string>
+    <string name="ech_domain">ECH Query Domain:</string>
+    <string name="disable_ech">Disable ECH (Standard TLS 1.3)</string>
+    <string name="enable_dns_warmup">Enable DNS Warmup (pre-resolves popular domains at start)</string>
+    <string name="ws_conn">WebSocket Connections:</string>
+    <string name="enable_dynamic_pool">Enable Connection Pool Dynamic Scaling</string>
+    <string name="dynamic_pool_max">Dynamic Scaling Max Connections:</string>
 
-        <!-- Theme（明暗模式文案，设置页「外观」分组使用） -->
-        <string name="theme_system">跟随系统</string>
-        <string name="theme_light">亮色</string>
-        <string name="theme_dark">暗色</string>
-        <string name="theme_palette_aurora">赛博极光</string>
-        <string name="theme_palette_titanium">钛金极简</string>
-        <string name="theme_palette_shield">瑞士暗盾</string>
-        <string name="theme_palette_aurora_desc">冷 Slate 底 · 极光青 + 翡翠绿</string>
-        <string name="theme_palette_titanium_desc">无彩度锌灰 · 皇家蓝，工业精密</string>
-        <string name="theme_palette_shield_desc">深青墨绿 · 护盾绿，安全守护</string>
-        <string name="search_apps">搜索应用</string>
-        <string name="view_runtime_logs">查看本次运行日志</string>
-        <string name="runtime_logs_title">运行日志</string>
-        <string name="runtime_logs_refresh">刷新</string>
-        <string name="runtime_logs_copy">复制</string>
-        <string name="runtime_logs_empty">暂无运行日志</string>
-        <string name="runtime_logs_loading">正在读取日志…</string>
-        <string name="runtime_logs_unavailable">日志服务未响应</string>
-        <string name="runtime_logs_copied">日志已复制</string>
-        <string name="runtime_logs_line_count">%1$d 行</string>
-        <string name="back">返回</string>
+    <!-- ===== Profile Management & Dialogs ===== -->
+    <string name="profile_label">Profile:</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_rename">Rename</string>
+    <string name="btn_delete">Delete</string>
+    <string name="default_profile_name">Default Profile</string>
+    <string name="dialog_title_add">Add Profile</string>
+    <string name="dialog_title_rename">Rename Profile</string>
+    <string name="dialog_title_delete">Confirm Delete?</string>
+    <string name="dialog_hint_name">Profile Name</string>
+    <string name="toast_profile_exists">Profile name already exists</string>
+    <string name="toast_name_empty">Profile name cannot be empty</string>
+    <string name="toast_saved">Saved successfully</string>
+    <string name="toast_cannot_delete_last">Cannot delete the only profile</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="btn_export">Export</string>
+    <string name="btn_import">Import</string>
+    <string name="dialog_title_export">Export Profile</string>
+    <string name="dialog_title_import">Import Profile</string>
+    <string name="dialog_option_manual">Manual Input</string>
+    <string name="dialog_option_scan">Scan QR Code</string>
+    <string name="dialog_hint_protocol">gcm://...</string>
+    <string name="toast_copied">Copied to clipboard</string>
+    <string name="toast_imported">Profile imported</string>
+    <string name="toast_invalid_protocol">Invalid protocol format</string>
+    <string name="scan_prompt">Point camera at QR code</string>
+    <string name="copy">Copy</string>
+    <string name="close">Close</string>
+    <string name="disable_ipv6_route">Disable IPv6 Routing</string>
 
-        <!-- Protocol selector -->
-        <string name="protocol_label">代理协议：</string>
-        <string name="protocol_gcm">GCM</string>
-        <string name="protocol_x_tunnel">xtunnel</string>
+    <!-- ===== Theme & Palette Appearance ===== -->
+    <string name="theme_system">System Default</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_palette_aurora">Cyber Aurora</string>
+    <string name="theme_palette_titanium">Titanium Minimal</string>
+    <string name="theme_palette_shield">Swiss Dark Shield</string>
+    <string name="theme_palette_aurora_desc">Cool Slate · Aurora Cyan + Emerald Green</string>
+    <string name="theme_palette_titanium_desc">Neutral Zinc · Royal Blue, precision</string>
+    <string name="theme_palette_shield_desc">Deep Pine · Shield Green, protection</string>
+    <string name="search_apps">Search apps</string>
 
-        <!-- X-Tunnel profile fields -->
-        <string name="xt_server_addr">服务器地址（wss://）：</string>
-        <string name="xt_token">Token：</string>
-        <string name="xt_relay_nodes">中转节点（逗号分隔）：</string>
-        <string name="xt_connections">连接数：</string>
-        <string name="xt_insecure">跳过证书验证（Insecure）</string>
-        <string name="xt_enable_hot_pair">启用热通道对（Hot Pair）</string>
-        <string name="xt_hot_pair_count">热通道对数（1-8）：</string>
-        <string name="xt_advanced_params">高级参数（点击展开，留空使用默认值）</string>
-        <string name="xt_adv_backpressure">背压上限（MB，默认 8）</string>
-        <string name="xt_adv_write_queue_wait">写队列等待超时（毫秒，默认 100）</string>
-        <string name="xt_adv_dial_timeout">拨号超时（秒，默认 3）</string>
-        <string name="xt_adv_handshake_timeout">TLS 握手超时（秒，默认 5）</string>
-        <string name="xt_adv_read_timeout">读取超时（秒，默认 15）</string>
-        <string name="xt_adv_write_timeout">写入超时（秒，默认 5）</string>
-        <string name="xt_adv_ping_interval">Ping 间隔（秒，默认 5）</string>
-        <string name="xt_adv_reconnect_delay">重连延迟（秒，默认 1）</string>
-        <string name="xt_adv_connect_timeout">连接建立超时（秒，默认 15）</string>
-        <string name="xt_adv_max_socks5">SOCKS5 最大连接数（默认 1024，0 无限制）</string>
-        <string name="xt_adv_udp_ports">UDP 拦截端口（逗号分隔，默认 443）</string>
+    <!-- ===== Runtime Logs ===== -->
+    <string name="view_runtime_logs">View session runtime logs</string>
+    <string name="runtime_logs_title">Runtime Logs</string>
+    <string name="runtime_logs_refresh">Refresh</string>
+    <string name="runtime_logs_copy">Copy</string>
+    <string name="runtime_logs_empty">No runtime logs available</string>
+    <string name="runtime_logs_loading">Loading logs…</string>
+    <string name="runtime_logs_unavailable">Log service not responding</string>
+    <string name="runtime_logs_copied">Logs copied</string>
+    <string name="runtime_logs_line_count">%1$d lines</string>
+    <string name="back">Back</string>
+    <string name="protocol_label">Proxy Protocol:</string>
+    <string name="protocol_gcm">GCM</string>
+    <string name="protocol_x_tunnel">xtunnel</string>
 
-        <!-- Log level -->
-        <string name="log_level_label">日志等级：</string>
-        <string name="log_level_hint">控制代理协议输出到运行日志的详细程度，下次启动 VPN 时生效</string>
-        <string name="log_level_debug">调试（DEBUG）</string>
-        <string name="log_level_info">信息（INFO）</string>
-        <string name="log_level_warn">警告（WARN）</string>
-        <string name="log_level_error">错误（ERROR）</string>
+    <!-- ===== x-tunnel Protocol Parameters ===== -->
+    <string name="xt_server_addr">Server Address (wss://):</string>
+    <string name="xt_token">Token:</string>
+    <string name="xt_relay_nodes">Relay Nodes (comma separated):</string>
+    <string name="xt_connections">Connections:</string>
+    <string name="xt_insecure">Allow Insecure TLS (skip certificate verification)</string>
+    <string name="xt_enable_hot_pair">Hot Pair (warm standby channels)</string>
+    <string name="xt_hot_pair_count">Hot Pair Channels (1-8):</string>
+    <string name="xt_advanced_params">Advanced Parameters (tap to expand; empty = default)</string>
+    <string name="xt_adv_backpressure">Write Buffer Limit (MB, default 8)</string>
+    <string name="xt_adv_write_queue_wait">Write Queue Wait (ms, default 100)</string>
+    <string name="xt_adv_dial_timeout">Dial Timeout (s, default 3)</string>
+    <string name="xt_adv_handshake_timeout">TLS Handshake Timeout (s, default 5)</string>
+    <string name="xt_adv_read_timeout">Read Timeout (s, default 15)</string>
+    <string name="xt_adv_write_timeout">Write Timeout (s, default 5)</string>
+    <string name="xt_adv_ping_interval">Ping Interval (s, default 5)</string>
+    <string name="xt_adv_reconnect_delay">Reconnect Delay (s, default 1)</string>
+    <string name="xt_adv_connect_timeout">Connect Timeout (s, default 15)</string>
+    <string name="xt_adv_max_socks5">Max SOCKS5 Connections (default 1024, 0 = unlimited)</string>
+    <string name="xt_adv_udp_ports">Blocked UDP Ports (comma separated, default 443)</string>
+    <string name="log_level_label">Log Level:</string>
+    <string name="log_level_hint">Controls protocol log verbosity; applies on next VPN start</string>
+    <string name="log_level_debug">Debug (DEBUG)</string>
+    <string name="log_level_info">Info (INFO)</string>
+    <string name="log_level_warn">Warning (WARN)</string>
+    <string name="log_level_error">Error (ERROR)</string>
 
-        <!-- Route bypass -->
-        <string name="bypass_routes">路由绕过</string>
-        <string name="bypass_private">绕过本地和局域网地址</string>
-        <string name="bypass_geoip_cn">绕过 GEOIP:CN</string>
-        <string name="bypass_geosite_cn">绕过 GEOSITE:CN</string>
-        <string name="manual_bypass_rules">手动规则（每行一条）</string>
-        <string name="manual_bypass_rules_hint">192.168.1.0/24\nexample.com\nfull:api.example.com</string>
-        <string name="force_proxy_rules">强制走代理域名（每行一条）</string>
-        <string name="force_proxy_rules_hint">gstatic.com\nfull:www.example.com</string>
-        <string name="settings_error_force_proxy_rules">强制走代理规则格式错误：%1$s</string>
+    <!-- ===== Route Bypass ===== -->
+    <string name="bypass_routes">Route Bypass</string>
+    <string name="bypass_private">Bypass LAN &amp; Private Addresses</string>
+    <string name="bypass_geoip_cn">Bypass GEOIP:CN</string>
+    <string name="bypass_geosite_cn">Bypass GEOSITE:CN</string>
+    <string name="manual_bypass_rules">Custom Rules (one per line)</string>
+    <string name="manual_bypass_rules_hint">192.168.1.0/24
+example.com
+full:api.example.com</string>
+    <string name="force_proxy_rules">Force Proxy Domains (one per line)</string>
+    <string name="force_proxy_rules_hint">gstatic.com
+full:www.example.com</string>
+    <string name="settings_error_force_proxy_rules">Invalid force proxy rules format: %1$s</string>
 
-        <!-- ===== C6 ProfileEdit 重构新增（仅限 ProfileEdit 代理插入） ===== -->
-        <!-- 分组标题 -->
-        <string name="section_basic_info">基础信息</string>
-        <string name="section_connection_params">连接参数</string>
-        <string name="section_advanced_params">进阶参数</string>
-        <!-- 输入框浮动提示（原 "xxx：" 标签去掉冒号） -->
-        <string name="profile_name_hint">配置名称</string>
-        <string name="protocol_spinner_label">代理协议</string>
-        <string name="worker_host_hint">服务器地址（Worker 域名）</string>
-        <string name="pref_ip_hint">优选中转节点（IP:端口，逗号分隔多个）</string>
-        <string name="user_id_hint">用户 ID</string>
-        <string name="fallback_ip_hint">出口代理 IP（逗号分隔多个，发往 Worker）</string>
-        <string name="ws_conn_hint">WebSocket 连接数</string>
-        <string name="dynamic_pool_max_hint">动态扩容连接上限</string>
-        <string name="xt_server_addr_hint">服务器地址（wss://）</string>
-        <string name="xt_token_hint">Token</string>
-        <string name="xt_relay_nodes_hint">中转节点（逗号分隔）</string>
-        <string name="xt_connections_hint">连接数</string>
-        <string name="xt_hot_pair_count_hint">热通道对数（1-8）</string>
-        <string name="xt_ip_strategy_label">IP 策略</string>
-        <string-array name="xt_ip_strategy_options">
-            <item>IPv4,IPv6</item>
-            <item>IPv6,IPv4</item>
-            <item>IPv4</item>
-            <item>IPv6</item>
-        </string-array>
-        <string-array name="xt_ip_strategy_descriptions">
-            <item>优先请求 IPv4 地址，失败回退 IPv6（默认）</item>
-            <item>优先请求 IPv6 地址，失败回退 IPv4</item>
-            <item>只请求 IPv4 地址</item>
-            <item>只请求 IPv6 地址</item>
-        </string-array>
-        <!-- 页面标题与提示 -->
-        <string name="edit_profile_title">编辑配置: %1$s</string>
-        <string name="toast_profile_saved">配置已保存</string>
-        <string name="toast_vpn_running_locked">VPN 正在运行，无法修改当前配置</string>
-        <string name="toast_imported_check">配置已导入，请检查并保存</string>
-        <string name="toast_import_missing_host">链接缺少服务器地址，无法导入</string>
-        <string name="toast_scanner_start_failed">无法启动扫描器</string>
-        <string name="scan_qr_prompt">扫描配置二维码</string>
-        <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name\nxtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
-        <!-- 校验失败 inline 提示（TextInputLayout.setError） -->
-        <string name="error_profile_name_empty">配置名称不能为空</string>
-        <string name="error_server_addr_empty">服务器地址不能为空</string>
-        <string name="error_server_addr_scheme">服务器地址必须以 wss:// 或 ws:// 开头</string>
-        <string name="error_ws_conn_invalid">WebSocket 连接数格式错误</string>
-        <string name="error_ws_conn_range">WebSocket 连接数必须在 1-%1$d 之间</string>
-        <string name="error_pool_max_invalid">动态扩容上限格式错误</string>
-        <string name="error_pool_max_range">启用动态扩容时，上限必须在 WebSocket 连接数和 %1$d 之间</string>
-        <string name="error_xt_connections_invalid">连接数必须是数字</string>
-        <string name="error_xt_connections_range">连接数必须在 1 到 16 之间</string>
-        <string name="error_hot_pair_invalid">热通道对数必须是数字</string>
-        <string name="error_hot_pair_range">热通道对数必须在 1-%1$d 之间</string>
-        <string name="error_xt_advanced_invalid">高级参数数值无效，请检查输入（留空表示使用默认值）</string>
-        <!-- ===== C7 Settings 重构新增（仅限 Settings 代理插入） ===== -->
-        <!-- 标题与分组头 -->
-        <string name="settings_title">全局设置</string>
-        <string name="settings_section_general">通用</string>
-        <string name="settings_section_appearance">外观</string>
-        <string name="settings_section_network">网络</string>
-        <string name="settings_section_bypass">代理绕过</string>
-        <string name="settings_section_ech_dns">ECH 与 DNS</string>
-        <!-- 字段标签与占位示例 -->
-        <string name="settings_socks_port_label">本地代理端口</string>
-        <string name="settings_ech_dns_label">DoH 服务器</string>
-        <string name="settings_ech_domain_label">ECH 查询域名</string>
-        <string name="settings_placeholder_socks_port">1080</string>
-        <string name="settings_placeholder_ech_dns">https://doh.pub/dns-query</string>
-        <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
-        <!-- 当前值 summary 与生效条件提示 -->
-        <string name="settings_socks_port_summary">当前端口：%1$d</string>
-        <string name="settings_apps_row_summary">已选择 %1$d 个应用</string>
-        <string name="settings_apps_row_summary_none">未选择任何应用</string>
-        <string name="settings_log_level_summary">当前等级：%1$s</string>
-        <string name="settings_restart_required">修改后需重启 VPN 生效</string>
-        <string name="settings_global_hint">勾选为全局代理，不勾选为分应用代理</string>
-        <!-- 外观：明暗模式与色彩方案（实时生效） -->
-        <string name="settings_appearance_hint">主题与配色即时生效，无需重启</string>
-        <string name="theme_mode_label">明暗模式</string>
-        <string name="theme_palette_label">色彩方案</string>
-        <string name="settings_theme_mode_summary">当前模式：%1$s</string>
-        <string name="settings_theme_palette_summary">当前方案：%1$s</string>
-        <!-- Toast 与 inline 校验错误 -->
-        <string name="settings_saved">设置已保存</string>
-        <string name="settings_vpn_running_toast">VPN 正在运行，无法修改全局设置</string>
-        <string name="settings_error_port_format">端口号格式错误</string>
-        <string name="settings_error_port_min">端口号必须 ≥ 1024</string>
-        <string name="settings_error_bypass_rules">绕过规则格式错误：%1$s</string>
-        <!-- ===== C8 AppList 重构新增（仅限 AppList 代理插入） ===== -->
-        <string name="app_selected_count">已选 %1$d 个应用</string>
-        <string name="app_list_loading">正在加载应用…</string>
-        <string name="action_select_all">全选</string>
-        <string name="action_invert_selection">反选</string>
-        <string name="action_clear_selection">清除选择</string>
-        <string name="action_clear_search">清除搜索</string>
-        <string name="acc_app_select">选择 %1$s</string>
+    <!-- ===== Profile Edit UI & Validation ===== -->
+    <string name="section_basic_info">Basic Information</string>
+    <string name="section_connection_params">Connection Parameters</string>
+    <string name="section_advanced_params">Advanced Parameters</string>
+    <string name="profile_name_hint">Profile Name</string>
+    <string name="protocol_spinner_label">Proxy Protocol</string>
+    <string name="worker_host_hint">Server Address (Worker Domain)</string>
+    <string name="pref_ip_hint">Optimal Relay Nodes (IP:Port, comma separated)</string>
+    <string name="user_id_hint">User ID</string>
+    <string name="fallback_ip_hint">Egress Proxy IPs (comma separated, sent to Worker)</string>
+    <string name="ws_conn_hint">WebSocket Connections</string>
+    <string name="dynamic_pool_max_hint">Dynamic Scaling Max Connections</string>
+    <string name="xt_server_addr_hint">Server Address (wss://)</string>
+    <string name="xt_token_hint">Token</string>
+    <string name="xt_relay_nodes_hint">Relay Nodes (comma separated)</string>
+    <string name="xt_connections_hint">Connections</string>
+    <string name="xt_hot_pair_count_hint">Hot Pair Channels (1-8)</string>
+    <string name="xt_ip_strategy_label">IP Strategy</string>
+    <string-array name="xt_ip_strategy_options">
+        <item>IPv4,IPv6</item>
+        <item>IPv6,IPv4</item>
+        <item>IPv4</item>
+        <item>IPv6</item>
+    </string-array>
+    <string-array name="xt_ip_strategy_descriptions">
+        <item>Prefer IPv4 address, fallback to IPv6 (default)</item>
+        <item>Prefer IPv6 address, fallback to IPv4</item>
+        <item>Request IPv4 address only</item>
+        <item>Request IPv6 address only</item>
+    </string-array>
+    <string name="edit_profile_title">Edit Profile: %1$s</string>
+    <string name="toast_profile_saved">Profile saved</string>
+    <string name="toast_vpn_running_locked">VPN is running, current profile cannot be modified</string>
+    <string name="toast_imported_check">Profile imported, please review and save</string>
+    <string name="toast_import_missing_host">Link missing server address, cannot import</string>
+    <string name="toast_scanner_start_failed">Failed to start scanner</string>
+    <string name="scan_qr_prompt">Scan Profile QR Code</string>
+    <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name
+xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+    <string name="error_profile_name_empty">Profile name cannot be empty</string>
+    <string name="error_server_addr_empty">Server address cannot be empty</string>
+    <string name="error_server_addr_scheme">Server address must start with wss:// or ws://</string>
+    <string name="error_ws_conn_invalid">Invalid WebSocket connections format</string>
+    <string name="error_ws_conn_range">WebSocket connections must be between 1 and %1$d</string>
+    <string name="error_pool_max_invalid">Invalid dynamic pool max format</string>
+    <string name="error_pool_max_range">Dynamic pool max must be between WebSocket connections and %1$d</string>
+    <string name="error_xt_connections_invalid">Connections must be a number</string>
+    <string name="error_xt_connections_range">Connections must be between 1 and 16</string>
+    <string name="error_hot_pair_invalid">Hot pair count must be a number</string>
+    <string name="error_hot_pair_range">Hot pair count must be between 1 and %1$d</string>
+    <string name="error_xt_advanced_invalid">Invalid advanced parameters (leave empty for defaults)</string>
 
-        <!-- 界面显示 -->
-        <string name="show_server_addr">在配置列表中显示服务器地址</string>
-        <string name="show_server_addr_hint">关闭后隐藏服务器地址，分享截图时不会泄露</string>
+    <!-- ===== Global Settings ===== -->
+    <string name="settings_title">Global Settings</string>
+    <string name="settings_section_general">General</string>
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_network">Network</string>
+    <string name="settings_section_bypass">Proxy Bypass</string>
+    <string name="settings_section_ech_dns">ECH &amp; DNS</string>
+    <string name="settings_socks_port_label">Local Proxy Port</string>
+    <string name="settings_ech_dns_label">DoH Server</string>
+    <string name="settings_ech_domain_label">ECH Query Domain</string>
+    <string name="settings_placeholder_socks_port">1080</string>
+    <string name="settings_placeholder_ech_dns">https://doh.pub/dns-query</string>
+    <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
+    <string name="settings_socks_port_summary">Current port: %1$d</string>
+    <string name="settings_apps_row_summary">%1$d apps selected</string>
+    <string name="settings_apps_row_summary_none">No apps selected</string>
+    <string name="settings_log_level_summary">Current level: %1$s</string>
+    <string name="settings_restart_required">Restart VPN to apply changes</string>
+    <string name="settings_global_hint">Checked for global proxy; unchecked for per-app proxy</string>
+    <string name="settings_appearance_hint">Theme and palette apply immediately</string>
+    <string name="theme_mode_label">Theme Mode</string>
+    <string name="theme_palette_label">Color Palette</string>
+    <string name="settings_theme_mode_summary">Current mode: %1$s</string>
+    <string name="settings_theme_palette_summary">Current palette: %1$s</string>
+    <string name="settings_saved">Settings saved</string>
+    <string name="settings_vpn_running_toast">VPN is running, cannot modify global settings</string>
+    <string name="settings_error_port_format">Invalid port format</string>
+    <string name="settings_error_port_min">Port must be ≥ 1024</string>
+    <string name="settings_error_bypass_rules">Invalid bypass rules format: %1$s</string>
 
-        <!-- ===== UI/UX 重构新增（Design System 共享组件与主页状态卡片） ===== -->
-        <!-- 连接状态卡片（四态动词化文案，research-ux P2） -->
-        <string name="status_disconnected">已断开</string>
-        <string name="status_connecting">正在连接…</string>
-        <string name="status_connected">已连接</string>
-        <string name="status_error">连接出错</string>
-        <string name="status_tap_to_connect">点击连接</string>
-        <string name="status_connecting_subtitle">正在建立隧道，请稍候</string>
-        <!-- 通用动作 -->
-        <string name="common_retry">重试</string>
-        <string name="common_view_logs">查看日志</string>
-        <string name="common_copy">复制</string>
-        <string name="common_cancel">取消</string>
-        <string name="common_confirm">确认</string>
-        <!-- 空态（指向下一步动作，research-ux P8/C3b） -->
-        <string name="empty_profiles_title">还没有配置</string>
-        <string name="empty_profiles_message">点击右下角按钮，扫码导入或手动创建第一个配置</string>
-        <string name="empty_search_title">未找到匹配应用</string>
-        <string name="empty_search_message">试试其他关键词，或清除搜索条件</string>
-        <string name="empty_logs_title">暂无日志</string>
-        <string name="empty_logs_message">连接后运行记录将显示在这里</string>
-        <!-- 主页上下文 -->
-        <string name="home_subtitle_no_profile">未选择配置</string>
-        <string name="home_current_profile">当前配置：%1$s</string>
-        <string name="acc_connect">连接 VPN</string>
-        <string name="acc_disconnect">断开 VPN</string>
-        <string name="acc_vpn_connecting">正在连接，请稍候</string>
-        <string name="acc_vpn_disconnecting">正在断开，请稍候</string>
-        <string name="acc_vpn_error">连接失败，双击重试</string>
-        <string name="acc_view_connection_info">查看连接信息</string>
-        <string name="status_disconnecting">正在断开…</string>
-        <string name="acc_add_profile">添加或导入配置</string>
-        <string name="acc_qr_scan">扫描二维码导入配置</string>
-        <string name="acc_share">分享</string>
-        <string name="acc_copy">复制</string>
-        <string name="acc_edit">编辑</string>
-        <string name="acc_delete">删除</string>
-        <string name="cannot_edit_running">VPN 正在运行，无法编辑当前配置</string>
-        <string name="cannot_delete_running">VPN 正在运行，无法删除当前配置</string>
-        <string name="toolbar_version">v%1$s</string>
-        <string name="vpn_start_failed">VPN 启动失败</string>
-        <string name="status_connecting_timeout">VPN 启动超时，请重试</string>
-        <string name="cannot_start_vpn_service">无法启动 VPN 服务: %1$s</string>
-        <!-- 导出对话框与扫码页 -->
-        <string name="export_protocol_label">协议字符串：</string>
-        <string name="export_qr_label">二维码：</string>
-        <string name="acc_export_qr">配置二维码</string>
-        <string name="scanner_hint">将二维码对准扫描框</string>
+    <!-- ===== Per-App Proxy ===== -->
+    <string name="app_selected_count">%1$d apps selected</string>
+    <string name="app_list_loading">Loading apps…</string>
+    <string name="action_select_all">Select All</string>
+    <string name="action_invert_selection">Invert Selection</string>
+    <string name="action_clear_selection">Clear Selection</string>
+    <string name="action_clear_search">Clear Search</string>
+    <string name="acc_app_select">Select %1$s</string>
+    <string name="show_server_addr">Show server address in profile list</string>
+    <string name="show_server_addr_hint">Hide server address to prevent exposure when taking screenshots</string>
 
-    <!-- Latency test -->
-    <string name="pref_latency_title">代理延迟测试</string>
-    <string name="pref_latency_url">测速目标</string>
+    <!-- ===== Status Cards, Empty States & Home UI ===== -->
+    <string name="status_disconnected">Disconnected</string>
+    <string name="status_connecting">Connecting…</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_error">Connection Error</string>
+    <string name="status_tap_to_connect">Tap to connect</string>
+    <string name="status_connecting_subtitle">Establishing tunnel, please wait…</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_view_logs">View Logs</string>
+    <string name="common_copy">Copy</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_confirm">Confirm</string>
+    <string name="empty_profiles_title">No Profiles</string>
+    <string name="empty_profiles_message">Tap the button below to scan QR code or create a profile</string>
+    <string name="empty_search_title">No Matching Apps</string>
+    <string name="empty_search_message">Try other keywords or clear search filters</string>
+    <string name="empty_logs_title">No Logs Yet</string>
+    <string name="empty_logs_message">Connection logs will appear here once connected</string>
+    <string name="home_subtitle_no_profile">No profile selected</string>
+    <string name="home_current_profile">Current: %1$s</string>
+    <string name="acc_connect">Connect VPN</string>
+    <string name="acc_disconnect">Disconnect VPN</string>
+    <string name="acc_vpn_connecting">Connecting, please wait…</string>
+    <string name="acc_vpn_disconnecting">Disconnecting, please wait…</string>
+    <string name="acc_vpn_error">Connection failed, tap to retry</string>
+    <string name="acc_view_connection_info">View connection info</string>
+    <string name="status_disconnecting">Disconnecting…</string>
+    <string name="acc_add_profile">Add or import profile</string>
+    <string name="acc_qr_scan">Scan QR code to import profile</string>
+    <string name="acc_share">Share</string>
+    <string name="acc_copy">Copy</string>
+    <string name="acc_edit">Edit</string>
+    <string name="acc_delete">Delete</string>
+    <string name="cannot_edit_running">VPN is running, cannot edit current profile</string>
+    <string name="cannot_delete_running">VPN is running, cannot delete current profile</string>
+    <string name="toolbar_version">v%1$s</string>
+    <string name="vpn_start_failed">Failed to start VPN</string>
+    <string name="status_connecting_timeout">VPN connection timed out, please retry</string>
+    <string name="cannot_start_vpn_service">Cannot start VPN service: %1$s</string>
+    <string name="export_protocol_label">Protocol URI:</string>
+    <string name="export_qr_label">QR Code:</string>
+    <string name="acc_export_qr">Profile QR Code</string>
+    <string name="scanner_hint">Align QR code within the frame</string>
+
+    <!-- ===== Proxy Latency Test ===== -->
+    <string name="pref_latency_title">Proxy Latency Test</string>
+    <string name="pref_latency_url">Test Target URL</string>
     <string name="pref_latency_url_hint">https://www.gstatic.com/generate_204</string>
-    <string name="pref_latency_interval">测速间隔</string>
-    <string name="pref_latency_timeout">测速超时</string>
-    <string name="latency_ms">延迟 %dms</string>
-    <string name="latency_timeout">测速超时</string>
-    <string name="latency_error">测速失败</string>
-    <string name="latency_force_proxy">强制通过代理测速（防止测速域名被直连绕过）</string>
+    <string name="pref_latency_interval">Test Interval</string>
+    <string name="pref_latency_timeout">Test Timeout</string>
+    <string name="latency_ms">Latency %dms</string>
+    <string name="latency_timeout">Timeout</string>
+    <string name="latency_error">Test Failed</string>
+    <string name="latency_force_proxy">Force test through proxy (prevents direct bypass)</string>
 
-    <!-- 语言设置 -->
-    <string name="settings_language_label">应用语言</string>
-    <string name="settings_language_summary">当前语言：%1$s</string>
-    <string name="language_system">跟随系统</string>
+    <!-- ===== Language Selection ===== -->
+    <string name="settings_language_label">Language</string>
+    <string name="settings_language_summary">Current language: %1$s</string>
+    <string name="language_system">Follow System</string>
     <string name="language_en">English</string>
     <string name="language_zh_cn">简体中文</string>
     <string name="language_zh_tw">繁體中文</string>
     <string name="language_ru">Русский</string>
+
+    <!-- ===== Optimal IP Management & Speed Test ===== -->
+    <string name="preferred_ip_title">Optimal IP</string>
+    <string name="preferred_back">Back</string>
+    <string name="preferred_sources">Sources</string>
+    <string name="preferred_test">Test</string>
+    <string name="preferred_intro">Global IP list verified against actual profile. Does not alter egress proxy IP; applies on next connection.</string>
+    <string name="preferred_official">Cloudflare Official</string>
+    <string name="preferred_fetch_v4">Update Official IPv4 (Default)</string>
+    <string name="preferred_fetch_v6">Update Official IPv6 (Optional)</string>
+    <string name="preferred_v6_hint">IPv6 can only be added when the current network has an IPv6 address. Subnets are sampled, not exhaustive.</string>
+    <string name="preferred_third">Third-Party List · Fetch on Add</string>
+    <string name="preferred_url">HTTPS List URL</string>
+    <string name="preferred_fetch_list">Add / Update Third-Party List</string>
+    <string name="preferred_manual">Manual / TXT / Legacy Nodes</string>
+    <string name="preferred_format">One per line: IP:PORT#Remark or [IPv6]:PORT#Remark (remark optional). Invalid lines require confirmation.</string>
+    <string name="preferred_content">Paste IP List</string>
+    <string name="preferred_parse">Parse Pasted List</string>
+    <string name="preferred_import">Import UTF-8 TXT (Max 2MiB)</string>
+    <string name="preferred_legacy">Collect Legacy Profile Relay IPs</string>
+    <string name="preferred_accept">Confirm: Import valid lines only</string>
+    <string name="preferred_empty_sources">No candidates yet. Update official IPv4 or import a list before starting test.</string>
+    <string name="preferred_target">Select reference profile (does not switch active connection)</string>
+    <string name="preferred_sample">CIDR Sample Count (Default 256, max 4096)</string>
+    <string name="preferred_concurrency">Probe Concurrency (Default 8, max 32)</string>
+    <string name="preferred_no_profiles">Please create a profile first; testing requires an actual reference profile.</string>
+    <string name="preferred_not_tested">Not tested yet. HTTPS reachability does not guarantee WebSocket upgrade or authentication.</string>
+    <string name="preferred_disable">Restore Original / Disable Global</string>
+    <string name="preferred_disable_body">Restores pre-takeover mode while retaining global pool and original profile IPs. Applies on next connection.</string>
+    <string name="preferred_mode">Optimal IP Source</string>
+    <string name="preferred_manage">Manage Global Optimal IPs (Save profile first)</string>
+    <string name="preferred_mode_hint">Loading optimal IP status…</string>
+    <string name="preferred_conflict">Advanced JSON contains relay_nodes: forced custom to prevent accidental override.</string>
+    <string name="preferred_clear_conflict">Remove advanced relay_nodes override and follow global</string>
+    <string name="preferred_clear_conflict_body">Only removes relay_nodes from advanced JSON. XtRelayNodes remains unchanged; takes over only after verification.</string>
+    <string-array name="preferred_modes">
+        <item>Follow Global</item>
+        <item>Custom Configuration</item>
+        <item>Domain Default (No Relay IP)</item>
+    </string-array>
+    <string name="preferred_sources_title">Optimal IP Sources</string>
+    <string name="preferred_sources_configured">Configured Sources</string>
+    <string name="preferred_official_prefixes">Official IP Prefixes</string>
+    <string name="preferred_official_desc">Fetch global CIDR IP ranges from Cloudflare (tested via subnet sampling)</string>
+    <string name="preferred_fetch_v4_btn">Update Official IPv4</string>
+    <string name="preferred_fetch_v6_btn">Update Official IPv6</string>
+    <string name="preferred_third_party_title">Third-Party List Subscription</string>
+    <string name="preferred_manual_title">Manual Input</string>
+    <string name="preferred_reference_title">Reference Profile</string>
+    <string name="preferred_sample_hint">Sample Count (1-4096)</string>
+    <string name="preferred_concurrency_hint">Concurrency (1-32)</string>
+    <string name="preferred_ready">Ready</string>
+    <string name="preferred_direct_net">Direct Network</string>
+    <string name="preferred_metric_completed_total">Done / Total</string>
+    <string name="preferred_metric_success_nodes">Successful</string>
+    <string name="preferred_metric_checked_nodes">Selected</string>
+    <string name="preferred_start_test">Start Test</string>
+    <string name="preferred_test_footer_hint">Foreground direct only · Auto-saves selection · Manual speed test consumes data</string>
+    <string name="preferred_candidate_nodes">Candidate Relay Nodes</string>
+    <string name="preferred_expand_detail">Expand Details</string>
+    <string name="preferred_speed_test_btn">Speed Test · 50MiB / 10s</string>
+    <string name="preferred_enable_source">Enable Source</string>
+    <string name="preferred_refresh_source">Refresh Source</string>
+    <string name="preferred_delete_source">Delete Source</string>
+    <string name="preferred_restart_test">Restart Test</string>
+    <string name="preferred_enable_global_action">Enable Global (Requires profile verification)</string>
+    <string name="preferred_restart_confirm_title">Restart</string>
+    <string name="preferred_restart_confirm_msg">Creates new context with current sources and settings; prior results become history. Pause and wait for exit first.</string>
+    <string name="preferred_cancel_speed_test">Cancel Speed Test</string>
+    <string name="preferred_delete_source_title">Delete Source</string>
+    <string name="preferred_delete_source_msg">Selected IPs remain in the pool, current queue unchanged. Delete this source?</string>
+    <string name="preferred_metered_confirm_title">Metered Network Warning</string>
+    <string name="preferred_metered_confirm_msg">Scanning does not download speed test bodies, but TCP/TLS/HTTPS and ECH/DNS checks still consume data. Continue?</string>
+    <string name="preferred_metered_speed_title">Manual Speed Test on Metered Network</string>
+    <string name="preferred_metered_speed_msg">Tests this IP only, consuming up to 50MiB of data (duration 10s). Continue?</string>
+    <string name="preferred_no_profile_title">Missing Reference Profile</string>
+    <string name="preferred_pause_speed_test">Cancel speed test; settle upon actual bytes received after exit</string>
+    <string name="preferred_pause_user">Paused by user, waiting for network tasks to exit</string>
+    <string name="preferred_err_https_url">Please use an HTTPS URL</string>
+    <string name="preferred_err_url_format_title">URL Format Error</string>
+    <string name="preferred_err_url_format_msg">Third-party list must use a valid URL starting with https://</string>
+    <string name="preferred_err_input_empty">Please enter or paste IP content</string>
+    <string name="preferred_err_sample_range">Please enter 1–4096</string>
+    <string name="preferred_err_concurrency_range">Please enter 1–32</string>
+    <string name="preferred_dialog_list_parse_title">Third-Party List Parse Result</string>
+    <string name="preferred_btn_discard">Discard</string>
+    <string name="preferred_btn_import_valid">Import Valid Candidates</string>
+    <string name="preferred_err_no_valid_ip_title">No Valid IPs Found</string>
+    <string name="preferred_msg_list_added">Third-party list added successfully!</string>
+    <string name="preferred_err_fetch_list_failed">Failed to fetch third-party list</string>
+    <string name="preferred_msg_official_updated">Official IP sources updated</string>
+    <string name="preferred_err_update_failed">Update failed</string>
+    <string name="preferred_err_refresh_source_failed">Failed to refresh source</string>
+    <string name="preferred_msg_source_refreshed">Source refreshed</string>
+    <string name="preferred_dialog_manual_parse_title">Manual Input Parse Result</string>
+    <string name="preferred_btn_import_now">Import Now</string>
+    <string name="preferred_btn_cancel">Cancel</string>
 </resources>

@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ===== Basic Configuration & Connection ===== -->
+    <string name="app_name">X 代理</string>
+    <string name="socks_port">Порт Socks:</string>
+    <string name="ipv4">IPv4</string>
+    <string name="ipv6">IPv6</string>
+    <string name="global">Глобально</string>
+    <string name="apps">Приложения</string>
+    <string name="save">Сохранить</string>
+    <string name="control_enable">Включить</string>
+    <string name="control_disable">Отключить</string>
+    <string name="worker_host">Адрес сервера (домен Worker):</string>
+    <string name="pref_ip">Оптимальные транзитные узлы (IP:порт через запятую):</string>
+    <string name="user_id">ID пользователя:</string>
+    <string name="fallback_ip">Выходной прокси IP (через запятую, для Worker):</string>
+    <string name="ech_dns">DoH-сервер (для DNS/ECH, по умолч. https://doh.pub/dns-query):</string>
+    <string name="ech_domain">Домен запроса ECH:</string>
+    <string name="disable_ech">Отключить ECH (стандартный TLS 1.3)</string>
+    <string name="enable_dns_warmup">Включить прогрев DNS (предварительное разрешение популярных доменов)</string>
+    <string name="ws_conn">Соединений WebSocket:</string>
+    <string name="enable_dynamic_pool">Динамическое расширение пула соединений</string>
+    <string name="dynamic_pool_max">Максимум соединений пула:</string>
+
+    <!-- ===== Profile Management & Dialogs ===== -->
+    <string name="profile_label">Профиль:</string>
+    <string name="btn_add">Добавить</string>
+    <string name="btn_rename">Переименовать</string>
+    <string name="btn_delete">Удалить</string>
+    <string name="default_profile_name">Основной профиль</string>
+    <string name="dialog_title_add">Добавить профиль</string>
+    <string name="dialog_title_rename">Переименовать профиль</string>
+    <string name="dialog_title_delete">Удалить профиль?</string>
+    <string name="dialog_hint_name">Имя профиля</string>
+    <string name="toast_profile_exists">Профиль с таким именем уже существует</string>
+    <string name="toast_name_empty">Имя профиля не может быть пустым</string>
+    <string name="toast_saved">Сохранено</string>
+    <string name="toast_cannot_delete_last">Нельзя удалить единственный профиль</string>
+    <string name="ok">ОК</string>
+    <string name="cancel">Отмена</string>
+    <string name="btn_export">Экспорт</string>
+    <string name="btn_import">Импорт</string>
+    <string name="dialog_title_export">Экспорт конфигурации</string>
+    <string name="dialog_title_import">Импорт конфигурации</string>
+    <string name="dialog_option_manual">Ввести вручную</string>
+    <string name="dialog_option_scan">Сканировать QR-код</string>
+    <string name="dialog_hint_protocol">gcm://...</string>
+    <string name="toast_copied">Скопировано в буфер обмена</string>
+    <string name="toast_imported">Конфигурация импортирована</string>
+    <string name="toast_invalid_protocol">Неверный формат протокола</string>
+    <string name="scan_prompt">Наведите камеру на QR-код</string>
+    <string name="copy">Копировать</string>
+    <string name="close">Закрыть</string>
+    <string name="disable_ipv6_route">Отключить маршрутизацию IPv6</string>
+
+    <!-- ===== Theme & Palette Appearance ===== -->
+    <string name="theme_system">Как в системе</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="theme_palette_aurora">Кибераврора</string>
+    <string name="theme_palette_titanium">Титановый минимализм</string>
+    <string name="theme_palette_shield">Швейцарский щит</string>
+    <string name="theme_palette_aurora_desc">Slate-фон · Аврора циан + Изумруд</string>
+    <string name="theme_palette_titanium_desc">Нейтральный цинк · Королевский синий, инженерия</string>
+    <string name="theme_palette_shield_desc">Глубокий хвойный · Защитный зелёный</string>
+    <string name="search_apps">Поиск приложений</string>
+
+    <!-- ===== Runtime Logs ===== -->
+    <string name="view_runtime_logs">Журнал текущего сеанса</string>
+    <string name="runtime_logs_title">Журнал работы</string>
+    <string name="runtime_logs_refresh">Обновить</string>
+    <string name="runtime_logs_copy">Копировать</string>
+    <string name="runtime_logs_empty">Журнал работы пуст</string>
+    <string name="runtime_logs_loading">Загрузка журнала…</string>
+    <string name="runtime_logs_unavailable">Служба журнала не отвечает</string>
+    <string name="runtime_logs_copied">Журнал скопирован</string>
+    <string name="runtime_logs_line_count">%1$d строк</string>
+    <string name="back">Назад</string>
+    <string name="protocol_label">Протокол:</string>
+    <string name="protocol_gcm">GCM</string>
+    <string name="protocol_x_tunnel">xtunnel</string>
+
+    <!-- ===== x-tunnel Protocol Parameters ===== -->
+    <string name="xt_server_addr">Адрес сервера (wss://):</string>
+    <string name="xt_token">Токен:</string>
+    <string name="xt_relay_nodes">Relay-узлы (через запятую):</string>
+    <string name="xt_connections">Соединений:</string>
+    <string name="xt_insecure">Пропустить проверку сертификата</string>
+    <string name="xt_enable_hot_pair">Hot Pair (тёплая пара каналов)</string>
+    <string name="xt_hot_pair_count">Hot Pair (пар каналов, 1-8):</string>
+    <string name="xt_advanced_params">Доп. параметры (нажмите, чтобы развернуть; пусто = по умолчанию)</string>
+    <string name="xt_adv_backpressure">Лимит буфера записи (МБ, по умолч. 8)</string>
+    <string name="xt_adv_write_queue_wait">Таймаут ожидания очереди (мс, по умолч. 100)</string>
+    <string name="xt_adv_dial_timeout">Таймаут подключения (с, по умолч. 3)</string>
+    <string name="xt_adv_handshake_timeout">Таймаут TLS-рукопожатия (с, по умолч. 5)</string>
+    <string name="xt_adv_read_timeout">Таймаут чтения (с, по умолч. 15)</string>
+    <string name="xt_adv_write_timeout">Таймаут записи (с, по умолч. 5)</string>
+    <string name="xt_adv_ping_interval">Интервал Ping (с, по умолч. 5)</string>
+    <string name="xt_adv_reconnect_delay">Задержка переподключения (с, по умолч. 1)</string>
+    <string name="xt_adv_connect_timeout">Таймаут соединения (с, по умолч. 15)</string>
+    <string name="xt_adv_max_socks5">Макс. соединений SOCKS5 (по умолч. 1024, 0 = без лимита)</string>
+    <string name="xt_adv_udp_ports">Блокируемые UDP-порты (через запятую, по умолч. 443)</string>
+    <string name="log_level_label">Уровень журнала:</string>
+    <string name="log_level_hint">Управляет подробностью журнала протокола; применяется при следующем запуске VPN</string>
+    <string name="log_level_debug">Отладка (DEBUG)</string>
+    <string name="log_level_info">Информация (INFO)</string>
+    <string name="log_level_warn">Предупреждение (WARN)</string>
+    <string name="log_level_error">Ошибка (ERROR)</string>
+
+    <!-- ===== Route Bypass ===== -->
+    <string name="bypass_routes">Обход маршрутизации</string>
+    <string name="bypass_private">Обход локальных адресов и LAN</string>
+    <string name="bypass_geoip_cn">Обход GEOIP:CN</string>
+    <string name="bypass_geosite_cn">Обход GEOSITE:CN</string>
+    <string name="manual_bypass_rules">Пользовательские правила (по одному в строке)</string>
+    <string name="manual_bypass_rules_hint">192.168.1.0/24
+example.com
+full:api.example.com</string>
+    <string name="force_proxy_rules">Принудительно через прокси (по одному в строке)</string>
+    <string name="force_proxy_rules_hint">gstatic.com
+full:www.example.com</string>
+    <string name="settings_error_force_proxy_rules">Ошибка в правилах принудительного прокси: %1$s</string>
+
+    <!-- ===== Profile Edit UI & Validation ===== -->
+    <string name="section_basic_info">Основная информация</string>
+    <string name="section_connection_params">Параметры подключения</string>
+    <string name="section_advanced_params">Расширенные параметры</string>
+    <string name="profile_name_hint">Имя конфигурации</string>
+    <string name="protocol_spinner_label">Протокол прокси</string>
+    <string name="worker_host_hint">Адрес сервера (домен Worker)</string>
+    <string name="pref_ip_hint">Оптимальные транзитные узлы (IP:порт через запятую)</string>
+    <string name="user_id_hint">ID пользователя</string>
+    <string name="fallback_ip_hint">Выходной прокси IP (через запятую, для Worker)</string>
+    <string name="ws_conn_hint">Соединений WebSocket</string>
+    <string name="dynamic_pool_max_hint">Максимум соединений пула</string>
+    <string name="xt_server_addr_hint">Адрес сервера (wss://)</string>
+    <string name="xt_token_hint">Токен</string>
+    <string name="xt_relay_nodes_hint">Транзитные узлы (через запятую)</string>
+    <string name="xt_connections_hint">Число соединений</string>
+    <string name="xt_hot_pair_count_hint">Пар Hot Pair (1-8)</string>
+    <string name="xt_ip_strategy_label">Стратегия IP</string>
+    <string-array name="xt_ip_strategy_options">
+        <item>IPv4,IPv6</item>
+        <item>IPv6,IPv4</item>
+        <item>IPv4</item>
+        <item>IPv6</item>
+    </string-array>
+    <string-array name="xt_ip_strategy_descriptions">
+        <item>Сначала IPv4, при недоступности — IPv6 (по умолчанию)</item>
+        <item>Сначала IPv6, при недоступности — IPv4</item>
+        <item>Только IPv4</item>
+        <item>Только IPv6</item>
+    </string-array>
+    <string name="edit_profile_title">Редактирование: %1$s</string>
+    <string name="toast_profile_saved">Конфигурация сохранена</string>
+    <string name="toast_vpn_running_locked">VPN запущен, редактирование заблокировано</string>
+    <string name="toast_imported_check">Конфигурация импортирована, проверьте и сохраните</string>
+    <string name="toast_import_missing_host">В ссылке отсутствует адрес сервера</string>
+    <string name="toast_scanner_start_failed">Не удалось запустить сканер</string>
+    <string name="scan_qr_prompt">Сканируйте QR-код конфигурации</string>
+    <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name
+xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+    <string name="error_profile_name_empty">Имя конфигурации не может быть пустым</string>
+    <string name="error_server_addr_empty">Адрес сервера не может быть пустым</string>
+    <string name="error_server_addr_scheme">Адрес сервера должен начинаться с wss:// или ws://</string>
+    <string name="error_ws_conn_invalid">Неверный формат числа WebSocket-соединений</string>
+    <string name="error_ws_conn_range">Число соединений WebSocket должно быть от 1 до %1$d</string>
+    <string name="error_pool_max_invalid">Неверный формат максимума пула соединений</string>
+    <string name="error_pool_max_range">Максимум пула должен быть от числа WebSocket-соединений до %1$d</string>
+    <string name="error_xt_connections_invalid">Число соединений должно быть числом</string>
+    <string name="error_xt_connections_range">Число соединений должно быть от 1 до 16</string>
+    <string name="error_hot_pair_invalid">Число пар Hot Pair должно быть числом</string>
+    <string name="error_hot_pair_range">Число пар Hot Pair должно быть от 1 до %1$d</string>
+    <string name="error_xt_advanced_invalid">Недопустимые расширенные параметры (оставьте пустыми для значений по умолчанию)</string>
+
+    <!-- ===== Global Settings ===== -->
+    <string name="settings_title">Глобальные настройки</string>
+    <string name="settings_section_general">Основные</string>
+    <string name="settings_section_appearance">Внешний вид</string>
+    <string name="settings_section_network">Сеть</string>
+    <string name="settings_section_bypass">Обход прокси</string>
+    <string name="settings_section_ech_dns">ECH и DNS</string>
+    <string name="settings_socks_port_label">Локальный порт прокси</string>
+    <string name="settings_ech_dns_label">DoH-сервер</string>
+    <string name="settings_ech_domain_label">Домен запроса ECH</string>
+    <string name="settings_placeholder_socks_port">1080</string>
+    <string name="settings_placeholder_ech_dns">https://doh.pub/dns-query</string>
+    <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
+    <string name="settings_socks_port_summary">Текущий порт: %1$d</string>
+    <string name="settings_apps_row_summary">Выбрано приложений: %1$d</string>
+    <string name="settings_apps_row_summary_none">Приложения не выбраны</string>
+    <string name="settings_log_level_summary">Текущий уровень: %1$s</string>
+    <string name="settings_restart_required">Требуется перезапуск VPN для применения изменений</string>
+    <string name="settings_global_hint">Включено — глобальный прокси; выключено — раздельное туннелирование</string>
+    <string name="settings_appearance_hint">Тема и цвета применяются мгновенно</string>
+    <string name="theme_mode_label">Режим темы</string>
+    <string name="theme_palette_label">Цветовая схема</string>
+    <string name="settings_theme_mode_summary">Текущий режим: %1$s</string>
+    <string name="settings_theme_palette_summary">Текущая схема: %1$s</string>
+    <string name="settings_saved">Настройки сохранены</string>
+    <string name="settings_vpn_running_toast">VPN запущен, изменение глобальных настроек невозможно</string>
+    <string name="settings_error_port_format">Неверный формат номера порта</string>
+    <string name="settings_error_port_min">Номер порта должен быть ≥ 1024</string>
+    <string name="settings_error_bypass_rules">Ошибка в правилах обхода: %1$s</string>
+
+    <!-- ===== Per-App Proxy ===== -->
+    <string name="app_selected_count">Выбрано: %1$d</string>
+    <string name="app_list_loading">Загрузка приложений…</string>
+    <string name="action_select_all">Выбрать все</string>
+    <string name="action_invert_selection">Инвертировать</string>
+    <string name="action_clear_selection">Очистить выбор</string>
+    <string name="action_clear_search">Очистить поиск</string>
+    <string name="acc_app_select">Выбрать %1$s</string>
+    <string name="show_server_addr">Показывать адрес сервера в списке</string>
+    <string name="show_server_addr_hint">Если выключено, адрес скрыт — удобно для скриншотов</string>
+
+    <!-- ===== Status Cards, Empty States & Home UI ===== -->
+    <string name="status_disconnected">Отключено</string>
+    <string name="status_connecting">Подключение…</string>
+    <string name="status_connected">Подключено</string>
+    <string name="status_error">Ошибка подключения</string>
+    <string name="status_tap_to_connect">Нажмите для подключения</string>
+    <string name="status_connecting_subtitle">Создание туннеля, подождите…</string>
+    <string name="common_retry">Повторить</string>
+    <string name="common_view_logs">Журнал</string>
+    <string name="common_copy">Копировать</string>
+    <string name="common_cancel">Отмена</string>
+    <string name="common_confirm">Подтвердить</string>
+    <string name="empty_profiles_title">Нет конфигураций</string>
+    <string name="empty_profiles_message">Нажмите кнопку справа внизу для импорта или создания профиля</string>
+    <string name="empty_search_title">Приложения не найдены</string>
+    <string name="empty_search_message">Попробуйте другие ключевые слова или сбросьте фильтр</string>
+    <string name="empty_logs_title">Журнал пуст</string>
+    <string name="empty_logs_message">Записи сеанса появятся здесь после подключения</string>
+    <string name="home_subtitle_no_profile">Профиль не выбран</string>
+    <string name="home_current_profile">Текущий профиль: %1$s</string>
+    <string name="acc_connect">Подключить VPN</string>
+    <string name="acc_disconnect">Отключить VPN</string>
+    <string name="acc_vpn_connecting">Подключение, подождите…</string>
+    <string name="acc_vpn_disconnecting">Отключение, подождите…</string>
+    <string name="acc_vpn_error">Ошибка подключения, нажмите для повтора</string>
+    <string name="acc_view_connection_info">Информация о подключении</string>
+    <string name="status_disconnecting">Отключение…</string>
+    <string name="acc_add_profile">Добавить или импортировать профиль</string>
+    <string name="acc_qr_scan">Сканировать QR-код</string>
+    <string name="acc_share">Поделиться</string>
+    <string name="acc_copy">Копировать</string>
+    <string name="acc_edit">Редактировать</string>
+    <string name="acc_delete">Удалить</string>
+    <string name="cannot_edit_running">VPN запущен, невозможно редактировать текущий профиль</string>
+    <string name="cannot_delete_running">VPN запущен, невозможно удалить текущий профиль</string>
+    <string name="toolbar_version">v%1$s</string>
+    <string name="vpn_start_failed">Сбой запуска VPN</string>
+    <string name="status_connecting_timeout">Таймаут подключения VPN, повторите попытку</string>
+    <string name="cannot_start_vpn_service">Не удалось запустить службу VPN: %1$s</string>
+    <string name="export_protocol_label">Строка протокола:</string>
+    <string name="export_qr_label">QR-код:</string>
+    <string name="acc_export_qr">QR-код конфигурации</string>
+    <string name="scanner_hint">Поместите QR-код в рамку</string>
+
+    <!-- ===== Proxy Latency Test ===== -->
+    <string name="pref_latency_title">Тест задержки прокси</string>
+    <string name="pref_latency_url">Цель проверки</string>
+    <string name="pref_latency_url_hint">https://www.gstatic.com/generate_204</string>
+    <string name="pref_latency_interval">Интервал проверки</string>
+    <string name="pref_latency_timeout">Таймаут проверки</string>
+    <string name="latency_ms">%d мс</string>
+    <string name="latency_timeout">Таймаут</string>
+    <string name="latency_error">Ошибка теста</string>
+    <string name="latency_force_proxy">Принудительно проверять через прокси (предотвращает прямой обход)</string>
+
+    <!-- ===== Language Selection ===== -->
+    <string name="settings_language_label">Язык приложения</string>
+    <string name="settings_language_summary">Текущий язык: %1$s</string>
+    <string name="language_system">Как в системе</string>
+    <string name="language_en">English</string>
+    <string name="language_zh_cn">简体中文</string>
+    <string name="language_zh_tw">繁體中文</string>
+    <string name="language_ru">Русский</string>
+
+    <!-- ===== Optimal IP Management & Speed Test ===== -->
+    <string name="preferred_ip_title">Оптимальные IP</string>
+    <string name="preferred_back">Назад</string>
+    <string name="preferred_sources">Источники</string>
+    <string name="preferred_test">Тест</string>
+    <string name="preferred_intro">Глобальный список, проверяемый по целевому узлу. Не меняет выходной IP; вступает в силу при следующем подключении.</string>
+    <string name="preferred_official">Cloudflare (официальный)</string>
+    <string name="preferred_fetch_v4">Обновить IPv4 (по умолчанию)</string>
+    <string name="preferred_fetch_v6">Обновить IPv6 (опционально)</string>
+    <string name="preferred_v6_hint">IPv6 доступен только при наличии IPv6 в прямом подключении. Выборка по подсетям, без полного перебора.</string>
+    <string name="preferred_third">Сторонние списки · загрузка по запросу</string>
+    <string name="preferred_url">HTTPS URL списка</string>
+    <string name="preferred_fetch_list">Добавить / обновить список</string>
+    <string name="preferred_manual">Вручную / TXT / старые узлы</string>
+    <string name="preferred_format">Формат: IP:PORT#комментарий или [IPv6]:PORT#комментарий (комментарий опционален). Некорректные строки требуют подтверждения.</string>
+    <string name="preferred_content">Вставить список IP</string>
+    <string name="preferred_parse">Распознать список</string>
+    <string name="preferred_import">Импорт UTF-8 TXT (до 2 МиБ)</string>
+    <string name="preferred_legacy">Собрать IP из существующих узлов</string>
+    <string name="preferred_accept">Подтвердить: только корректные строки</string>
+    <string name="preferred_empty_sources">Нет кандидатов. Обновите IPv4 или добавьте список перед началом теста.</string>
+    <string name="preferred_target">Выберите целевой узел (не переключает текущее соединение)</string>
+    <string name="preferred_sample">Выборка CIDR (по умолч. 256, макс. 4096)</string>
+    <string name="preferred_concurrency">Параллельность (по умолч. 8, макс. 32)</string>
+    <string name="preferred_no_profiles">Сначала создайте профиль узла; проверка выполняется по реальной цели.</string>
+    <string name="preferred_not_tested">Не проверено. Доступность по HTTPS не гарантирует успешный WebSocket или авторизацию.</string>
+    <string name="preferred_disable">Восстановить настройки / отключить глобальный пул</string>
+    <string name="preferred_disable_body">Возврат к исходному режиму с сохранением пула и IP узла; применяется при следующем подключении.</string>
+    <string name="preferred_mode">Источник оптимальных IP</string>
+    <string name="preferred_manage">Управление глобальными IP (сначала сохраните узел)</string>
+    <string name="preferred_mode_hint">Загрузка состояния оптимальных IP…</string>
+    <string name="preferred_conflict">В расширенном JSON задан relay_nodes: принудительный независимый режим во избежание конфликта.</string>
+    <string name="preferred_clear_conflict">Удалить relay_nodes из расширенных настроек и включить следование</string>
+    <string name="preferred_clear_conflict_body">Удаляет relay_nodes только из расширенного JSON. Исходный текст XtRelayNodes сохранится.</string>
+    <string-array name="preferred_modes">
+        <item>Следовать глобальным</item>
+        <item>Индивидуальная конфигурация</item>
+        <item>По умолчанию для домена (без входных IP)</item>
+    </string-array>
+    <string name="preferred_sources_title">Управление источниками IP</string>
+    <string name="preferred_sources_configured">Настроенные источники</string>
+    <string name="preferred_official_prefixes">Официальные подсети IP</string>
+    <string name="preferred_official_desc">Загрузка официальных диапазонов CIDR Cloudflare (тестирование по подсетям)</string>
+    <string name="preferred_fetch_v4_btn">Обновить IPv4</string>
+    <string name="preferred_fetch_v6_btn">Обновить IPv6</string>
+    <string name="preferred_third_party_title">Подписка на сторонние списки</string>
+    <string name="preferred_manual_title">Ручной ввод</string>
+    <string name="preferred_reference_title">Целевой узел</string>
+    <string name="preferred_sample_hint">Размер выборки (1-4096)</string>
+    <string name="preferred_concurrency_hint">Потоков (1-32)</string>
+    <string name="preferred_ready">Готово</string>
+    <string name="preferred_direct_net">Прямая сеть</string>
+    <string name="preferred_metric_completed_total">Выполнено / Всего</string>
+    <string name="preferred_metric_success_nodes">Успешные узлы</string>
+    <string name="preferred_metric_checked_nodes">Выбрано</string>
+    <string name="preferred_start_test">Начать тест</string>
+    <string name="preferred_test_footer_hint">Только на переднем плане · автосохранение · тест скорости учитывается в трафике</string>
+    <string name="preferred_candidate_nodes">Кандидаты для relay</string>
+    <string name="preferred_expand_detail">Подробнее</string>
+    <string name="preferred_speed_test_btn">Тест скорости · 50 МиБ / 10 с</string>
+    <string name="preferred_enable_source">Включить источник</string>
+    <string name="preferred_refresh_source">Обновить источник</string>
+    <string name="preferred_delete_source">Удалить источник</string>
+    <string name="preferred_restart_test">Перезапустить тест</string>
+    <string name="preferred_enable_global_action">Включить глобально (требует проверки)</string>
+    <string name="preferred_restart_confirm_title">Перезапуск</string>
+    <string name="preferred_restart_confirm_msg">Будет создан новый контекст с текущими источниками и настройками. Выбранный пул сохранится. Приостановите и дождитесь завершения.</string>
+    <string name="preferred_cancel_speed_test">Отменить тест</string>
+    <string name="preferred_delete_source_title">Удалить источник</string>
+    <string name="preferred_delete_source_msg">Выбранные адреса и текущая очередь сохранятся. Удалить этот источник?</string>
+    <string name="preferred_metered_confirm_title">Лимитированное подключение</string>
+    <string name="preferred_metered_confirm_msg">Сканирование не загружает файлы, но проверки TCP/TLS/HTTPS и ECH/DNS расходуют трафик. Продолжить?</string>
+    <string name="preferred_metered_speed_title">Тест скорости в лимитированной сети</string>
+    <string name="preferred_metered_speed_msg">Тестирование этого IP израсходует до 50 МиБ трафика (10 секунд). Продолжить?</string>
+    <string name="preferred_no_profile_title">Нет целевого узла</string>
+    <string name="preferred_pause_speed_test">Отмена теста; расчет трафика после завершения</string>
+    <string name="preferred_pause_user">Приостановлено пользователем, ожидание завершения</string>
+    <string name="preferred_err_https_url">Используйте HTTPS URL</string>
+    <string name="preferred_err_url_format_title">Неверный формат URL</string>
+    <string name="preferred_err_url_format_msg">Сторонний список должен начинаться с https://</string>
+    <string name="preferred_err_input_empty">Введите или вставьте список IP</string>
+    <string name="preferred_err_sample_range">Введите от 1 до 4096</string>
+    <string name="preferred_err_concurrency_range">Введите от 1 до 32</string>
+    <string name="preferred_dialog_list_parse_title">Результат анализа списка</string>
+    <string name="preferred_btn_discard">Отклонить</string>
+    <string name="preferred_btn_import_valid">Импортировать подходящие</string>
+    <string name="preferred_err_no_valid_ip_title">Нет подходящих IP</string>
+    <string name="preferred_msg_list_added">Сторонний список успешно добавлен!</string>
+    <string name="preferred_err_fetch_list_failed">Ошибка загрузки списка</string>
+    <string name="preferred_msg_official_updated">Официальные IP обновлены</string>
+    <string name="preferred_err_update_failed">Ошибка обновления</string>
+    <string name="preferred_err_refresh_source_failed">Ошибка обновления источника</string>
+    <string name="preferred_msg_source_refreshed">Источник обновлен</string>
+    <string name="preferred_dialog_manual_parse_title">Результат ручного ввода</string>
+    <string name="preferred_btn_import_now">Импортировать</string>
+    <string name="preferred_btn_cancel">Отмена</string>
+</resources>

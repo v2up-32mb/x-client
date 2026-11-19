@@ -1,0 +1,378 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ===== Basic Configuration & Connection ===== -->
+    <string name="app_name">X 代理</string>
+    <string name="socks_port">Socks 連接埠：</string>
+    <string name="ipv4">IPv4</string>
+    <string name="ipv6">IPv6</string>
+    <string name="global">全域代理</string>
+    <string name="apps">分應用代理</string>
+    <string name="save">儲存</string>
+    <string name="control_enable">啟動</string>
+    <string name="control_disable">停止</string>
+    <string name="worker_host">伺服器位址（Worker 網域）：</string>
+    <string name="pref_ip">優選中轉節點（IP:連接埠，逗號分隔多個）：</string>
+    <string name="user_id">使用者 ID：</string>
+    <string name="fallback_ip">出口代理 IP（逗號分隔多個，發往 Worker）：</string>
+    <string name="ech_dns">DoH 伺服器（用於 DNS/ECH 查詢，預設 https://doh.pub/dns-query）：</string>
+    <string name="ech_domain">ECH 查詢網域：</string>
+    <string name="disable_ech">停用 ECH（標準 TLS 1.3）</string>
+    <string name="enable_dns_warmup">啟用 DNS 預熱（啟動時預先解析常見網域，加快首次連線，但可能導致冷啟動延遲）</string>
+    <string name="ws_conn">WebSocket 連線數：</string>
+    <string name="enable_dynamic_pool">啟用連線集區動態擴展</string>
+    <string name="dynamic_pool_max">動態擴展連線上限：</string>
+
+    <!-- ===== Profile Management & Dialogs ===== -->
+    <string name="profile_label">設定節點：</string>
+    <string name="btn_add">新增</string>
+    <string name="btn_rename">重新命名</string>
+    <string name="btn_delete">刪除</string>
+    <string name="default_profile_name">預設節點</string>
+    <string name="dialog_title_add">新增節点</string>
+    <string name="dialog_title_rename">重新命名節點</string>
+    <string name="dialog_title_delete">確認刪除？</string>
+    <string name="dialog_hint_name">節點名稱</string>
+    <string name="toast_profile_exists">節點名稱已存在</string>
+    <string name="toast_name_empty">節點名稱不可為空</string>
+    <string name="toast_saved">儲存成功</string>
+    <string name="toast_cannot_delete_last">不能刪除最後一個節點</string>
+    <string name="ok">確定</string>
+    <string name="cancel">取消</string>
+    <string name="btn_export">匯出</string>
+    <string name="btn_import">匯入</string>
+    <string name="dialog_title_export">匯出設定</string>
+    <string name="dialog_title_import">匯入設定</string>
+    <string name="dialog_option_manual">手動輸入</string>
+    <string name="dialog_option_scan">掃描行動條碼</string>
+    <string name="dialog_hint_protocol">gcm://...</string>
+    <string name="toast_copied">已複製到剪貼簿</string>
+    <string name="toast_imported">設定已匯入</string>
+    <string name="toast_invalid_protocol">無效的協定格式</string>
+    <string name="scan_prompt">將行動條碼放入框內掃描</string>
+    <string name="copy">複製</string>
+    <string name="close">關閉</string>
+    <string name="disable_ipv6_route">停用 IPv6 路由</string>
+
+    <!-- ===== Theme & Palette Appearance ===== -->
+    <string name="theme_system">跟隨系統</string>
+    <string name="theme_light">淺色</string>
+    <string name="theme_dark">深色</string>
+    <string name="theme_palette_aurora">賽博極光</string>
+    <string name="theme_palette_titanium">鈦金極簡</string>
+    <string name="theme_palette_shield">瑞士暗盾</string>
+    <string name="theme_palette_aurora_desc">冷 Slate 底 · 極光青 + 翡翠綠</string>
+    <string name="theme_palette_titanium_desc">無彩度鋅灰 · 皇家藍，工業精密</string>
+    <string name="theme_palette_shield_desc">深青墨綠 · 護盾綠，安全守護</string>
+    <string name="search_apps">搜尋應用程式</string>
+
+    <!-- ===== Runtime Logs ===== -->
+    <string name="view_runtime_logs">檢視本次執行記錄</string>
+    <string name="runtime_logs_title">執行記錄</string>
+    <string name="runtime_logs_refresh">重新整理</string>
+    <string name="runtime_logs_copy">複製</string>
+    <string name="runtime_logs_empty">暫無執行記錄</string>
+    <string name="runtime_logs_loading">正在讀取記錄…</string>
+    <string name="runtime_logs_unavailable">記錄服務未回應</string>
+    <string name="runtime_logs_copied">記錄已複製</string>
+    <string name="runtime_logs_line_count">%1$d 行</string>
+    <string name="back">返回</string>
+    <string name="protocol_label">代理協定：</string>
+    <string name="protocol_gcm">GCM</string>
+    <string name="protocol_x_tunnel">xtunnel</string>
+
+    <!-- ===== x-tunnel Protocol Parameters ===== -->
+    <string name="xt_server_addr">伺服器位址（wss://）：</string>
+    <string name="xt_token">Token：</string>
+    <string name="xt_relay_nodes">中轉節點（逗號分隔）：</string>
+    <string name="xt_connections">連線數：</string>
+    <string name="xt_insecure">允許不安全 TLS（跳過憑證驗證）</string>
+    <string name="xt_enable_hot_pair">Hot Pair（暖備用通道對）</string>
+    <string name="xt_hot_pair_count">Hot Pair（通道對數，1-8）：</string>
+    <string name="xt_advanced_params">進階參數（點擊展開；留空為預設）</string>
+    <string name="xt_adv_backpressure">寫入緩衝上限（MB，預設 8）</string>
+    <string name="xt_adv_write_queue_wait">佇列等待逾時（毫秒，預設 100）</string>
+    <string name="xt_adv_dial_timeout">撥號逾時（秒，預設 3）</string>
+    <string name="xt_adv_handshake_timeout">TLS 交握逾時（秒，預設 5）</string>
+    <string name="xt_adv_read_timeout">讀取逾時（秒，預設 15）</string>
+    <string name="xt_adv_write_timeout">寫入逾時（秒，預設 5）</string>
+    <string name="xt_adv_ping_interval">Ping 間隔（秒，預設 5）</string>
+    <string name="xt_adv_reconnect_delay">重新連線延遲（秒，預設 1）</string>
+    <string name="xt_adv_connect_timeout">連線逾時（秒，預設 15）</string>
+    <string name="xt_adv_max_socks5">最大 SOCKS5 連線數（預設 1024，0 為無限制）</string>
+    <string name="xt_adv_udp_ports">阻擋 UDP 連接埠（逗號分隔，預設 443）</string>
+    <string name="log_level_label">記錄層級：</string>
+    <string name="log_level_hint">控制協定記錄詳細程度；下次啟動 VPN 時生效</string>
+    <string name="log_level_debug">除錯 (DEBUG)</string>
+    <string name="log_level_info">資訊 (INFO)</string>
+    <string name="log_level_warn">警告 (WARN)</string>
+    <string name="log_level_error">錯誤 (ERROR)</string>
+
+    <!-- ===== Route Bypass ===== -->
+    <string name="bypass_routes">路由分流繞過</string>
+    <string name="bypass_private">繞過本地與區域網路位址</string>
+    <string name="bypass_geoip_cn">繞過 GEOIP:CN</string>
+    <string name="bypass_geosite_cn">繞過 GEOSITE:CN</string>
+    <string name="manual_bypass_rules">自訂規則（每行一條）</string>
+    <string name="manual_bypass_rules_hint">192.168.1.0/24
+example.com
+full:api.example.com</string>
+    <string name="force_proxy_rules">強制走代理網域（每行一條）</string>
+    <string name="force_proxy_rules_hint">gstatic.com
+full:www.example.com</string>
+    <string name="settings_error_force_proxy_rules">強制走代理規則格式錯誤：%1$s</string>
+
+    <!-- ===== Profile Edit UI & Validation ===== -->
+    <string name="section_basic_info">基本資訊</string>
+    <string name="section_connection_params">連線參數</string>
+    <string name="section_advanced_params">進階參數</string>
+    <string name="profile_name_hint">設定名稱</string>
+    <string name="protocol_spinner_label">代理協定</string>
+    <string name="worker_host_hint">伺服器位址（Worker 網域）</string>
+    <string name="pref_ip_hint">優選中轉節點（IP:連接埠，逗號分隔多個）</string>
+    <string name="user_id_hint">使用者 ID</string>
+    <string name="fallback_ip_hint">出口代理 IP（逗號分隔多個，發往 Worker）</string>
+    <string name="ws_conn_hint">WebSocket 連線數</string>
+    <string name="dynamic_pool_max_hint">動態擴展連線上限</string>
+    <string name="xt_server_addr_hint">伺服器位址（wss://）</string>
+    <string name="xt_token_hint">Token</string>
+    <string name="xt_relay_nodes_hint">中轉節點（逗號分隔）</string>
+    <string name="xt_connections_hint">連線數</string>
+    <string name="xt_hot_pair_count_hint">熱通道對數（1-8）</string>
+    <string name="xt_ip_strategy_label">IP 策略</string>
+    <string-array name="xt_ip_strategy_options">
+        <item>IPv4,IPv6</item>
+        <item>IPv6,IPv4</item>
+        <item>IPv4</item>
+        <item>IPv6</item>
+    </string-array>
+    <string-array name="xt_ip_strategy_descriptions">
+        <item>優先請求 IPv4 位址，失敗回退 IPv6（預設）</item>
+        <item>優先請求 IPv6 位址，失敗回退 IPv4</item>
+        <item>只請求 IPv4 位址</item>
+        <item>只請求 IPv6 位址</item>
+    </string-array>
+    <string name="edit_profile_title">編輯設定: %1$s</string>
+    <string name="toast_profile_saved">設定已儲存</string>
+    <string name="toast_vpn_running_locked">VPN 正在執行，無法修改目前設定</string>
+    <string name="toast_imported_check">設定已匯入，請檢查並儲存</string>
+    <string name="toast_import_missing_host">連結缺少伺服器位址，無法匯入</string>
+    <string name="toast_scanner_start_failed">無法啟動掃描器</string>
+    <string name="scan_qr_prompt">掃描設定行動條碼</string>
+    <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name
+xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+    <string name="error_profile_name_empty">設定名稱不可為空</string>
+    <string name="error_server_addr_empty">伺服器位址不可為空</string>
+    <string name="error_server_addr_scheme">伺服器位址必須以 wss:// 或 ws:// 開頭</string>
+    <string name="error_ws_conn_invalid">WebSocket 連線數格式錯誤</string>
+    <string name="error_ws_conn_range">WebSocket 連線數必須在 1-%1$d 之間</string>
+    <string name="error_pool_max_invalid">動態擴展上限格式錯誤</string>
+    <string name="error_pool_max_range">啟用動態擴展時，上限必須在 WebSocket 連線數和 %1$d 之間</string>
+    <string name="error_xt_connections_invalid">連線數必須是數字</string>
+    <string name="error_xt_connections_range">連線數必須在 1 到 16 之間</string>
+    <string name="error_hot_pair_invalid">熱通道對數必須是數字</string>
+    <string name="error_hot_pair_range">熱通道對數必須在 1-%1$d 之間</string>
+    <string name="error_xt_advanced_invalid">進階參數數值無效，請檢查輸入（留空表示使用預設值）</string>
+
+    <!-- ===== Global Settings ===== -->
+    <string name="settings_title">全域設定</string>
+    <string name="settings_section_general">一般</string>
+    <string name="settings_section_appearance">外觀</string>
+    <string name="settings_section_network">網路</string>
+    <string name="settings_section_bypass">代理分流</string>
+    <string name="settings_section_ech_dns">ECH 與 DNS</string>
+    <string name="settings_socks_port_label">本機代理連接埠</string>
+    <string name="settings_ech_dns_label">DoH 伺服器</string>
+    <string name="settings_ech_domain_label">ECH 查詢網域</string>
+    <string name="settings_placeholder_socks_port">1080</string>
+    <string name="settings_placeholder_ech_dns">https://doh.pub/dns-query</string>
+    <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
+    <string name="settings_socks_port_summary">目前連接埠：%1$d</string>
+    <string name="settings_apps_row_summary">已選擇 %1$d 個應用程式</string>
+    <string name="settings_apps_row_summary_none">未選擇任何應用程式</string>
+    <string name="settings_log_level_summary">目前層級：%1$s</string>
+    <string name="settings_restart_required">修改後需重新啟動 VPN 生效</string>
+    <string name="settings_global_hint">勾選為全域代理，未勾選為分應用代理</string>
+    <string name="settings_appearance_hint">主題與色彩即時生效，無需重新啟動</string>
+    <string name="theme_mode_label">明暗模式</string>
+    <string name="theme_palette_label">色彩方案</string>
+    <string name="settings_theme_mode_summary">目前模式：%1$s</string>
+    <string name="settings_theme_palette_summary">目前方案：%1$s</string>
+    <string name="settings_saved">設定已儲存</string>
+    <string name="settings_vpn_running_toast">VPN 正在執行，無法修改全域設定</string>
+    <string name="settings_error_port_format">連接埠格式錯誤</string>
+    <string name="settings_error_port_min">連接埠必須 ≥ 1024</string>
+    <string name="settings_error_bypass_rules">分流規則格式錯誤：%1$s</string>
+
+    <!-- ===== Per-App Proxy ===== -->
+    <string name="app_selected_count">已選 %1$d 個應用程式</string>
+    <string name="app_list_loading">正在載入應用程式…</string>
+    <string name="action_select_all">全選</string>
+    <string name="action_invert_selection">反選</string>
+    <string name="action_clear_selection">清除選擇</string>
+    <string name="action_clear_search">清除搜尋</string>
+    <string name="acc_app_select">選擇 %1$s</string>
+    <string name="show_server_addr">在設定清單中顯示伺服器位址</string>
+    <string name="show_server_addr_hint">關閉後隱藏伺服器位址，分享螢幕截圖時不會外洩</string>
+
+    <!-- ===== Status Cards, Empty States & Home UI ===== -->
+    <string name="status_disconnected">已中斷連線</string>
+    <string name="status_connecting">連線中…</string>
+    <string name="status_connected">已連線</string>
+    <string name="status_error">連線發生錯誤</string>
+    <string name="status_tap_to_connect">點擊連線</string>
+    <string name="status_connecting_subtitle">正在建立通道，請稍候</string>
+    <string name="common_retry">重試</string>
+    <string name="common_view_logs">檢視記錄</string>
+    <string name="common_copy">複製</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_confirm">確認</string>
+    <string name="empty_profiles_title">尚無設定</string>
+    <string name="empty_profiles_message">點擊右下角按鈕，掃碼匯入或手動建立第一個設定</string>
+    <string name="empty_search_title">未找到相符應用程式</string>
+    <string name="empty_search_message">試試其他關鍵字，或清除搜尋條件</string>
+    <string name="empty_logs_title">暫無記錄</string>
+    <string name="empty_logs_message">連線後執行記錄將顯示在此處</string>
+    <string name="home_subtitle_no_profile">未選擇設定</string>
+    <string name="home_current_profile">目前設定：%1$s</string>
+    <string name="acc_connect">連線 VPN</string>
+    <string name="acc_disconnect">中斷 VPN 連線</string>
+    <string name="acc_vpn_connecting">正在連線，請稍候</string>
+    <string name="acc_vpn_disconnecting">正在中斷連線，請稍候</string>
+    <string name="acc_vpn_error">連線失敗，點擊重試</string>
+    <string name="acc_view_connection_info">檢視連線資訊</string>
+    <string name="status_disconnecting">正在中斷連線…</string>
+    <string name="acc_add_profile">新增或匯入設定</string>
+    <string name="acc_qr_scan">掃描行動條碼匯入設定</string>
+    <string name="acc_share">分享</string>
+    <string name="acc_copy">複製</string>
+    <string name="acc_edit">編輯</string>
+    <string name="acc_delete">刪除</string>
+    <string name="cannot_edit_running">VPN 正在執行，無法編輯目前設定</string>
+    <string name="cannot_delete_running">VPN 正在執行，無法刪除目前設定</string>
+    <string name="toolbar_version">v%1$s</string>
+    <string name="vpn_start_failed">VPN 啟動失敗</string>
+    <string name="status_connecting_timeout">VPN 啟動逾時，請重試</string>
+    <string name="cannot_start_vpn_service">無法啟動 VPN 服務: %1$s</string>
+    <string name="export_protocol_label">協定字串：</string>
+    <string name="export_qr_label">行動條碼：</string>
+    <string name="acc_export_qr">設定行動條碼</string>
+    <string name="scanner_hint">將行動條碼對準掃描框</string>
+
+    <!-- ===== Proxy Latency Test ===== -->
+    <string name="pref_latency_title">代理延遲測試</string>
+    <string name="pref_latency_url">測速目標</string>
+    <string name="pref_latency_url_hint">https://www.gstatic.com/generate_204</string>
+    <string name="pref_latency_interval">測速間隔</string>
+    <string name="pref_latency_timeout">測速逾時</string>
+    <string name="latency_ms">延遲 %dms</string>
+    <string name="latency_timeout">測速逾時</string>
+    <string name="latency_error">測速失敗</string>
+    <string name="latency_force_proxy">強制透過代理測速（防止測速網域被直連分流）</string>
+
+    <!-- ===== Language Selection ===== -->
+    <string name="settings_language_label">應用程式語言</string>
+    <string name="settings_language_summary">目前語言：%1$s</string>
+    <string name="language_system">跟隨系統</string>
+    <string name="language_en">English</string>
+    <string name="language_zh_cn">简体中文</string>
+    <string name="language_zh_tw">繁體中文</string>
+    <string name="language_ru">Русский</string>
+
+    <!-- ===== Optimal IP Management & Speed Test ===== -->
+    <string name="preferred_ip_title">優選 IP</string>
+    <string name="preferred_back">返回</string>
+    <string name="preferred_sources">來源</string>
+    <string name="preferred_test">測試</string>
+    <string name="preferred_intro">一份全域清單，按實際節點驗證。不會修改出口代理 IP；儲存後下次連線生效。</string>
+    <string name="preferred_official">Cloudflare 官方</string>
+    <string name="preferred_fetch_v4">更新官方 IPv4（預設來源）</string>
+    <string name="preferred_fetch_v6">更新官方 IPv6（選填）</string>
+    <string name="preferred_v6_hint">IPv6 僅在目前直連網路具備 IPv6 位址時可新增。位址段有界抽樣，不窮舉。</string>
+    <string name="preferred_third">第三方清單 · 主動加入才擷取</string>
+    <string name="preferred_url">HTTPS 清單 URL</string>
+    <string name="preferred_fetch_list">加入 / 更新第三方清單</string>
+    <string name="preferred_manual">手動 / TXT / 舊節點</string>
+    <string name="preferred_format">每行 IP:PORT#備註 或 [IPv6]:PORT#備註（備註可留空）；錯誤行需確認，不靜默捨棄。</string>
+    <string name="preferred_content">貼上 IP 清單</string>
+    <string name="preferred_parse">解析貼上清單</string>
+    <string name="preferred_import">匯入 UTF-8 TXT（最多 2MiB）</string>
+    <string name="preferred_legacy">收集舊節點入口 IP</string>
+    <string name="preferred_accept">確認：僅匯入有效行</string>
+    <string name="preferred_empty_sources">尚無候選。先更新官方 IPv4 或匯入清單，再開始測試。</string>
+    <string name="preferred_target">選擇實際參考節點（不會切換目前連線節點）</string>
+    <string name="preferred_sample">CIDR 抽樣數量（預設 256，上限 4096）</string>
+    <string name="preferred_concurrency">探測並發數（預設 8，上限 32）</string>
+    <string name="preferred_no_profiles">請先建立一個節點；必須按真實節點目標驗證。</string>
+    <string name="preferred_not_tested">尚未測試。HTTPS 可達不代表 WebSocket 升級或驗證成功。</string>
+    <string name="preferred_disable">還原原設定 / 停用全域</string>
+    <string name="preferred_disable_body">還原接管前的模式，保留全域集區和節點原 IP；下次連線生效，不自動重新連線。</string>
+    <string name="preferred_mode">優選 IP 來源</string>
+    <string name="preferred_manage">管理全域優選 IP（先儲存節點變更）</string>
+    <string name="preferred_mode_hint">正在讀取優選狀態…</string>
+    <string name="preferred_conflict">進階 JSON 含 relay_nodes：強制獨立，避免顯示跟隨但實際覆蓋。</string>
+    <string name="preferred_clear_conflict">刪除進階 relay_nodes 覆蓋並選擇跟隨</string>
+    <string name="preferred_clear_conflict_body">僅刪除進階 JSON 中的 relay_nodes。原 XtRelayNodes 文字保持不變；仍需在管理頁驗證後才會接管。</string>
+    <string-array name="preferred_modes">
+        <item>跟隨全域</item>
+        <item>獨立設定</item>
+        <item>網域預設（不使用中轉 IP）</item>
+    </string-array>
+    <string name="preferred_sources_title">優選 IP 來源管理</string>
+    <string name="preferred_sources_configured">已設定來源</string>
+    <string name="preferred_official_prefixes">官方 IP 位址段</string>
+    <string name="preferred_official_desc">從 Cloudflare 官方擷取全球 CIDR 位址庫（測試按段抽樣）</string>
+    <string name="preferred_fetch_v4_btn">更新官方 IPv4</string>
+    <string name="preferred_fetch_v6_btn">更新官方 IPv6</string>
+    <string name="preferred_third_party_title">第三方清單訂閱</string>
+    <string name="preferred_manual_title">手動輸入</string>
+    <string name="preferred_reference_title">參考目標節點</string>
+    <string name="preferred_sample_hint">抽樣數量 (1-4096)</string>
+    <string name="preferred_concurrency_hint">並發執行緒 (1-32)</string>
+    <string name="preferred_ready">準備就緒</string>
+    <string name="preferred_direct_net">直連網路</string>
+    <string name="preferred_metric_completed_total">完成 / 總量</string>
+    <string name="preferred_metric_success_nodes">成功節點</string>
+    <string name="preferred_metric_checked_nodes">已勾選</string>
+    <string name="preferred_start_test">開始測試</string>
+    <string name="preferred_test_footer_hint">僅前景直連 · 勾選自動儲存 · 手動測速計入流量統計</string>
+    <string name="preferred_candidate_nodes">候選中轉節點</string>
+    <string name="preferred_expand_detail">展開詳情</string>
+    <string name="preferred_speed_test_btn">測速 · 50MiB / 10秒</string>
+    <string name="preferred_enable_source">啟用此來源</string>
+    <string name="preferred_refresh_source">重新整理來源</string>
+    <string name="preferred_delete_source">刪除來源</string>
+    <string name="preferred_restart_test">重新開始測試</string>
+    <string name="preferred_enable_global_action">啟用全域（需實際節點驗證）</string>
+    <string name="preferred_restart_confirm_title">重新開始</string>
+    <string name="preferred_restart_confirm_msg">將使用目前來源與設定建立新上下文，舊成績僅為歷史；已選集區保留。請先暫停並等待退出。</string>
+    <string name="preferred_cancel_speed_test">取消測速</string>
+    <string name="preferred_delete_source_title">刪除來源</string>
+    <string name="preferred_delete_source_msg">已選位址仍保留，目前佇列不變。是否刪除此來源？</string>
+    <string name="preferred_metered_confirm_title">計費網路確認</string>
+    <string name="preferred_metered_confirm_msg">掃描不下載本文測速樣本，但TCP/TLS/HTTPS與ECH/DNS檢查仍消耗流量。是否繼續？</string>
+    <string name="preferred_metered_speed_title">計費網路手動測速</string>
+    <string name="preferred_metered_speed_msg">僅測試此 IP，單次最多消耗 50MiB 流量（測試時長 10 秒）。是否繼續？</string>
+    <string name="preferred_no_profile_title">缺少參考節點</string>
+    <string name="preferred_pause_speed_test">取消測速；等待退出後按實際本文結算</string>
+    <string name="preferred_pause_user">使用者暫停，等待網路工作退出</string>
+    <string name="preferred_err_https_url">請使用 HTTPS URL</string>
+    <string name="preferred_err_url_format_title">URL 格式錯誤</string>
+    <string name="preferred_err_url_format_msg">第三方清單必須使用 https:// 開頭的有效連結</string>
+    <string name="preferred_err_input_empty">請輸入或貼上 IP 內容</string>
+    <string name="preferred_err_sample_range">請輸入 1–4096</string>
+    <string name="preferred_err_concurrency_range">請輸入 1–32</string>
+    <string name="preferred_dialog_list_parse_title">第三方清單解析結果</string>
+    <string name="preferred_btn_discard">放棄</string>
+    <string name="preferred_btn_import_valid">立即匯入有效候選</string>
+    <string name="preferred_err_no_valid_ip_title">未解析到有效 IP</string>
+    <string name="preferred_msg_list_added">第三方清單已成功加入！</string>
+    <string name="preferred_err_fetch_list_failed">擷取第三方清單失敗</string>
+    <string name="preferred_msg_official_updated">官方 IP 來源已更新</string>
+    <string name="preferred_err_update_failed">更新失敗</string>
+    <string name="preferred_err_refresh_source_failed">重新整理來源失敗</string>
+    <string name="preferred_msg_source_refreshed">來源已重新整理</string>
+    <string name="preferred_dialog_manual_parse_title">手動輸入解析結果</string>
+    <string name="preferred_btn_import_now">立即匯入</string>
+    <string name="preferred_btn_cancel">取消</string>
+</resources>
