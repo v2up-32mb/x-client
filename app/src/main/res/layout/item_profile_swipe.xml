@@ -17,6 +17,8 @@
         android:id="@+id/foreground_layout"
         android:layout_width="match_parent"
         android:layout_height="64dp"
+        android:focusable="true"
+        android:clickable="true"
         android:orientation="horizontal"
         android:paddingStart="@dimen/spacing_lg"
         android:paddingEnd="@dimen/spacing_lg"

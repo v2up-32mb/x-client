@@ -375,4 +375,10 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_dialog_manual_parse_title">Результат ручного ввода</string>
     <string name="preferred_btn_import_now">Импортировать</string>
     <string name="preferred_btn_cancel">Отмена</string>
+
+    <!-- TV & 节点操作弹窗新增 -->
+    <string name="profile_menu_title">Действия с профилем</string>
+    <string name="set_as_current">Сделать активным</string>
+    <string name="import_from_clipboard">Импорт из буфера обмена</string>
+    <string name="no_camera_hint">Камера не обнаружена. Введите данные вручную или из буфера обмена</string>
 </resources>

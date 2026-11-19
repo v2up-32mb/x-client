@@ -8,6 +8,7 @@
 
 package com.x.client.app;
 
+import android.graphics.drawable.GradientDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +16,7 @@ import android.widget.ImageButton;
 import android.widget.RadioButton;
 import android.widget.TextView;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.color.MaterialColors;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +31,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
 
     public interface OnProfileActionListener {
         void onProfileClick(String profileId);
+        void onProfileLongClick(String profileId, Preferences.ProfileInfo profile);
         void onShareClick(String profileId);
         void onCopyClick(String profileId);
         void onEditClick(String profileId);
@@ -54,6 +57,30 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         return null;
     }
 
+    public int getSelectedPosition() {
+        if (selectedProfileId == null || profiles == null) {
+            return -1;
+        }
+        for (int i = 0; i < profiles.size(); i++) {
+            if (selectedProfileId.equals(profiles.get(i).id)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    public Preferences.ProfileInfo getProfileInfo(String profileId) {
+        if (profileId == null || profiles == null) {
+            return null;
+        }
+        for (Preferences.ProfileInfo p : profiles) {
+            if (profileId.equals(p.id)) {
+                return p;
+            }
+        }
+        return null;
+    }
+
     public void closeAllItems() {
         if (currentlyOpenedLayout != null) {
             currentlyOpenedLayout.close(true);
@@ -72,14 +99,36 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     public void onBindViewHolder(ViewHolder holder, int position) {
         Preferences.ProfileInfo profile = profiles.get(position);
 
+        // 设置 tag 便于在遥控器菜单键响应时找到对应项，并配置向右导航至 VPN 悬浮按钮
+        holder.foregroundLayout.setTag(profile.id);
+        holder.foregroundLayout.setNextFocusRightId(R.id.vpn_fab);
+
         // 设置选中状态
         boolean isSelected = profile.id.equals(selectedProfileId);
         holder.radioSelected.setChecked(isSelected);
 
-        // 当前配置高亮（primaryContainer 底色；多调色板下经 R.attr 走主题，redesign-plan §8.1）
-        holder.foregroundLayout.setBackgroundColor(
-                com.google.android.material.color.MaterialColors.getColor(holder.foregroundLayout,
-                        isSelected ? R.attr.xPrimaryContainer : R.attr.xSurface));
+        // 统一渲染当前项底色与遥控器焦点高光
+        updateItemFocusVisual(holder.foregroundLayout, isSelected, holder.foregroundLayout.hasFocus());
+
+        holder.foregroundLayout.setOnFocusChangeListener((v, hasFocus) -> {
+            boolean currentSelected = profile.id.equals(selectedProfileId);
+            updateItemFocusVisual(v, currentSelected, hasFocus);
+            if (hasFocus) {
+                // TV 端聚焦动效：1.02x 轻微放大并抬升 Z 轴
+                v.animate().scaleX(1.02f).scaleY(1.02f).translationZ(6f).setDuration(120).start();
+            } else {
+                v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
+            }
+        });
+
+        // 长按事件：呼出 TV / 遥控器节点操作菜单（替代手势滑动）
+        holder.foregroundLayout.setOnLongClickListener(v -> {
+            if (listener != null) {
+                listener.onProfileLongClick(profile.id, profile);
+                return true;
+            }
+            return false;
+        });
 
         // 设置配置名称
         holder.textProfileName.setText(profile.name);
@@ -193,6 +242,22 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         holder.swipeLayout.close(false);
         holder.swipeLayout.setOnSwipeListener(null);
         holder.swipeLayout.setOnSwipeStartListener(null);
+    }
+
+    private void updateItemFocusVisual(View view, boolean isSelected, boolean hasFocus) {
+        int fillColor = MaterialColors.getColor(view, isSelected ? R.attr.xPrimaryContainer : R.attr.xSurface);
+        if (hasFocus) {
+            int strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
+            int strokeWidth = (int) (2.5f * view.getResources().getDisplayMetrics().density);
+            GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            gd.setColor(fillColor);
+            gd.setCornerRadius(10f * view.getResources().getDisplayMetrics().density);
+            gd.setStroke(strokeWidth, strokeColor);
+            view.setBackground(gd);
+        } else {
+            view.setBackgroundColor(fillColor);
+        }
     }
 
     @Override

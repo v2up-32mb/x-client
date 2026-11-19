@@ -11,6 +11,8 @@ package com.x.client.app;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -25,6 +27,7 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.KeyEvent;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -35,6 +38,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.x.client.app.ui.ConnectionFab;
 import com.x.client.app.ui.EmptyStateView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -44,6 +48,7 @@ import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.BarcodeEncoder;
 import com.journeyapps.barcodescanner.ScanOptions;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -189,6 +194,28 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         // 设置 FAB 点击事件
         fabMain.setOnClickListener(v -> showFabMenu());
 
+        // TV 遥控器与 D-pad 焦点链导航连接
+        fabMain.setFocusable(true);
+        fabMain.setNextFocusDownId(R.id.vpn_fab);
+        fabMain.setNextFocusLeftId(R.id.profile_list);
+        fabMain.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                v.animate().scaleX(1.1f).scaleY(1.1f).translationZ(8f).setDuration(120).start();
+            } else {
+                v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
+            }
+        });
+
+        vpnFab.setNextFocusUpId(R.id.fab_main);
+        vpnFab.setNextFocusLeftId(R.id.profile_list);
+
+        if (DeviceUtils.isTv(this)) {
+            // 电视端 overscan 安全边距（左右 32dp，上下 20dp），防止电视裁切边缘
+            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
+            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
+            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
+        }
+
         // VPN FAB：tap=连接/断开主操作（展开态中 tap 由组件内部折叠，review §1）
         vpnFab.setOnToggleListener(() -> toggleVpn());
         // 错误展开卡内嵌动作：重试 / 查看日志（收编原 ErrorBanner 能力，review §7.1）
@@ -217,6 +244,33 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         refreshProfileList();
         reconcileVpnState();
         updateConnectionState();
+
+        // 电视模式下自动聚焦到当前选中的节点项（或首项），遥控器直接按 OK 即可连接/断开
+        if (DeviceUtils.isTv(this)) {
+            recyclerView.postDelayed(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                int selectedPos = adapter.getSelectedPosition();
+                int targetPos = selectedPos >= 0 ? selectedPos : 0;
+                if (adapter.getItemCount() > 0) {
+                    recyclerView.scrollToPosition(targetPos);
+                    recyclerView.postDelayed(() -> {
+                        RecyclerView.ViewHolder vh = recyclerView.findViewHolderForAdapterPosition(targetPos);
+                        if (vh != null && vh.itemView != null) {
+                            View fg = vh.itemView.findViewById(R.id.foreground_layout);
+                            if (fg != null) {
+                                fg.requestFocus();
+                                return;
+                            }
+                        }
+                        if (vpnFab != null && vpnFab.isShown()) {
+                            vpnFab.requestFocus();
+                        }
+                    }, 100);
+                } else if (fabMain != null && fabMain.isShown()) {
+                    fabMain.requestFocus();
+                }
+            }, 250);
+        }
     }
 
     @Override
@@ -492,7 +546,50 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             prefs.setCurrentProfileId(profileId);
             // 延迟刷新，让关闭动画先完成（250ms）
             recyclerView.postDelayed(() -> refreshProfileList(), 250);
+        } else {
+            // 当前选中的节点再次点击或遥控器按 OK：一键启停 VPN
+            toggleVpn();
         }
+    }
+
+    @Override
+    public void onProfileLongClick(String profileId, Preferences.ProfileInfo profile) {
+        if (profileMutation) return;
+        showProfileMenuDialog(profileId, profile);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU) {
+            View focused = getCurrentFocus();
+            String profileId = findFocusedProfileId(focused);
+            if (profileId != null) {
+                showProfileMenuDialog(profileId, adapter.getProfileInfo(profileId));
+                return true;
+            } else {
+                String currentId = prefs.getCurrentProfileId();
+                if (currentId != null) {
+                    showProfileMenuDialog(currentId, adapter.getProfileInfo(currentId));
+                    return true;
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
+    private String findFocusedProfileId(View focused) {
+        View v = focused;
+        while (v != null && v != recyclerView) {
+            if (v.getTag() instanceof String) {
+                return (String) v.getTag();
+            }
+            if (v.getParent() instanceof View) {
+                v = (View) v.getParent();
+            } else {
+                break;
+            }
+        }
+        return null;
     }
 
     @Override
@@ -527,47 +624,51 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         super.onBackPressed();
     }
 
-    private void showProfileMenu(String profileId) {
-        String profileName = prefs.getProfileName(profileId);
+    private void showProfileMenuDialog(String profileId, Preferences.ProfileInfo profile) {
+        if (profileId == null) return;
+        String profileName = profile != null ? profile.name : prefs.getProfileName(profileId);
         boolean isVpnRunning = prefs.getEnable();
-        boolean isCurrentProfile = profileId.equals(prefs.getCurrentProfileId());
+        boolean isCurrent = profileId.equals(prefs.getCurrentProfileId());
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(profileName);
+        List<String> options = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
 
-        // 根据 VPN 状态决定可用操作
-        String[] items;
-        if (isVpnRunning && isCurrentProfile) {
-            // VPN 运行且是当前配置：只能分享
-            items = new String[]{"分享"};
+        if (isCurrent) {
+            options.add(getString(isVpnRunning ? R.string.acc_disconnect : R.string.acc_connect));
+            actions.add(this::toggleVpn);
         } else {
-            // 其他情况：可以编辑、删除、分享
-            items = new String[]{"编辑", "删除", "分享"};
+            if (!isVpnRunning) {
+                options.add(getString(R.string.set_as_current));
+                actions.add(() -> {
+                    prefs.setCurrentProfileId(profileId);
+                    refreshProfileList();
+                });
+            }
         }
 
-        builder.setItems(items, (dialog, which) -> {
-            if (isVpnRunning && isCurrentProfile) {
-                // 只有分享选项
-                if (which == 0) {
-                    exportProfile(profileId);
-                }
-            } else {
-                // 完整菜单
-                switch (which) {
-                    case 0: // 编辑
-                        editProfile(profileId);
-                        break;
-                    case 1: // 删除
-                        deleteProfile(profileId);
-                        break;
-                    case 2: // 分享
-                        exportProfile(profileId);
-                        break;
-                }
-            }
-        });
+        options.add(getString(R.string.acc_edit));
+        actions.add(() -> editProfile(profileId));
 
-        builder.show();
+        options.add(getString(R.string.acc_copy));
+        actions.add(() -> copyProfile(profileId));
+
+        options.add(getString(R.string.acc_share));
+        actions.add(() -> exportProfile(profileId));
+
+        if (!isCurrent || !isVpnRunning) {
+            options.add(getString(R.string.acc_delete));
+            actions.add(() -> deleteProfile(profileId));
+        }
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(profileName != null && !profileName.isEmpty() ? profileName : getString(R.string.profile_menu_title))
+                .setItems(options.toArray(new String[0]), (dialog, which) -> {
+                    if (which >= 0 && which < actions.size()) {
+                        actions.get(which).run();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void editProfile(String profileId) {
@@ -822,8 +923,8 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
         builder.setView(dialogView);
         builder.setPositiveButton("复制", (dialog, which) -> {
-            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            android.content.ClipData clip = android.content.ClipData.newPlainText("GCM Protocol", protocol);
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("GCM Protocol", protocol);
             clipboard.setPrimaryClip(clip);
             Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
         });
@@ -837,14 +938,25 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void showImportDialog() {
-        // 显示两个选项的对话框：手动输入和扫描 QR
-        final CharSequence[] options = {"手动输入", "扫描二维码"};
-        new AlertDialog.Builder(this)
+        if (!DeviceUtils.hasCamera(this)) {
+            Toast.makeText(this, R.string.no_camera_hint, Toast.LENGTH_SHORT).show();
+            showManualInputDialog();
+            return;
+        }
+        // 显示三个选项的对话框：剪贴板导入、手动输入和扫描 QR
+        final CharSequence[] options = {
+                getString(R.string.import_from_clipboard),
+                "手动输入",
+                "扫描二维码"
+        };
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("导入配置")
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
-                        showManualInputDialog();
+                        importFromClipboard();
                     } else if (which == 1) {
+                        showManualInputDialog();
+                    } else if (which == 2) {
                         scanQrCode();
                     }
                 })
@@ -852,10 +964,43 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 .show();
     }
 
+    private void importFromClipboard() {
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null && clipboard.hasPrimaryClip()) {
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip != null && clip.getItemCount() > 0) {
+                CharSequence text = clip.getItemAt(0).getText();
+                if (text != null) {
+                    String str = text.toString().trim();
+                    if (str.startsWith("gcm://") || str.startsWith("xtunnel://") || str.startsWith("ech://")) {
+                        importFromProtocol(str);
+                        return;
+                    }
+                }
+            }
+        }
+        Toast.makeText(this, "剪贴板未发现有效配置链接，请手动输入", Toast.LENGTH_SHORT).show();
+        showManualInputDialog();
+    }
+
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
         input.setHint("gcm://server.com?ip=1.1.1.1:443&fip=2.2.2.2&user_id=v2up#Name");
-        new AlertDialog.Builder(this)
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null && clipboard.hasPrimaryClip()) {
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip != null && clip.getItemCount() > 0) {
+                CharSequence text = clip.getItemAt(0).getText();
+                if (text != null) {
+                    String str = text.toString().trim();
+                    if (str.startsWith("gcm://") || str.startsWith("xtunnel://") || str.startsWith("ech://")) {
+                        input.setText(str);
+                        input.setSelection(str.length());
+                    }
+                }
+            }
+        }
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("导入配置")
                 .setView(input)
                 .setPositiveButton("确定", (dialog, whichButton) -> {

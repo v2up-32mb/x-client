@@ -126,6 +126,19 @@ public class ConnectionFab extends MaterialCardView {
         setFocusable(true);
         setLongClickable(true);
 
+        setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                setStrokeColor(attr(com.google.android.material.R.attr.colorPrimary));
+                setStrokeWidth(dp(3));
+                setCardElevation(dp(12));
+                animate().scaleX(1.08f).scaleY(1.08f).setDuration(150).start();
+            } else {
+                setStrokeWidth(0);
+                setCardElevation(dp(6));
+                animate().scaleX(1.0f).scaleY(1.0f).setDuration(150).start();
+            }
+        });
+
         setOnClickListener(v -> onTapped());
         setOnLongClickListener(v -> {
             if (!expanded) {

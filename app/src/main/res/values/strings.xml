@@ -375,4 +375,10 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_dialog_manual_parse_title">Manual Input Parse Result</string>
     <string name="preferred_btn_import_now">Import Now</string>
     <string name="preferred_btn_cancel">Cancel</string>
+
+    <!-- TV & 节点操作弹窗新增 -->
+    <string name="profile_menu_title">Profile Actions</string>
+    <string name="set_as_current">Set as Active Profile</string>
+    <string name="import_from_clipboard">Import from Clipboard</string>
+    <string name="no_camera_hint">No camera detected on this device. Please import manually or from clipboard.</string>
 </resources>

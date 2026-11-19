@@ -371,4 +371,10 @@
     <string name="preferred_dialog_manual_parse_title">手动录入解析结果</string>
     <string name="preferred_btn_import_now">立即导入</string>
     <string name="preferred_btn_cancel">取消</string>
+
+    <!-- TV & 节点操作弹窗新增 -->
+    <string name="profile_menu_title">节点操作</string>
+    <string name="set_as_current">设为当前配置</string>
+    <string name="import_from_clipboard">从剪贴板导入</string>
+    <string name="no_camera_hint">当前设备未检测到摄像头，请手动输入或从剪贴板导入</string>
 </resources>

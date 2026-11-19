@@ -375,4 +375,10 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_dialog_manual_parse_title">手動輸入解析結果</string>
     <string name="preferred_btn_import_now">立即匯入</string>
     <string name="preferred_btn_cancel">取消</string>
+
+    <!-- TV & 节点操作弹窗新增 -->
+    <string name="profile_menu_title">節點操作</string>
+    <string name="set_as_current">設為目前設定</string>
+    <string name="import_from_clipboard">從剪貼簿匯入</string>
+    <string name="no_camera_hint">目前裝置未偵測到相機，請手動輸入或從剪貼簿匯入</string>
 </resources>
