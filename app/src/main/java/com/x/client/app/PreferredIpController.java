@@ -109,7 +109,7 @@ final class PreferredIpController {
         this.context = context.getApplicationContext(); this.referenceId = referenceId;
         this.backend = backend; this.net = net; this.clock = clock;
         store = new PreferredIpStore(this.context); history = new PreferredIpHistory(this.context);
-        ledger = new PreferredIpLedger(store); network = net.id();
+        ledger = new PreferredIpLedger(); network = net.id();
         control.scheduleWithFixedDelay(() -> safe(() -> { checkContext(); schedule(); if (dirty) publish(); }), 0, 500, TimeUnit.MILLISECONDS);
         storageIO.execute(() -> {
             try {
@@ -170,6 +170,7 @@ final class PreferredIpController {
         String value = e.getMessage(); return value == null ? "操作失败（" + e.getClass().getSimpleName() + "）" : value;
     }
     private void acceptData(JSONObject latest) {
+        if (latest != null && latest.has("download_ledger")) latest.remove("download_ledger");
         if (data == null || latest.optLong("revision") >= data.optLong("revision")) data = latest;
         dirty = true;
     }
@@ -437,7 +438,7 @@ final class PreferredIpController {
             if ("download".equals(job.kind)) {
                 ledger.reserve(job.request.getString("download_round_id"), job.request.getJSONArray("candidates").getJSONObject(0).getString("address"));
                 job.reserved = true;
-                JSONObject reserved = store.read(); post(() -> acceptData(reserved));
+                post(() -> dirty = true);
             }
             // Reservation/Store reads may have blocked while the network changed. Do not start old work.
             if (!foreground || stopRequested || !jobCurrent(job)) throw new IllegalStateException("任务上下文已变化，未启动任务");
@@ -1120,8 +1121,8 @@ final class PreferredIpController {
         state.scanning = scanning; state.saving = selectionPending > 0; state.metered = net.metered(); state.selected = data.getJSONArray("selected").length();
         state.phase = phase + " · ECH " + ech.optString("state", "未准备")
                 + (ech.optString("error").isEmpty() ? "" : " · " + ech.optString("error"));
-        JSONObject budget = data.optJSONObject("download_ledger");
-        if (budget != null) { state.used = budget.optLong("used"); state.reserved = budget.optLong("reserved"); }
+        state.used = ledger.getUsed();
+        state.reserved = ledger.getReserved();
         if (!state.activeDownload.isEmpty()) { state.used = Math.max(state.used, liveDownloadUsed); state.reserved = Math.max(0, state.reserved - liveDownloadBytes); }
         LinkedHashMap<String, JSONObject> visible = new LinkedHashMap<>(candidates);
         // Keep historical selected rows visible even when the source is deleted/disabled or the new probe failed.

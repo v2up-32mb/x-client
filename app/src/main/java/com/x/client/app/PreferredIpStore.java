@@ -91,6 +91,7 @@ public final class PreferredIpStore {
             throw new IllegalStateException("优选库已更新，请重新确认");
         }
         JSONObject next = new JSONObject(data.toString());
+        next.remove("download_ledger");
         next.put("schema_version", 1).put("revision", expectedRevision + 1);
         byte[] bytes = next.toString().getBytes(StandardCharsets.UTF_8);
         if (bytes.length > 16 * 1024 * 1024) throw new IllegalStateException("优选库超过16MiB限制");
