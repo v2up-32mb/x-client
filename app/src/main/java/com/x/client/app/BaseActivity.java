@@ -20,20 +20,24 @@ import androidx.appcompat.app.AppCompatActivity;
 public abstract class BaseActivity extends AppCompatActivity {
 
     private int appliedPalette = -1;
+    private String appliedLanguage = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ThemeManager.applyPaletteTo(this);
         appliedPalette = new Preferences(this).getPalette();
+        appliedLanguage = new Preferences(this).getLanguage();
         super.onCreate(savedInstanceState);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        int saved = new Preferences(this).getPalette();
-        if (saved != appliedPalette) {
-            appliedPalette = saved;
+        int savedPalette = new Preferences(this).getPalette();
+        String savedLanguage = new Preferences(this).getLanguage();
+        if (savedPalette != appliedPalette || !savedLanguage.equals(appliedLanguage)) {
+            appliedPalette = savedPalette;
+            appliedLanguage = savedLanguage;
             recreate();
         }
     }

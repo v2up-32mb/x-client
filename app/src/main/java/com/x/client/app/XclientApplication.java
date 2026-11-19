@@ -6,6 +6,7 @@ public class XclientApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        LanguageManager.applySavedLanguage(this);
         ThemeManager.applySavedMode(this);
         // 将 Go 运行时本地时区与 Android 系统时区对齐（gomobile 默认 UTC），
         // 使运行日志时间戳显示为系统时区。

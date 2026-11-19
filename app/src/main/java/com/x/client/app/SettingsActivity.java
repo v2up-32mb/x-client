@@ -55,6 +55,8 @@ public class SettingsActivity extends BaseActivity {
     private EditText edittext_ech_domain;
     private CheckBox checkbox_enable_dns_warmup;
     private CheckBox checkbox_show_server_addr;
+    private Spinner spinner_language;
+    private TextView text_language_summary;
     private Spinner spinner_log_level;
     private TextView text_log_level_summary;
     private Spinner spinner_theme_mode;
@@ -79,6 +81,21 @@ public class SettingsActivity extends BaseActivity {
             Preferences.LOG_LEVEL_INFO,
             Preferences.LOG_LEVEL_WARN,
             Preferences.LOG_LEVEL_ERROR
+    };
+
+    private static final String[] LANGUAGE_VALUES = {
+            Preferences.LANGUAGE_SYSTEM,
+            Preferences.LANGUAGE_EN,
+            Preferences.LANGUAGE_ZH_CN,
+            Preferences.LANGUAGE_ZH_TW,
+            Preferences.LANGUAGE_RU
+    };
+    private static final int[] LANGUAGE_LABEL_RES = {
+            R.string.language_system,
+            R.string.language_en,
+            R.string.language_zh_cn,
+            R.string.language_zh_tw,
+            R.string.language_ru
     };
 
     private static final int[] LATENCY_INTERVAL_VALUES = {5, 10, 30, 60};
@@ -162,6 +179,8 @@ public class SettingsActivity extends BaseActivity {
         edittext_ech_domain = findViewById(R.id.edittext_ech_domain);
         checkbox_enable_dns_warmup = findViewById(R.id.checkbox_enable_dns_warmup);
         checkbox_show_server_addr = findViewById(R.id.checkbox_show_server_addr);
+        spinner_language = findViewById(R.id.spinner_language);
+        text_language_summary = findViewById(R.id.text_language_summary);
         spinner_log_level = findViewById(R.id.spinner_log_level);
         text_log_level_summary = findViewById(R.id.text_log_level_summary);
         spinner_theme_mode = findViewById(R.id.spinner_theme_mode);
@@ -178,6 +197,26 @@ public class SettingsActivity extends BaseActivity {
         group_network = findViewById(R.id.group_network);
         group_bypass = findViewById(R.id.group_bypass);
         group_ech = findViewById(R.id.group_ech);
+
+        // 应用语言选择器：实时生效（选择即应用），上调为第一项
+        ArrayAdapter<String> languageAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, languageLabels());
+        languageAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner_language.setAdapter(languageAdapter);
+        spinner_language.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selected = LANGUAGE_VALUES[position];
+                if (selected.equals(prefs.getLanguage())) {
+                    return;
+                }
+                LanguageManager.setLanguage(SettingsActivity.this, selected);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
 
         // 日志等级选择器：显示本地化文案，值与 Preferences LOG_LEVEL_* 一一对应
         ArrayAdapter<String> logLevelAdapter = new ArrayAdapter<>(this,
@@ -294,6 +333,10 @@ public class SettingsActivity extends BaseActivity {
         });
     }
 
+    private String[] languageLabels() {
+        return labelRes(LANGUAGE_LABEL_RES);
+    }
+
     private String[] logLevelLabels() {
         return labelRes(LOG_LEVEL_LABEL_RES);
     }
@@ -314,6 +357,17 @@ public class SettingsActivity extends BaseActivity {
         for (int i = 0; i < values.length; i++) {
             if (values[i] == v) {
                 return i;
+            }
+        }
+        return 0;
+    }
+
+    private static int indexOf(String[] values, String v) {
+        if (v != null) {
+            for (int i = 0; i < values.length; i++) {
+                if (values[i].equals(v)) {
+                    return i;
+                }
             }
         }
         return 0;
@@ -426,6 +480,12 @@ public class SettingsActivity extends BaseActivity {
         text_apps_summary.setText(selectedApps > 0
                 ? getString(R.string.settings_apps_row_summary, selectedApps)
                 : getString(R.string.settings_apps_row_summary_none));
+
+        // 语言设置：定位当前值
+        int langPosition = indexOf(LANGUAGE_VALUES, prefs.getLanguage());
+        spinner_language.setSelection(langPosition);
+        text_language_summary.setText(getString(R.string.settings_language_summary,
+                getString(LANGUAGE_LABEL_RES[langPosition])));
 
         // 服务器地址显示开关：仅控制列表展示，无需重启 VPN，即时生效；
         // VPN 运行时也可切换（截图时 VPN 往往处于连接状态），故不随其他全局项禁用。

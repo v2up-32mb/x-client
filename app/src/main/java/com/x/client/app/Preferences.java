@@ -35,6 +35,13 @@ public class Preferences
         public static final int THEME_SYSTEM = 0;
         public static final int THEME_LIGHT = 1;
         public static final int THEME_DARK = 2;
+        // 语言设置：system / en / zh-CN / zh-TW / ru，默认跟随系统
+        public static final String LANGUAGE = "AppLanguage";
+        public static final String LANGUAGE_SYSTEM = "system";
+        public static final String LANGUAGE_EN = "en";
+        public static final String LANGUAGE_ZH_CN = "zh-CN";
+        public static final String LANGUAGE_ZH_TW = "zh-TW";
+        public static final String LANGUAGE_RU = "ru";
         // 色彩方案（调色板）：赛博极光 / 钛金极简 / 瑞士暗盾，默认赛博极光
         public static final String THEME_PALETTE = "ThemePalette";
         public static final int PALETTE_AURORA = 0;
@@ -415,6 +422,17 @@ public class Preferences
 			palette = PALETTE_AURORA;
 		}
 		prefs.edit().putInt(THEME_PALETTE, palette).apply();
+	}
+
+	public String getLanguage() {
+		return prefs.getString(LANGUAGE, LANGUAGE_SYSTEM);
+	}
+
+	public void setLanguage(String language) {
+		if (language == null || language.isEmpty()) {
+			language = LANGUAGE_SYSTEM;
+		}
+		prefs.edit().putString(LANGUAGE, language).apply();
 	}
 
 	public boolean getBypassPrivate() {

@@ -52,4 +52,13 @@
 	<string name="log_level_error">Ошибка (ERROR)</string>
 	<string name="show_server_addr">Показывать адрес сервера в списке</string>
 	<string name="show_server_addr_hint">Если выключено, адрес скрыт — удобно для скриншотов</string>
+
+	<!-- Язык приложения -->
+	<string name="settings_language_label">Язык приложения</string>
+	<string name="settings_language_summary">Текущий язык: %1$s</string>
+	<string name="language_system">Как в системе</string>
+	<string name="language_en">English</string>
+	<string name="language_zh_cn">简体中文</string>
+	<string name="language_zh_tw">繁體中文</string>
+	<string name="language_ru">Русский</string>
 </resources>

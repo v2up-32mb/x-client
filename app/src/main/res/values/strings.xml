@@ -281,4 +281,13 @@
     <string name="latency_timeout">测速超时</string>
     <string name="latency_error">测速失败</string>
     <string name="latency_force_proxy">强制通过代理测速（防止测速域名被直连绕过）</string>
+
+    <!-- 语言设置 -->
+    <string name="settings_language_label">应用语言</string>
+    <string name="settings_language_summary">当前语言：%1$s</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_en">English</string>
+    <string name="language_zh_cn">简体中文</string>
+    <string name="language_zh_tw">繁體中文</string>
+    <string name="language_ru">Русский</string>
 </resources>
