@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
                 xmlns:tools="http://schemas.android.com/tools">
         <application android:name=".XclientApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
+            android:banner="@drawable/banner_tv"
             android:theme="@style/Theme.XClient"
             android:localeConfig="@xml/locales_config"
                 android:allowClearUserData="true"
@@ -63,4 +64,10 @@
 		tools:ignore="QueryAllPackagesPermission" />
 	<uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
 		android:minSdkVersion="34" />
+
+	<!-- 电视设备无触摸屏与硬件相机，声明非强依赖以支持 Android TV / 国内电视盒子安装运行 -->
+	<uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+	<uses-feature android:name="android.software.leanback" android:required="false" />
+	<uses-feature android:name="android.hardware.camera" android:required="false" />
+	<uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 </manifest>
