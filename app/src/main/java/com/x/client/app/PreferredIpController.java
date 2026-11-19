@@ -1028,77 +1028,59 @@ final class PreferredIpController {
             } catch (Exception e) { error(e); }
         });
     }
-    private String compatibility(String address) throws Exception {
-        StringBuilder out = new StringBuilder(); Preferences prefs = new Preferences(context);
-        for (Preferences.ProfileInfo info : prefs.getProfileList()) {
-            Preferences p = prefs.forProfile(info.id); out.append('\n').append(info.name).append("：");
-            try {
-                JSONObject merged = PreferredIpResolver.baseParams(p);
-                PreferredIpResolver.Decision decision = PreferredIpResolver.apply(p, merged, data);
-                JSONObject validation = data.getJSONObject("validations").optJSONObject(info.id);
-                boolean member = false;
-                JSONArray addresses = validation == null ? null : validation.optJSONArray("addresses");
-                for (int i = 0; addresses != null && i < addresses.length(); i++) member |= address.equals(addresses.optString(i));
-                JSONObject actual = PreferredIpResolver.target(p, merged);
-                if (decision.applied && member && isSelected(data, address)) {
-                    out.append("已保存验证子集（历史配置） · ").append(decision.summary)
-                            .append(" · 保存验证网络 ").append(validation.optString("network_id", "历史未记录"));
-                } else out.append(decision.reason);
-                String key = PreferredIpResolver.fingerprint(actual);
-                String note = validationNotes.get(key + "|" + address);
-                out.append(" · ").append(note == null ? "当前 IP 待验证/未采用新的证明" : note);
-                out.append("\n").append(PreferredIpPresentation.target(actual));
-            } catch (Exception e) { out.append("未采用：实际节点参数无效"); }
+    private String detail(JSONObject candidate, JSONObject r, boolean historical, JSONObject measuredTarget, String measuredNetwork) {
+        StringBuilder out = new StringBuilder();
+        String src = PreferredIpPresentation.sources(candidate, data);
+        if (!src.isEmpty()) out.append("来源：").append(src);
+        String comment = PreferredIpPresentation.comment(candidate, data);
+        if (!comment.isEmpty()) out.append(" · 备注：").append(comment);
+
+        if (r == null) {
+            out.append("\n状态：尚未测试");
+            return out.toString();
         }
-        return out.toString();
-    }
-    private String detail(JSONObject candidate, JSONObject r, boolean historical, JSONObject measuredTarget, String measuredNetwork) throws Exception {
-        StringBuilder out = new StringBuilder(PreferredIpPresentation.sources(candidate, data));
-        String comment = PreferredIpPresentation.comment(candidate, data); if (!comment.isEmpty()) out.append("\n备注：").append(comment);
-        if (r == null) out.append("\nN/A · 尚未执行参考检查");
-        else {
-            String na = r.optString("na_reason"); if (na.isEmpty()) na = r.optBoolean("probe_complete") ? "前一步失败/该项未取得测量" : "尚未执行或暂停后待重测";
-            out.append(historical ? "\n历史成绩（不参与当前排名/新增选择）" : "\n阶段：" + PreferredIpPresentation.phase(r.optString("probe_phase")));
-            out.append("\n测量网络：").append(measuredNetwork);
-            out.append("\n时间：").append(r.optLong("tested_at") > 0 ? java.text.DateFormat.getDateTimeInstance().format(new Date(r.optLong("tested_at"))) : "N/A · 未完成");
-            out.append("\n").append(PreferredIpPresentation.target(measuredTarget));
-            out.append("\nTCP 独立连接：").append(r.optInt("tcp_success")).append('/').append(r.optInt("tcp_attempts"));
-            out.append("\nTCP 最小 / 平均 / 最大：").append(r.optBoolean("tcp_measured")
-                    ? String.format(Locale.getDefault(), "%.1f / %.1f / %.1f ms", r.optDouble("tcp_min_ms"), r.optDouble("tcp_avg_ms"), r.optDouble("tcp_max_ms")) : "N/A · " + na);
-            out.append("\nTLS 证书 / 耗时：").append(r.optDouble("tls_ms", 0) > 0 || compatible(r) ? String.format(Locale.getDefault(), "校验证书握手 %.1f ms", r.optDouble("tls_ms")) : "N/A · " + na);
-            out.append("\nHTTPS：").append(r.optInt("http_success")).append('/').append(r.optInt("http_attempts"));
-            out.append(" · 中位 / 波动：").append(r.optBoolean("http_measured") ? String.format(Locale.getDefault(), "%.1f / %.1f ms", r.optDouble("http_median_ms"), r.optDouble("http_jitter_ms")) : "N/A · " + na);
-            String echStatus = r.optString("ech_status", "N/A");
-            out.append("\n参考 ECH：").append(echStatus).append("used".equals(echStatus) ? " · 实际 TLS 已接受"
-                    : "disabled".equals(echStatus) ? " · 配置禁用" : " · 未使用/未接受 ECH，标准 TLS 仍校验证书；配置准备不等于已使用");
-            if (!r.optString("error").isEmpty()) out.append("\n失败原因：").append(r.optString("error"));
-            JSONArray scores = r.optJSONArray("score_breakdown");
-            out.append("\n基础评分 v").append(r.optInt("score_version"));
-            for (int i = 0; scores != null && i < scores.length(); i++) {
-                JSONObject item = scores.getJSONObject(i);
-                out.append('\n').append(scoreLabel(item.optString("key"))).append("：")
-                        .append(r.optBoolean("score_ready") ? String.format(Locale.getDefault(), "%.1f / %.0f", item.optDouble("points"), item.optDouble("max_points")) : "N/A · 未完成");
+
+        if (historical && r.optLong("tested_at") > 0) {
+            out.append("\n[历史测试 · ").append(java.text.DateFormat.getDateTimeInstance().format(new Date(r.optLong("tested_at")))).append("]");
+        }
+
+        // 延迟与握手数据
+        if (r.optBoolean("tcp_measured")) {
+            out.append(String.format(Locale.getDefault(), "\nTCP 延迟：平均 %.1f ms (成功 %d/%d)",
+                    r.optDouble("tcp_avg_ms"), r.optInt("tcp_success"), r.optInt("tcp_attempts")));
+        }
+        if (r.optBoolean("http_measured")) {
+            double tlsMs = r.optDouble("tls_ms", 0);
+            if (tlsMs > 0) {
+                out.append(String.format(Locale.getDefault(), "\nHTTPS 延迟：中位 %.1f ms · TLS 握手 %.1f ms (成功 %d/%d)",
+                        r.optDouble("http_median_ms"), tlsMs, r.optInt("http_success"), r.optInt("http_attempts")));
+            } else {
+                out.append(String.format(Locale.getDefault(), "\nHTTPS 延迟：中位 %.1f ms (成功 %d/%d)",
+                        r.optDouble("http_median_ms"), r.optInt("http_success"), r.optInt("http_attempts")));
             }
-            String download = r.optString("download_state", "untested");
-            out.append("\n手动下载：").append("untested".equals(download) ? "N/A · 未手动测速，不影响分数" : download);
-            if (!"untested".equals(download)) out.append(String.format(Locale.getDefault(), " · %.2f MiB/s · 辅助峰值 %.2f MiB/s\n%.2f MiB / %.2f 秒 · 下载 ECH %s",
-                    r.optDouble("download_mib_s"), r.optDouble("download_peak_mib_s"), r.optLong("download_bytes") / 1048576.0,
-                    r.optDouble("download_seconds"), r.optString("download_ech_status")));
-            JSONObject historicalNotes = oldHistory.optJSONObject("download_notes");
-            String note = results.containsKey(candidate.getString("address")) ? downloadNotes.get(candidate.getString("address"))
-                    : historicalNotes == null ? "" : historicalNotes.optString(candidate.getString("address"));
-            if (note != null && !note.isEmpty()) out.append("\n下载说明：").append(note);
         }
-        out.append("\nHTTPS / CF 通过不等于 VPN / WebSocket 认证或带宽。");
-        out.append(compatibility(candidate.getString("address")));
+
+        // ECH 状态
+        String echStatus = r.optString("ech_status", "");
+        if (!echStatus.isEmpty() && !"N/A".equals(echStatus)) {
+            String echDesc = "used".equals(echStatus) ? "已生效" : "disabled".equals(echStatus) ? "已禁用" : "未采用 (标准TLS)";
+            out.append("\nECH：").append(echDesc);
+        }
+
+        // 手动测速结果
+        String download = r.optString("download_state", "untested");
+        if (!"untested".equals(download)) {
+            out.append(String.format(Locale.getDefault(), "\n手动测速：%.2f MiB/s (流量 %.1f MiB · 耗时 %.1fs)",
+                    r.optDouble("download_mib_s"), r.optLong("download_bytes") / 1048576.0, r.optDouble("download_seconds")));
+        }
+
+        // 失败信息
+        String error = r.optString("error", "");
+        if (!error.isEmpty()) {
+            out.append("\n失败：").append(error);
+        }
+
         return out.toString();
-    }
-    private static String scoreLabel(String key) {
-        switch (key) {
-            case "tcp_success": return "TCP 成功率"; case "http_success": return "HTTPS 成功率";
-            case "tcp_latency": return "TCP 平均延迟"; case "http_latency": return "HTTPS 中位延迟";
-            case "http_jitter": return "HTTPS 波动"; default: return key;
-        }
     }
     private void publish() throws Exception {
         if (data == null) {
