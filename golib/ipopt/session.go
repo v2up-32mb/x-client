@@ -81,13 +81,15 @@ func (m *Manager) validateSessionRequest(r *Request) error {
 		return nil
 	}
 	if m.ledger == nil {
-		if m.ledgerInitialized || r.DownloadRoundID != "" {
+		if m.ledgerInitialized || (r.SessionID != "" && r.DownloadRoundID != "") {
 			return fmt.Errorf("ledger_lost: 下载账本已失效，禁止自动恢复额度")
 		}
 		if r.Operation != "prepare" || r.SessionID != "" {
 			return fmt.Errorf("unknown_session: 会话或账本不存在")
 		}
-	} else if r.DownloadRoundID != m.ledger.id {
+	} else if r.Operation != "prepare" && r.DownloadRoundID != m.ledger.id {
+		return fmt.Errorf("ledger_mismatch: 必须提供当前download_round_id，不能自动清账")
+	} else if r.Operation == "prepare" && r.SessionID != "" && r.DownloadRoundID != m.ledger.id {
 		return fmt.Errorf("ledger_mismatch: 必须提供当前download_round_id，不能自动清账")
 	}
 	if r.SessionID == "" {
@@ -229,7 +231,7 @@ func (m *Manager) runPrepare(t *task) error {
 		return err
 	}
 	ledger := t.ledger
-	if ledger == nil || r.NewDownloadRound {
+	if ledger == nil || r.NewDownloadRound || (r.SessionID == "" && r.DownloadRoundID != "" && ledger != nil && r.DownloadRoundID != ledger.id) {
 		id, err := opaqueID()
 		if err != nil {
 			return err

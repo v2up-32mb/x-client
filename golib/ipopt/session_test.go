@@ -566,6 +566,18 @@ func TestV2LostLiveLedgerCannotBeReinitialized(t *testing.T) {
 	}
 }
 
+func TestV2FreshPrepareWithPersistedRoundIDSucceeds(t *testing.T) {
+	m := newManager(fakeOperations(), time.Now)
+	r := testRequest(1)
+	r.Operation = "prepare"
+	r.DownloadRoundID = "stale-persisted-round-from-disk"
+	// Fresh prepare (SessionID == "") on an uninitialized manager must succeed and create a fresh ledger.
+	s := startV2(t, m, r)
+	if s.SessionID == "" || s.DownloadRoundID == "" || s.DownloadRoundID == "stale-persisted-round-from-disk" {
+		t.Fatalf("unexpected snapshot: %+v", s)
+	}
+}
+
 func TestV2PortAndNetworkMembershipCannotBeSpoofed(t *testing.T) {
 	m := newManager(fakeOperations(), time.Now)
 	r, _ := preparedV2(t, m, 1)

@@ -149,7 +149,12 @@ final class PreferredIpController {
     void detach(boolean rotating) {
         listener = null;
         // Rotation and same-process return are manually resumable, never automatically restart I/O.
-        foreground = false; net.unwatch(); post(() -> validationAllowed = false); pause("已暂停；返回页面后可继续未完成的 IP");
+        foreground = false; net.unwatch(); post(() -> validationAllowed = false);
+        if (active != null || (scanning && !session.isEmpty())) {
+            pause("已暂停；返回页面后可继续未完成的 IP");
+        } else {
+            cancelIO();
+        }
     }
     void dispose() {
         detach(false);

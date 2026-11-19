@@ -85,8 +85,14 @@ public class PreferredIpActivity extends BaseActivity implements PreferredIpCont
         toolbar.getMenu().add(0, R.id.preferred_disable_action, 2, R.string.preferred_disable);
         toolbar.setOnMenuItemClickListener(item -> {
             int action = item.getItemId();
-            if (action == R.id.preferred_restart) confirm(getString(R.string.preferred_restart_confirm_title), getString(R.string.preferred_restart_confirm_msg), this::startScan);
-            else if (action == R.id.preferred_enable) controller.enable();
+            if (action == R.id.preferred_restart) {
+                if (state != null && state.busy) {
+                    controller.pause(getString(R.string.preferred_pause_user));
+                    Toast.makeText(this, "正在暂停当前测试，请稍候重试", Toast.LENGTH_SHORT).show();
+                } else {
+                    confirm(getString(R.string.preferred_restart_confirm_title), getString(R.string.preferred_restart_confirm_msg), this::startScan);
+                }
+            } else if (action == R.id.preferred_enable) controller.enable();
             else if (action == R.id.preferred_disable_action) confirm(getString(R.string.preferred_disable), getString(R.string.preferred_disable_body), () -> controller.disable());
             return true;
         });
