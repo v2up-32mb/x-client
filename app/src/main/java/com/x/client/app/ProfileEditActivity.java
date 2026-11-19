@@ -84,7 +84,8 @@ public class ProfileEditActivity extends BaseActivity {
     private Spinner preferredMode;
     private boolean preferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
     private boolean preferredDraftDirty, preferredImportedAddresses;
-    private String preferredSavedSummary = "";
+    private boolean preferredGlobalEnabled;
+    private int preferredGlobalCount;
     // Unknown keys and confirmed deletions live here, never reloaded from saved prefs on save.
     private String xtAdvancedDraft;
     private String pendingPreferredImport;
@@ -303,10 +304,33 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void showPreferredSummary() {
-        ((TextView) findViewById(R.id.preferred_mode_summary)).setText(preferredSavedSummary
-                + "\n当前选择草稿：" + getResources().getStringArray(R.array.preferred_modes)[Math.max(0, preferredMode.getSelectedItemPosition())]
-                + "（需保存节点；全局接管另需兼容检查及确认）\n"
-                + getString(preferredConflict ? R.string.preferred_conflict : R.string.preferred_mode_hint));
+        TextView summary = findViewById(R.id.preferred_mode_summary);
+        if (summary == null) return;
+        if (preferredConflict) {
+            summary.setText(R.string.preferred_conflict);
+            return;
+        }
+        int pos = preferredMode != null ? preferredMode.getSelectedItemPosition() : 0;
+        String mode = PREFERRED_MODES[Math.max(0, pos)];
+        boolean dirty = preferredOriginalMode != null && !mode.equals(preferredOriginalMode);
+        String text;
+        if ("global".equals(mode)) {
+            if (preferredGlobalEnabled && preferredGlobalCount > 0) {
+                text = "跟随全局 · 已启用 " + preferredGlobalCount + " 个优选 IP";
+            } else if (!preferredGlobalEnabled) {
+                text = "跟随全局 · 全局池未启用，保留节点原入口";
+            } else {
+                text = "跟随全局 · 全局池暂无已选 IP，保留节点原入口";
+            }
+        } else if ("independent".equals(mode)) {
+            text = "独立配置 · 使用下方设置的中转 IP";
+        } else {
+            text = "域名默认 · 直连节点域名，不使用中转 IP";
+        }
+        if (dirty) {
+            text += "（保存后生效）";
+        }
+        summary.setText(text);
     }
 
     private void loadPreferredMode(boolean refresh) {
@@ -314,17 +338,13 @@ public class ProfileEditActivity extends BaseActivity {
             try {
                 JSONObject pool = new PreferredIpStore(this).read();
                 String mode = PreferredIpStore.mode(pool, profileId);
-                String decision;
-                Preferences savedProfile = prefs.forProfile(profileId);
-                try {
-                    decision = PreferredIpResolver.apply(savedProfile, PreferredIpResolver.baseParams(savedProfile), pool).summary;
-                } catch (Exception error) { decision = "未接管，参数异常：" + error.getMessage(); }
-                String summary = "已保存 revision " + pool.optLong("revision") + " · 全局池"
-                        + (pool.optBoolean("enabled") ? "已启用" : "未启用")
-                        + " · 池中 " + pool.getJSONArray("selected").length() + " 个IP\n" + decision
-                        + "\n以上是已保存参数的下次连接效果，不是草稿或正在运行的连接。";
+                boolean globalEnabled = pool.optBoolean("enabled");
+                JSONArray selectedArr = pool.optJSONArray("selected");
+                int globalCount = selectedArr != null ? selectedArr.length() : 0;
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+                    preferredGlobalEnabled = globalEnabled;
+                    preferredGlobalCount = globalCount;
                     if (refresh && preferredOriginalMode != null && (preferredDraftDirty
                             || !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode))) return;
                     refreshPreferredConflict(getSelectedProtocol());
@@ -338,7 +358,6 @@ public class ProfileEditActivity extends BaseActivity {
                     preferredMode.setEnabled(!preferredLocked());
                     btn_save.setEnabled(!preferredLocked());
                     btn_import.setEnabled(!preferredLocked());
-                    preferredSavedSummary = summary;
                     showPreferredSummary();
                     if (pendingPreferredImport != null) {
                         String pending = pendingPreferredImport;
@@ -347,7 +366,7 @@ public class ProfileEditActivity extends BaseActivity {
                     }
                 });
             } catch (Exception error) {
-                runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败，请先修复：" + error.getMessage()));
+                runOnUiThread(() -> ((TextView) findViewById(R.id.preferred_mode_summary)).setText("优选库读取失败：" + error.getMessage()));
             }
         });
     }

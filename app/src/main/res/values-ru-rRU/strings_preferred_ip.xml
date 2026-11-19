@@ -29,11 +29,11 @@
     <string name="preferred_disable_body">Возврат к исходному режиму с сохранением пула и IP узла; применяется при следующем подключении.</string>
     <string name="preferred_mode">Источник оптимальных IP</string>
     <string name="preferred_manage">Управление глобальными IP (сначала сохраните узел)</string>
-    <string name="preferred_mode_hint">Режим следования применяется только к проверенной цели; при изменении ECH/DNS сохраняются исходные параметры.</string>
+    <string name="preferred_mode_hint">Загрузка состояния оптимальных IP…</string>
     <string name="preferred_conflict">В расширенном JSON задан relay_nodes: принудительный независимый режим во избежание конфликта.</string>
     <string name="preferred_clear_conflict">Удалить relay_nodes из расширенных настроек и включить следование</string>
     <string name="preferred_clear_conflict_body">Удаляет relay_nodes только из расширенного JSON. Исходный текст XtRelayNodes сохранится.</string>
-    <string-array name="preferred_modes"><item>Следовать глобальным (требует проверки)</item><item>Индивидуальная конфигурация</item><item>По умолчанию для домена (без входных IP)</item></string-array>
+    <string-array name="preferred_modes"><item>Следовать глобальным</item><item>Индивидуальная конфигурация</item><item>По умолчанию для домена (без входных IP)</item></string-array>
 
     <string name="preferred_sources_title">Управление источниками IP</string>
     <string name="preferred_sources_configured">Настроенные источники</string>
