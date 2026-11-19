@@ -23,6 +23,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.google.android.material.textfield.TextInputLayout;
 import com.journeyapps.barcodescanner.ScanOptions;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
