@@ -401,6 +401,17 @@
                         android:background="@drawable/bg_spinner_field"
                         android:addStatesFromChildren="true">
 
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant"
+                            android:focusable="false"
+                            android:clickable="false"
+                            android:importantForAccessibility="no" />
+
                         <Spinner
                             android:id="@+id/preferred_mode_spinner"
                             android:layout_width="match_parent"
@@ -409,7 +420,7 @@
                             android:entries="@array/preferred_modes"
                             android:background="@null"
                             android:paddingStart="@dimen/spacing_md"
-                            android:paddingEnd="@dimen/spacing_md" />
+                            android:paddingEnd="44dp" />
                     </FrameLayout>
 
                     <TextView
@@ -577,14 +588,25 @@
                             android:background="@drawable/bg_spinner_field"
                             android:addStatesFromChildren="true">
 
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_gravity="end|center_vertical"
+                                android:layout_marginEnd="@dimen/spacing_md"
+                                android:src="@drawable/ic_expand_more"
+                                app:tint="?attr/xOnSurfaceVariant"
+                                android:focusable="false"
+                                android:clickable="false"
+                                android:importantForAccessibility="no" />
+
                             <Spinner
                                 android:id="@+id/xt_ip_strategy_spinner"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:minHeight="@dimen/touch_target_min"
                                 android:background="@null"
-                                android:paddingStart="@dimen/spacing_md"
-                                android:paddingEnd="@dimen/spacing_md" />
+                                android:paddingStart="0dp"
+                                android:paddingEnd="44dp" />
                         </FrameLayout>
 
                         <!-- Hot Pair -->

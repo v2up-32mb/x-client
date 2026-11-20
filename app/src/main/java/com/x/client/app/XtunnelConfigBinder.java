@@ -240,7 +240,11 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         }
 
         // IP 策略
-        String xtIpStrategy = XT_IP_STRATEGY_VALUES[spinnerXtIpStrategy.getSelectedItemPosition()];
+        int ipStrategyPos = spinnerXtIpStrategy.getSelectedItemPosition();
+        if (ipStrategyPos < 0 || ipStrategyPos >= XT_IP_STRATEGY_VALUES.length) {
+            ipStrategyPos = 0;
+        }
+        String xtIpStrategy = XT_IP_STRATEGY_VALUES[ipStrategyPos];
 
         // 收集高级参数
         EditText invalidAdvField = findInvalidXtAdvField();
@@ -285,6 +289,10 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         checkXtDisableEch.setEnabled(enabled);
         checkXtInsecure.setEnabled(enabled);
         spinnerXtIpStrategy.setEnabled(enabled);
+        android.view.ViewParent spinnerParent = spinnerXtIpStrategy.getParent();
+        if (spinnerParent instanceof View) {
+            ((View) spinnerParent).setEnabled(enabled);
+        }
         checkXtEnableHotPair.setEnabled(enabled);
         FormUtils.setFieldEnabled(editXtHotPairCount, enabled && checkXtEnableHotPair.isChecked());
 
