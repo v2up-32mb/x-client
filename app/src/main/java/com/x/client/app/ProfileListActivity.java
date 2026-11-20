@@ -818,7 +818,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         String snapshot = ProfileUriCodec.exportUri(prefs, profileId, effective);
         runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) showExportDialog(snapshot); });
     }
-    }
 
     private void showExportDialog(String protocol) {
         // 创建自定义对话框，包含 QR 码和协议文本
