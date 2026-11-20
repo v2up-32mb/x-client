@@ -124,17 +124,24 @@ full:www.example.com</string>
 
     <!-- ===== Profile Edit UI & Validation ===== -->
     <string name="section_basic_info">Basic Information</string>
+    <string name="section_basic_info_desc">Basic profile information and proxy protocol</string>
     <string name="section_connection_params">Connection Parameters</string>
+    <string name="section_connection_params_desc">Target server connection and authentication</string>
     <string name="section_advanced_params">Advanced Parameters</string>
+    <string name="section_advanced_routing">Advanced &amp; Routing</string>
+    <string name="section_advanced_routing_desc">Optimal IP routing policy and protocol tuning</string>
     <string name="profile_name_hint">Profile Name</string>
+    <string name="profile_name_helper">Friendly display name for this profile</string>
     <string name="protocol_spinner_label">Proxy Protocol</string>
     <string name="worker_host_hint">Server Address (Worker Domain)</string>
+    <string name="worker_host_helper">e.g. worker.example.com or 1.2.3.4:443</string>
     <string name="pref_ip_hint">Optimal Relay Nodes (IP:Port, comma separated)</string>
     <string name="user_id_hint">User ID</string>
     <string name="fallback_ip_hint">Egress Proxy IPs (comma separated, sent to Worker)</string>
     <string name="ws_conn_hint">WebSocket Connections</string>
     <string name="dynamic_pool_max_hint">Dynamic Scaling Max Connections</string>
     <string name="xt_server_addr_hint">Server Address (wss://)</string>
+    <string name="xt_server_addr_helper">Must start with wss:// or ws://</string>
     <string name="xt_token_hint">Token</string>
     <string name="xt_relay_nodes_hint">Relay Nodes (comma separated)</string>
     <string name="xt_connections_hint">Connections</string>

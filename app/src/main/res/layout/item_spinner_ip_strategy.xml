@@ -14,7 +14,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textAppearance="?attr/textAppearanceBodyMedium"
-        android:textColor="?attr/colorOnSurface" />
+        android:textColor="?attr/xOnSurface" />
 
     <TextView
         android:id="@+id/ip_strategy_desc"
@@ -22,6 +22,6 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="2dp"
         android:textAppearance="?attr/textAppearanceBodySmall"
-        android:textColor="?attr/colorOnSurfaceVariant"
+        android:textColor="?attr/xOnSurfaceVariant"
         android:visibility="gone" />
 </LinearLayout>

@@ -124,17 +124,24 @@ full:www.example.com</string>
 
     <!-- ===== Profile Edit UI & Validation ===== -->
     <string name="section_basic_info">基本資訊</string>
+    <string name="section_basic_info_desc">節點基本資訊與代理協定類型</string>
     <string name="section_connection_params">連線參數</string>
+    <string name="section_connection_params_desc">目標伺服器連線與認證參數</string>
     <string name="section_advanced_params">進階參數</string>
+    <string name="section_advanced_routing">進階與路由配置</string>
+    <string name="section_advanced_routing_desc">中轉路由策略與協定深度微調</string>
     <string name="profile_name_hint">設定名稱</string>
+    <string name="profile_name_helper">目前節點的自訂顯示名稱</string>
     <string name="protocol_spinner_label">代理協定</string>
     <string name="worker_host_hint">伺服器位址（Worker 網域）</string>
+    <string name="worker_host_helper">例如：worker.example.com 或 1.2.3.4:443</string>
     <string name="pref_ip_hint">優選中轉節點（IP:連接埠，逗號分隔多個）</string>
     <string name="user_id_hint">使用者 ID</string>
     <string name="fallback_ip_hint">出口代理 IP（逗號分隔多個，發往 Worker）</string>
     <string name="ws_conn_hint">WebSocket 連線數</string>
     <string name="dynamic_pool_max_hint">動態擴展連線上限</string>
     <string name="xt_server_addr_hint">伺服器位址（wss://）</string>
+    <string name="xt_server_addr_helper">須以 wss:// 或 ws:// 開頭</string>
     <string name="xt_token_hint">Token</string>
     <string name="xt_relay_nodes_hint">中轉節點（逗號分隔）</string>
     <string name="xt_connections_hint">連線數</string>

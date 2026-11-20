@@ -124,17 +124,24 @@ full:www.example.com</string>
 
     <!-- ===== Profile Edit UI & Validation ===== -->
     <string name="section_basic_info">Основная информация</string>
+    <string name="section_basic_info_desc">Базовая информация и протокол прокси</string>
     <string name="section_connection_params">Параметры подключения</string>
+    <string name="section_connection_params_desc">Подключение к целевому серверу и аутентификация</string>
     <string name="section_advanced_params">Расширенные параметры</string>
+    <string name="section_advanced_routing">Дополнительно и маршрутизация</string>
+    <string name="section_advanced_routing_desc">Политика маршрутизации и тонкая настройка протокола</string>
     <string name="profile_name_hint">Имя конфигурации</string>
+    <string name="profile_name_helper">Понятное имя для данного профиля</string>
     <string name="protocol_spinner_label">Протокол прокси</string>
     <string name="worker_host_hint">Адрес сервера (домен Worker)</string>
+    <string name="worker_host_helper">напр. worker.example.com или 1.2.3.4:443</string>
     <string name="pref_ip_hint">Оптимальные транзитные узлы (IP:порт через запятую)</string>
     <string name="user_id_hint">ID пользователя</string>
     <string name="fallback_ip_hint">Выходной прокси IP (через запятую, для Worker)</string>
     <string name="ws_conn_hint">Соединений WebSocket</string>
     <string name="dynamic_pool_max_hint">Максимум соединений пула</string>
     <string name="xt_server_addr_hint">Адрес сервера (wss://)</string>
+    <string name="xt_server_addr_helper">Должен начинаться с wss:// или ws://</string>
     <string name="xt_token_hint">Токен</string>
     <string name="xt_relay_nodes_hint">Транзитные узлы (через запятую)</string>
     <string name="xt_connections_hint">Число соединений</string>
