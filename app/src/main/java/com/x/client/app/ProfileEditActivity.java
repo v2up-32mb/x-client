@@ -7,12 +7,16 @@
 
 package com.x.client.app;
 
-import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -129,7 +133,15 @@ public class ProfileEditActivity extends BaseActivity {
         });
 
         // 电视与遥控器焦点高光增强
-        TvFocusHelper.applyFocusFeedback(btn_import, btn_save, findViewById(R.id.preferred_manage));
+        TvFocusHelper.applyFocusFeedback(
+                btn_import,
+                btn_save,
+                findViewById(R.id.preferred_manage),
+                findViewById(R.id.preferred_clear_conflict),
+                findViewById(R.id.btn_protocol_gcm),
+                findViewById(R.id.btn_protocol_xtunnel)
+        );
+        TvFocusHelper.applyParentFocusFeedback(preferredMode);
 
         // 加载配置数据
         loadProfileData();
@@ -148,6 +160,9 @@ public class ProfileEditActivity extends BaseActivity {
         xtunnelBinder.setVisible(isXtunnel);
         if (preferredMode != null) {
             refreshPreferredConflict(protocol);
+            if (preferredLoaded) {
+                showPreferredSummary();
+            }
         }
     }
 
@@ -444,7 +459,7 @@ public class ProfileEditActivity extends BaseActivity {
     private void showImportDialog() {
         final CharSequence[] options = {
                 getString(R.string.dialog_option_manual), getString(R.string.dialog_option_scan)};
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.dialog_title_import)
                 .setItems(options, (dialog, which) -> {
                     if (which == 0) {
@@ -460,9 +475,34 @@ public class ProfileEditActivity extends BaseActivity {
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
         input.setHint(getString(R.string.manual_import_hint));
-        new AlertDialog.Builder(this)
+
+        int pad = (int) (20 * getResources().getDisplayMetrics().density);
+        FrameLayout container = new FrameLayout(this);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = pad;
+        lp.rightMargin = pad;
+        input.setLayoutParams(lp);
+        container.addView(input);
+
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null && clipboard.hasPrimaryClip()) {
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip != null && clip.getItemCount() > 0) {
+                CharSequence text = clip.getItemAt(0).getText();
+                if (text != null) {
+                    String str = text.toString().trim();
+                    if (ProfileUriCodec.isSupportedUri(str)) {
+                        input.setText(str);
+                        input.setSelection(str.length());
+                    }
+                }
+            }
+        }
+
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.dialog_title_import)
-                .setView(input)
+                .setView(container)
                 .setPositiveButton(R.string.ok, (dialog, whichButton) -> {
                     String protocol = input.getText().toString().trim();
                     if (!protocol.isEmpty()) {

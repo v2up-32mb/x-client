@@ -155,6 +155,7 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
 
         // 附加 TV 焦点反馈
         TvFocusHelper.applyFocusFeedback(checkXtDisableEch, checkXtInsecure, checkXtEnableHotPair, xtAdvancedHeader);
+        TvFocusHelper.applyParentFocusFeedback(spinnerXtIpStrategy);
     }
 
     @Override
@@ -532,6 +533,12 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
 
     private void fillTimeoutSeconds(JSONObject o, String key, EditText input) {
         long ms = o.optLong(key, 0);
-        if (ms > 0) input.setText(String.valueOf(ms / 1000));
+        if (ms > 0) {
+            if (ms % 1000 == 0) {
+                input.setText(String.valueOf(ms / 1000));
+            } else {
+                input.setText(String.valueOf(ms / 1000.0));
+            }
+        }
     }
 }

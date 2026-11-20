@@ -39,6 +39,8 @@ public final class FormUtils {
         TextInputLayout til = tilOf(edit);
         if (til != null) {
             til.setError(message);
+        } else {
+            edit.setError(message);
         }
         edit.requestFocus();
     }
@@ -64,5 +66,6 @@ public final class FormUtils {
         if (til != null) {
             til.setError(null);
         }
+        edit.setError(null);
     }
 }

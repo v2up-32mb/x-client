@@ -8,6 +8,7 @@
 package com.x.client.app;
 
 import android.view.View;
+import android.view.ViewParent;
 
 /**
  * 电视大屏与遥控器 D-pad 焦点高亮及交互增强辅助类。
@@ -42,5 +43,26 @@ public final class TvFocusHelper {
         for (View v : views) {
             applyFocusFeedback(v);
         }
+    }
+
+    /**
+     * 为包含子控件（如包裹于 FrameLayout 内的 Spinner）附加联动焦点动效。
+     * 当子视图获焦时，平滑缩放与提升其父容器。
+     *
+     * @param childView 获焦的目标子视图
+     */
+    public static void applyParentFocusFeedback(View childView) {
+        if (childView == null) return;
+        childView.setOnFocusChangeListener((v, hasFocus) -> {
+            ViewParent parent = v.getParent();
+            if (parent instanceof View) {
+                View pv = (View) parent;
+                if (hasFocus) {
+                    pv.animate().scaleX(1.02f).scaleY(1.02f).translationZ(4f).setDuration(100).start();
+                } else {
+                    pv.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(100).start();
+                }
+            }
+        });
     }
 }
