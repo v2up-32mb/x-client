@@ -1,9 +1,10 @@
 package com.x.client.app;
 
+import android.graphics.drawable.GradientDrawable;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.graphics.drawable.GradientDrawable;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -11,6 +12,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.color.MaterialColors;
 import org.json.JSONObject;
@@ -99,9 +101,7 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
     @Override
     public ResultViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View card = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_preferred_result, parent, false);
-        ResultViewHolder holder = new ResultViewHolder(card);
-        TvFocusHelper.applyFocusFeedback(holder.download);
-        return holder;
+        return new ResultViewHolder(card);
     }
 
     @Override
@@ -110,6 +110,7 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
         holder.address = row.address;
 
         boolean isSelected = selectedAddresses.contains(row.address);
+        boolean isExpanded = expandedAddresses.contains(row.address);
         boolean isTv = DeviceUtils.isTv(holder.itemView.getContext());
 
         // 统一渲染卡片底色与 TV 遥控器焦点高光
@@ -117,12 +118,37 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
 
         holder.itemView.setOnFocusChangeListener((v, hasFocus) -> {
             boolean currentSelected = selectedAddresses.contains(row.address);
-            updateItemFocusVisual(v, currentSelected, hasFocus);
-            if (hasFocus) {
+            boolean cardHasFocus = v.hasFocus();
+            updateItemFocusVisual(v, currentSelected, cardHasFocus);
+            if (cardHasFocus) {
                 v.animate().scaleX(1.02f).scaleY(1.02f).translationZ(6f).setDuration(120).start();
             } else {
                 v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
             }
+        });
+
+        // TV 遥控器按键导航适配：从卡片导航至展开图标与测速按钮
+        holder.itemView.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                    if (holder.chevron != null && holder.chevron.getVisibility() == View.VISIBLE) {
+                        holder.chevron.requestFocus();
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    if (expandedAddresses.contains(row.address) && holder.download.getVisibility() == View.VISIBLE && holder.download.isEnabled()) {
+                        holder.download.requestFocus();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
+
+        // TV 长按 DPAD_CENTER 切换展开/折叠
+        holder.itemView.setOnLongClickListener(v -> {
+            listener.onToggleExpand(row.address);
+            return true;
         });
 
         // Checkbox 绑定与更新
@@ -150,11 +176,36 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
         bindLatencyAndScore(holder, row);
 
         // 折叠 / 展开状态控制
-        boolean isExpanded = expandedAddresses.contains(row.address);
         holder.expanded.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
         if (holder.chevron != null) {
             holder.chevron.setRotation(isExpanded ? 90f : 0f);
             holder.chevron.setOnClickListener(v -> listener.onToggleExpand(row.address));
+            holder.chevron.setOnKeyListener((v, keyCode, event) -> {
+                if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                    if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                        holder.itemView.requestFocus();
+                        return true;
+                    } else if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                        if (expandedAddresses.contains(row.address) && holder.download.getVisibility() == View.VISIBLE && holder.download.isEnabled()) {
+                            holder.download.requestFocus();
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            });
+            holder.chevron.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus) {
+                    v.animate().scaleX(1.15f).scaleY(1.15f).translationZ(4f).setDuration(100).start();
+                } else {
+                    v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(100).start();
+                }
+                boolean cardHasFocus = holder.itemView.hasFocus();
+                updateItemFocusVisual(holder.itemView, selectedAddresses.contains(row.address), cardHasFocus);
+                if (!cardHasFocus) {
+                    holder.itemView.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
+                }
+            });
         }
 
         holder.heading.setContentDescription(row.location + "，" + row.address + "，评分 " + row.score
@@ -181,6 +232,35 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
         holder.download.setText(downloading ? R.string.preferred_cancel_speed_test : R.string.preferred_speed_test_btn);
         holder.download.setEnabled(downloading || row.downloadable);
         holder.download.setOnClickListener(v -> listener.onStartDownload(row.address));
+        holder.download.setOnKeyListener((v, keyCode, event) -> {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+                    if (holder.chevron != null && holder.chevron.getVisibility() == View.VISIBLE) {
+                        holder.chevron.requestFocus();
+                        return true;
+                    } else {
+                        holder.itemView.requestFocus();
+                        return true;
+                    }
+                } else if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    holder.itemView.requestFocus();
+                    return true;
+                }
+            }
+            return false;
+        });
+        holder.download.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                v.animate().scaleX(1.02f).scaleY(1.02f).translationZ(4f).setDuration(100).start();
+            } else {
+                v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(100).start();
+            }
+            boolean cardHasFocus = holder.itemView.hasFocus();
+            updateItemFocusVisual(holder.itemView, selectedAddresses.contains(row.address), cardHasFocus);
+            if (!cardHasFocus) {
+                holder.itemView.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
+            }
+        });
     }
 
     private void bindLatencyAndScore(ResultViewHolder holder, PreferredIpController.Row row) {
@@ -239,27 +319,29 @@ public class PreferredIpResultAdapter extends ListAdapter<PreferredIpController.
         int fillColor = MaterialColors.getColor(view, isSelected ? R.attr.xPrimaryContainer : R.attr.xSurfaceContainerLowest);
         int strokeColor;
         int strokeWidth;
+        float elevation;
 
         if (hasFocus) {
             strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
             strokeWidth = (int) (2.5f * density);
-            view.setElevation(6f * density);
+            elevation = 6f * density;
         } else if (isSelected) {
             strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
             strokeWidth = (int) (1.5f * density);
-            view.setElevation(2f * density);
+            elevation = 2f * density;
         } else {
             strokeColor = MaterialColors.getColor(view, R.attr.xOutlineVariant);
             strokeWidth = (int) (1f * density);
-            view.setElevation(0.5f * density);
+            elevation = 0.5f * density;
         }
 
-        GradientDrawable gd = new GradientDrawable();
-        gd.setShape(GradientDrawable.RECTANGLE);
-        gd.setColor(fillColor);
-        gd.setCornerRadius(16f * density);
-        gd.setStroke(strokeWidth, strokeColor);
-        view.setBackground(gd);
+        if (view instanceof MaterialCardView) {
+            MaterialCardView cardView = (MaterialCardView) view;
+            cardView.setStrokeColor(strokeColor);
+            cardView.setStrokeWidth(strokeWidth);
+            cardView.setCardBackgroundColor(fillColor);
+            cardView.setCardElevation(elevation);
+        }
     }
 
     public static class ResultViewHolder extends RecyclerView.ViewHolder {

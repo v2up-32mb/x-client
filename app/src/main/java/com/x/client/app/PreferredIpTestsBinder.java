@@ -45,6 +45,8 @@ public class PreferredIpTestsBinder {
     private TextView ledgerText;
 
     private List<Preferences.ProfileInfo> profiles = new ArrayList<>();
+    private String currentReferenceId;
+    private PreferredIpController.State lastState;
     private boolean settingsReady;
     private int initialSample = 256;
     private int initialConcurrency = 8;
@@ -57,15 +59,9 @@ public class PreferredIpTestsBinder {
     }
 
     public View inflateAndBind(@NonNull ViewGroup parent, @NonNull Listener listener) {
-        if (rootView != null) {
-            if (rootView.getParent() != null) {
-                ((ViewGroup) rootView.getParent()).removeView(rootView);
-            }
-            return rootView;
-        }
-        rootView = LayoutInflater.from(parent.getContext()).inflate(R.layout.layout_preferred_tests_header, parent, false);
-        bind(rootView, listener);
-        return rootView;
+        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.layout_preferred_tests_header, parent, false);
+        bind(view, listener);
+        return view;
     }
 
     public View getRootView() {
@@ -124,17 +120,31 @@ public class PreferredIpTestsBinder {
         sample.addTextChangedListener(watcher);
         concurrency.addTextChangedListener(watcher);
         settingsReady = true;
+
+        if (!profiles.isEmpty()) {
+            populateSpinner(view.getContext());
+        }
+        if (lastState != null) {
+            updateState(lastState);
+        }
     }
 
     public void updateProfiles(Context context, List<Preferences.ProfileInfo> profileList, String referenceId) {
         this.profiles = profileList == null ? new ArrayList<>() : new ArrayList<>(profileList);
+        this.currentReferenceId = referenceId;
+        if (reference != null && context != null) {
+            populateSpinner(context);
+        }
+    }
+
+    private void populateSpinner(Context context) {
         if (reference == null || context == null) return;
 
         List<String> names = new ArrayList<>();
         int selected = initialReference;
         for (int i = 0; i < profiles.size(); i++) {
             names.add(profiles.get(i).name);
-            if (initialReference == 0 && referenceId != null && referenceId.equals(profiles.get(i).id)) {
+            if (initialReference == 0 && currentReferenceId != null && currentReferenceId.equals(profiles.get(i).id)) {
                 selected = i;
             }
         }
@@ -156,6 +166,7 @@ public class PreferredIpTestsBinder {
 
     public void updateState(PreferredIpController.State state) {
         if (state == null) return;
+        this.lastState = state;
 
         if (referenceDetail != null) {
             referenceDetail.setText(state.referenceSummary != null ? state.referenceSummary.trim() : "");
@@ -251,5 +262,7 @@ public class PreferredIpTestsBinder {
         metricSuccess = null;
         metricSelected = null;
         ledgerText = null;
+        lastState = null;
+        settingsReady = false;
     }
 }

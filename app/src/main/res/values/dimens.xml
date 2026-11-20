@@ -10,4 +10,7 @@
 
     <!-- 触控目标最小值（Android 平台 48dp） -->
     <dimen name="touch_target_min">48dp</dimen>
+
+    <!-- 微徽章紧凑垂直边距（用于标签文本光学居中） -->
+    <dimen name="badge_padding_vertical">2dp</dimen>
 </resources>

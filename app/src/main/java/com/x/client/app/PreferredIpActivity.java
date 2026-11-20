@@ -16,6 +16,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.util.*;
 
@@ -53,13 +54,6 @@ public class PreferredIpActivity extends BaseActivity implements
     public void onCreate(Bundle saved) {
         super.onCreate(saved);
 
-        // Android TV 遥控器与大屏安全边距适配
-        if (DeviceUtils.isTv(this)) {
-            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
-            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
-
         String id = getIntent().getStringExtra(ProfileEditActivity.EXTRA_PROFILE_ID);
         if (id == null) id = new Preferences(this).getCurrentProfileId();
         controller = PreferredIpRuntime.acquire(this, id);
@@ -84,6 +78,13 @@ public class PreferredIpActivity extends BaseActivity implements
         }
 
         setContentView(R.layout.activity_preferred_ip);
+
+        // Android TV 遥控器与大屏安全边距适配
+        if (DeviceUtils.isTv(this)) {
+            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
+            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
+            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
+        }
 
         MaterialToolbar toolbar = findViewById(R.id.preferred_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
@@ -153,7 +154,10 @@ public class PreferredIpActivity extends BaseActivity implements
 
         headerAdapter = new PreferredIpHeaderAdapter(testsBinder, this);
         resultAdapter = new PreferredIpResultAdapter(this);
-        concatAdapter = new ConcatAdapter(headerAdapter, resultAdapter);
+        ConcatAdapter.Config config = new ConcatAdapter.Config.Builder()
+                .setStableIdMode(ConcatAdapter.Config.StableIdMode.ISOLATED_STABLE_IDS)
+                .build();
+        concatAdapter = new ConcatAdapter(config, headerAdapter, resultAdapter);
         list.setAdapter(concatAdapter);
 
         profiles = new Preferences(this).getProfileList();
