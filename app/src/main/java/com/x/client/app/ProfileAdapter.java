@@ -147,7 +147,8 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         GradientDrawable badgeBg = new GradientDrawable();
         badgeBg.setShape(GradientDrawable.RECTANGLE);
         badgeBg.setCornerRadius(6f * density);
-        badgeBg.setColor(MaterialColors.getColor(holder.textProtocol, R.attr.colorTertiaryContainer));
+        badgeBg.setColor(MaterialColors.getColor(holder.textProtocol, R.attr.xTertiaryContainer));
+        holder.textProtocol.setTextColor(MaterialColors.getColor(holder.textProtocol, R.attr.xOnTertiaryContainer));
         holder.textProtocol.setBackground(badgeBg);
 
         // 配置滑动行为（始终允许滑动，分享功能在 VPN 运行时也可用）
