@@ -1007,153 +1007,36 @@ public class ProfileEditActivity extends BaseActivity {
             pendingPreferredImport = protocol;
             return;
         }
-        // 支持 gcm:// / ech://（兼容）和 xtunnel:// 前缀
-        boolean isXtunnel = protocol.startsWith("xtunnel://");
-        if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
+        if (!ProfileUriCodec.isSupportedUri(protocol)) {
             Toast.makeText(this, getString(R.string.toast_invalid_protocol), Toast.LENGTH_SHORT).show();
             return;
         }
-        int schemeLen = isXtunnel ? 10 : 6; // "xtunnel://" 为 10 个字符
-        String rest = protocol.substring(schemeLen); // 去掉 scheme 前缀
-        // 分离 fragment
-        String fragment = "";
-        int hash = rest.indexOf('#');
-        if (hash >= 0) {
-            fragment = rest.substring(hash + 1);
-            rest = rest.substring(0, hash);
-        }
-        String wssAddr;
-        String query = "";
-        int qmark = rest.indexOf('?');
-        if (qmark >= 0) {
-            wssAddr = rest.substring(0, qmark);
-            query = rest.substring(qmark + 1);
-        } else {
-            wssAddr = rest;
-        }
-        // 容错：剥离 host 前的多余斜杠（旧版分享链接可能多一个 /）
-        while (wssAddr.startsWith("/")) {
-            wssAddr = wssAddr.substring(1);
-        }
-        // 确保 wss:// 前缀
-        if (!wssAddr.startsWith("wss://") && !wssAddr.startsWith("ws://")) {
-            wssAddr = "wss://" + wssAddr;
-        }
-        // 拒绝缺少服务器主机的链接（如旧版 xtunnel://?token=... 无 host）
-        if (wssAddr.startsWith("wss://") && wssAddr.length() <= 6) {
-            Toast.makeText(this, getString(R.string.toast_import_missing_host), Toast.LENGTH_LONG).show();
+
+        ProfileUriCodec.ParsedProfile p;
+        try {
+            p = ProfileUriCodec.parse(protocol);
+        } catch (Exception e) {
+            Toast.makeText(this, getString(R.string.toast_invalid_protocol), Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 解析查询参数
-        String prefIp = "";
-        String fallbackIp = "";
-        String userId = "";
-        int wsConn = Preferences.DEFAULT_WS_CONN;
-        boolean enableDynamicPool = false;
-        int dynamicPoolMax = Preferences.DEFAULT_DYNAMIC_POOL_MAX;
-        String token = "";
-        String relayNodes = "";
-        int connections = Preferences.DEFAULT_XT_CONNECTIONS;
-        boolean disableEch = false;
-        boolean insecure = false;
-        boolean enableHotPair = false;
-        int hotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
-        String ipStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
-        if (!query.isEmpty()) {
-            String[] pairs = query.split("&");
-            for (String pair : pairs) {
-                String[] kv = pair.split("=", 2);
-                if (kv.length == 2) {
-                    String key = kv[0];
-                    String value = kv[1];
-                    switch (key) {
-                        case "ip":
-                        case "relay":
-                            prefIp = value;
-                            break;
-                        case "fip":
-                        case "fallbackip":
-                            fallbackIp = value;
-                            break;
-                        case "token":
-                        case "user_id":
-                            if (isXtunnel) {
-                                token = value;
-                            } else {
-                                userId = value;
-                            }
-                            break;
-                        case "ws_conn":
-                            try {
-                                wsConn = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "enable_dynamic_pool":
-                            enableDynamicPool = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                            break;
-                        case "dynamic_pool_max":
-                            try {
-                                dynamicPoolMax = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "relay_nodes":
-                            relayNodes = value;
-                            break;
-                        case "connections":
-                            try {
-                                connections = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "ech":
-                            // ech=0 表示禁用 ECH（与 GCM 的 disable_ech 语义一致）
-                            disableEch = value.equals("0") || value.equalsIgnoreCase("false") || value.equalsIgnoreCase("no");
-                            break;
-                        // 兼容旧 URI：domain/dns 参数忽略，ECH 域名与 DoH 服务器复用全局设置
-                        case "domain":
-                        case "dns":
-                            break;
-                        case "insecure":
-                            insecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                            break;
-                        case "hotpair":
-                            // hotpair=1/true/yes 兼容旧格式（启用 1 对）；hotpair=2..8 表示启用 N 对
-                            int hotPairValue = 1;
-                            try {
-                                hotPairValue = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            if (hotPairValue >= 2 && hotPairValue <= Preferences.MAX_XT_HOT_PAIR_COUNT) {
-                                enableHotPair = true;
-                                hotPairCount = hotPairValue;
-                            } else {
-                                enableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                                hotPairCount = 1;
-                            }
-                            break;
-                        case "ips":
-                            // IP 策略（4,6/6,4/4/6；default 为 v1.3.1 存量兼容值）；缺失回落默认，非法值忽略
-                            if (Preferences.isValidXtIpStrategy(value)) {
-                                ipStrategy = value;
-                            }
-                            break;
-                    }
-                }
-            }
-        }
-
-        // 从 fragment 解码配置名称
-        String profileName = "";
-        if (!fragment.isEmpty()) {
-            try {
-                profileName = java.net.URLDecoder.decode(fragment, "UTF-8");
-            } catch (java.io.UnsupportedEncodingException e) {
-                profileName = fragment;
-            }
-        }
+        boolean isXtunnel = p.isXtunnel();
+        String wssAddr = p.serverAddr;
+        String token = p.xtToken;
+        String relayNodes = p.xtRelayNodes;
+        int connections = p.xtConnections;
+        boolean disableEch = p.isXtunnel() ? p.xtDisableEch : p.disableEch;
+        boolean insecure = p.xtInsecure;
+        String ipStrategy = p.xtIpStrategy;
+        boolean enableHotPair = p.xtEnableHotPair;
+        int hotPairCount = p.xtHotPairCount;
+        String prefIp = p.prefIp;
+        String fallbackIp = p.fallbackIp;
+        String userId = p.userId;
+        int wsConn = p.wsConn;
+        boolean enableDynamicPool = p.enableDynamicPool;
+        int dynamicPoolMax = p.dynamicPoolMax;
+        String profileName = p.name;
 
         // Confirm before changing any form field or mode. Re-enter only after the draft
         // no longer contains these overrides; cancellation leaves the whole editor intact.

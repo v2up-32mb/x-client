@@ -381,4 +381,11 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="set_as_current">Сделать активным</string>
     <string name="import_from_clipboard">Импорт из буфера обмена</string>
     <string name="no_camera_hint">Камера не обнаружена. Введите данные вручную или из буфера обмена</string>
+
+    <!-- 空态与首页体验升级 -->
+    <string name="empty_title_welcome">Быстрое и безопасное соединение</string>
+    <string name="empty_desc_welcome">Поддержка протоколов GCM и X-Tunnel.\nИмпортируйте или создайте узел для подключения.</string>
+    <string name="scan_qr_code">Сканировать QR-код</string>
+    <string name="add_manual_profile">Создать узел вручную</string>
+    <string name="clipboard_detected_prompt">В буфере обмена обнаружен узел. Импортировать?</string>
 </resources>

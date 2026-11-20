@@ -381,4 +381,11 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="set_as_current">Set as Active Profile</string>
     <string name="import_from_clipboard">Import from Clipboard</string>
     <string name="no_camera_hint">No camera detected on this device. Please import manually or from clipboard.</string>
+
+    <!-- 空态与首页体验升级 -->
+    <string name="empty_title_welcome">Fast &amp; Secure Tunnel</string>
+    <string name="empty_desc_welcome">Supports GCM &amp; X-Tunnel multiplexing protocols.\nImport or create a node to get started.</string>
+    <string name="scan_qr_code">Scan QR Code</string>
+    <string name="add_manual_profile">Create Node Manually</string>
+    <string name="clipboard_detected_prompt">Node configuration found in clipboard. Import now?</string>
 </resources>

@@ -223,7 +223,23 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         vpnFab.setOnDetailsListener(() ->
                 startActivity(new Intent(this, RuntimeLogActivity.class)));
 
-        // 空态主按钮与 FAB 同义
+        // 空态快捷行动按钮
+        emptyState.setOnEmptyStateActionListener(new EmptyStateView.OnEmptyStateActionListener() {
+            @Override
+            public void onImportFromClipboard() {
+                importFromClipboard();
+            }
+
+            @Override
+            public void onScanQrCode() {
+                scanQrCode();
+            }
+
+            @Override
+            public void onAddManual() {
+                showAddProfileDialog();
+            }
+        });
         emptyState.setAction(getString(R.string.btn_add), v -> showFabMenu());
 
         // 加载配置列表
@@ -307,6 +323,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         boolean isEmpty = profiles.isEmpty();
         emptyState.setVisibility(isEmpty ? View.VISIBLE : View.GONE);
         recyclerView.setVisibility(isEmpty ? View.GONE : View.VISIBLE);
+        if (isEmpty) {
+            checkClipboardOnFirstRun();
+        }
         // 当前项滚出视口后的被动补偿：保证回到主页/换配置后当前行可见（review §4）
         if (!isEmpty && recyclerView.getLayoutManager() instanceof LinearLayoutManager) {
             LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
@@ -408,31 +427,52 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         return false;
     }
 
+    private void checkClipboardOnFirstRun() {
+        if (!prefs.getProfileList().isEmpty()) return;
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        if (clipboard != null && clipboard.hasPrimaryClip()) {
+            ClipData clip = clipboard.getPrimaryClip();
+            if (clip != null && clip.getItemCount() > 0) {
+                CharSequence text = clip.getItemAt(0).getText();
+                if (text != null) {
+                    String str = text.toString().trim();
+                    if (ProfileUriCodec.isSupportedUri(str)) {
+                        com.google.android.material.snackbar.Snackbar.make(
+                                findViewById(android.R.id.content),
+                                R.string.clipboard_detected_prompt,
+                                com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+                        ).setAction(R.string.preferred_btn_import_now, v -> importFromProtocol(str)).show();
+                    }
+                }
+            }
+        }
+    }
+
     private void showFabMenu() {
         if (profileMutation) return;
         PopupMenu popup = new PopupMenu(this, fabMain);
-        popup.getMenu().add(0, 1, 0, "导入");
-        popup.getMenu().add(0, 2, 0, "新增");
-        popup.getMenu().add(0, 3, 0, "设置");
-        popup.getMenu().add(0, 4, 0, getString(R.string.view_runtime_logs));
-        popup.getMenu().add(0, 5, 0, getString(R.string.preferred_ip_title));
+        popup.getMenu().add(0, 1, 0, getString(R.string.import_from_clipboard));
+        popup.getMenu().add(0, 2, 0, getString(R.string.scan_qr_code));
+        popup.getMenu().add(0, 3, 0, "手动输入链接");
+        popup.getMenu().add(0, 4, 0, getString(R.string.add_manual_profile));
+        popup.getMenu().add(0, 5, 0, getString(R.string.settings_title));
 
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
                 case 1:
-                    importProfile();
+                    importFromClipboard();
                     return true;
                 case 2:
-                    showAddProfileDialog();
+                    scanQrCode();
                     return true;
                 case 3:
-                    startActivity(new Intent(this, SettingsActivity.class));
+                    showManualInputDialog();
                     return true;
                 case 4:
-                    startActivity(new Intent(this, RuntimeLogActivity.class));
+                    showAddProfileDialog();
                     return true;
                 case 5:
-                    startActivity(new Intent(this, PreferredIpActivity.class));
+                    startActivity(new Intent(this, SettingsActivity.class));
                     return true;
             }
             return false;
@@ -775,127 +815,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             return;
         }
 
-        // 生成协议字符串
-        String protocolValue = prefs.getProtocol();
-
-        String wssAddr = prefs.getWorkerHost();
-        // 移除 wss:// 前缀（如果存在）
-        if (wssAddr.startsWith("wss://")) {
-            wssAddr = wssAddr.substring(6);
-        }
-        String prefIp = effective.optString("relay_ips");
-        String fallbackIp = prefs.getFallbackIp();
-        String userId = prefs.getUserID();
-        boolean disableEch = prefs.getDisableEch();
-        int wsConn = prefs.getWsConn();
-        boolean enableDynamicPool = prefs.getEnableDynamicPool();
-        int dynamicPoolMax = prefs.getDynamicPoolMax();
-
-        // X-Tunnel 配置：使用高级JSON与全局模式合并后的有效快照
-        String xtToken = effective.optString("token");
-        String xtRelayNodes = effective.optString("relay_nodes");
-        int xtConnections = effective.optInt("connections", 3);
-        boolean xtDisableEch = !effective.optBoolean("enable_ech", true);
-        boolean xtInsecure = effective.optBoolean("insecure");
-        boolean xtEnableHotPair = effective.optBoolean("enable_hot_pair");
-        int xtHotPairCount = effective.optInt("hot_pair_count", 1);
-        String xtIpStrategy = effective.optString("ip_strategy", Preferences.DEFAULT_XT_IP_STRATEGY);
-        String xtServerAddr = effective.optString("server_addr");
-        if (xtServerAddr.startsWith("wss://")) {
-            xtServerAddr = xtServerAddr.substring(6);
-        } else if (xtServerAddr.startsWith("ws://")) {
-            xtServerAddr = xtServerAddr.substring(5);
-        }
-
-        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
-            // 构建 xtunnel:// URI：token/relay_nodes/connections/ech/insecure/hotpair
-            StringBuilder xtQuery = new StringBuilder();
-            if (!xtToken.isEmpty()) {
-                xtQuery.append("token=").append(xtToken);
-            }
-            if (!xtRelayNodes.isEmpty()) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("relay_nodes=").append(xtRelayNodes);
-            }
-            if (xtConnections != Preferences.DEFAULT_XT_CONNECTIONS) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("connections=").append(xtConnections);
-            }
-            if (xtDisableEch) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("ech=0");
-            }
-            // ECH 域名与 DoH 服务器复用全局设置，不写入 URI
-            if (xtInsecure) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("insecure=1");
-            }
-            if (xtEnableHotPair) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("hotpair=").append(xtHotPairCount);
-            }
-            // IP 策略：仅非默认值时写入 ips= 参数
-            if (!Preferences.DEFAULT_XT_IP_STRATEGY.equals(xtIpStrategy)) {
-                if (xtQuery.length() > 0) xtQuery.append("&");
-                xtQuery.append("ips=").append(xtIpStrategy);
-            }
-            String xtProtocol = "xtunnel://" + xtServerAddr;
-            if (xtQuery.length() > 0) {
-                xtProtocol += "?" + xtQuery.toString();
-            }
-            // 添加配置名称作为 fragment
-            String xtName = prefs.getProfileName(profileId);
-            try {
-                xtName = java.net.URLEncoder.encode(xtName, "UTF-8");
-            } catch (java.io.UnsupportedEncodingException e) {
-                // 忽略，使用原始名称
-            }
-            xtProtocol += "#" + xtName;
-            String snapshot = xtProtocol;
-            runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) showExportDialog(snapshot); });
-            return;
-        }
-
-        // 构建配置级查询参数：ip= 优选中转节点，fip= 出口代理 IP，user_id= 用户标识。
-        StringBuilder query = new StringBuilder();
-        if (!prefIp.isEmpty()) {
-            query.append("ip=").append(prefIp);
-        }
-        if (!fallbackIp.isEmpty()) {
-            if (query.length() > 0) query.append("&");
-            query.append("fip=").append(fallbackIp);
-        }
-        if (!userId.isEmpty()) {
-            if (query.length() > 0) query.append("&");
-            query.append("user_id=").append(userId);
-        }
-        if (disableEch) {
-            if (query.length() > 0) query.append("&");
-            query.append("disable_ech=1");
-        }
-        // 连接池参数始终导出，保证分享无损
-        if (query.length() > 0) query.append("&");
-        query.append("ws_conn=").append(wsConn);
-        query.append("&enable_dynamic_pool=").append(enableDynamicPool ? 1 : 0);
-        query.append("&dynamic_pool_max=").append(dynamicPoolMax);
-
-        String protocol = "gcm://" + wssAddr;
-        if (query.length() > 0) {
-            protocol += "?" + query.toString();
-        }
-        // 添加配置名称作为 fragment
-        String profileName = prefs.getProfileName(profileId);
-        // URL 编码配置名称以避免特殊字符破坏 fragment
-        try {
-            profileName = java.net.URLEncoder.encode(profileName, "UTF-8");
-        } catch (java.io.UnsupportedEncodingException e) {
-            // 忽略，使用原始名称
-        }
-        protocol += "#" + profileName;
-
-        // 显示导出对话框
-        String snapshot = protocol;
+        String snapshot = ProfileUriCodec.exportUri(prefs, profileId, effective);
         runOnUiThread(() -> { if (!isFinishing() && !isDestroyed()) showExportDialog(snapshot); });
+    }
     }
 
     private void showExportDialog(String protocol) {
@@ -1055,229 +977,41 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void importFromProtocol(String protocol) {
-        // 解析协议字符串：支持 gcm://、ech://（兼容）和 xtunnel://
-        boolean isXtunnel = protocol.startsWith("xtunnel://");
-        if (!isXtunnel && !protocol.startsWith("gcm://") && !protocol.startsWith("ech://")) {
+        if (!ProfileUriCodec.isSupportedUri(protocol)) {
             Toast.makeText(this, "无效的协议格式", Toast.LENGTH_SHORT).show();
             return;
         }
-        String rest;
-        if (isXtunnel) {
-            rest = protocol.substring(10); // "xtunnel://" 之后（10 个字符）
-        } else {
-            rest = protocol.substring(6); // "gcm://" / "ech://" 之后
-        }
-        // 分离 fragment
-        String fragment = "";
-        int hash = rest.indexOf('#');
-        if (hash >= 0) {
-            fragment = rest.substring(hash + 1);
-            rest = rest.substring(0, hash);
-        }
-        String wssAddr;
-        String query = "";
-        int qmark = rest.indexOf('?');
-        if (qmark >= 0) {
-            wssAddr = rest.substring(0, qmark);
-            query = rest.substring(qmark + 1);
-        } else {
-            wssAddr = rest;
-        }
-        // 容错：剥离 host 前的多余斜杠（旧版分享链接可能多一个 /）
-        while (wssAddr.startsWith("/")) {
-            wssAddr = wssAddr.substring(1);
-        }
-        // 确保 wss:// 前缀
-        if (!wssAddr.startsWith("wss://")) {
-            wssAddr = "wss://" + wssAddr;
-        }
-        // 拒绝缺少服务器主机的链接（如旧版 xtunnel://?token=... 无 host）
-        if (wssAddr.startsWith("wss://") && wssAddr.length() <= 6) {
-            Toast.makeText(this, "链接缺少服务器地址，无法导入", Toast.LENGTH_LONG).show();
+        ProfileUriCodec.ParsedProfile parsed;
+        try {
+            parsed = ProfileUriCodec.parse(protocol);
+        } catch (Exception e) {
+            Toast.makeText(this, "无法解析配置链接：" + e.getMessage(), Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // 解析查询参数：ip= 优选中转节点，fip= 出口代理 IP，user_id= 用户标识。
-        // 旧文档中的 dns/domain 参数被忽略，它们现在属于全局设置。
-        String prefIp = "";
-        String fallbackIp = "";
-        String userId = "";
-        boolean disableEch = false;
-        int wsConn = Preferences.DEFAULT_WS_CONN;
-        boolean enableDynamicPool = false;
-        int dynamicPoolMax = Preferences.DEFAULT_DYNAMIC_POOL_MAX;
-        String xtToken = "";
-        String xtRelayNodes = "";
-        int xtConnections = Preferences.DEFAULT_XT_CONNECTIONS;
-        boolean xtDisableEch = false;
-        boolean xtInsecure = false;
-        boolean xtEnableHotPair = false;
-        int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
-        String xtIpStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
-        if (!query.isEmpty()) {
-            String[] pairs = query.split("&");
-            for (String pair : pairs) {
-                String[] kv = pair.split("=", 2);
-                if (kv.length == 2) {
-                    String key = kv[0];
-                    String value = kv[1];
-                    switch (key) {
-                        case "ip":
-                        case "relay":
-                            // 兼容旧 relay= 参数：同样按优选中转节点处理
-                            prefIp = value;
-                            break;
-                        case "fip":
-                        case "fallbackip":
-                            fallbackIp = value;
-                            break;
-                        case "disable_ech":
-                            // 1/true/yes 表示禁用 ECH
-                            disableEch = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                            break;
-                        case "ws_conn":
-                            try {
-                                wsConn = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "enable_dynamic_pool":
-                            enableDynamicPool = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                            break;
-                        case "dynamic_pool_max":
-                            try {
-                                dynamicPoolMax = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "token":
-                        case "user_id":
-                            if (isXtunnel) {
-                                xtToken = value;
-                            } else {
-                                userId = value;
-                            }
-                            break;
-                        case "relay_nodes":
-                            xtRelayNodes = value;
-                            break;
-                        case "connections":
-                            try {
-                                xtConnections = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            break;
-                        case "ech":
-                            // ech=0 表示禁用 ECH（与 GCM 的 disable_ech 语义一致）
-                            xtDisableEch = value.equals("0") || value.equalsIgnoreCase("false") || value.equalsIgnoreCase("no");
-                            break;
-                        // 兼容旧 URI：domain/dns 参数忽略，复用全局设置
-                        case "domain":
-                        case "dns":
-                            break;
-                        case "insecure":
-                            xtInsecure = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                            break;
-                        case "hotpair":
-                            // hotpair=1/true/yes 兼容旧格式（启用 1 对）；hotpair=2..8 表示启用 N 对
-                            int hotPairValue = 1;
-                            try {
-                                hotPairValue = Integer.parseInt(value);
-                            } catch (NumberFormatException ignored) {
-                            }
-                            if (hotPairValue >= 2 && hotPairValue <= Preferences.MAX_XT_HOT_PAIR_COUNT) {
-                                xtEnableHotPair = true;
-                                xtHotPairCount = hotPairValue;
-                            } else {
-                                xtEnableHotPair = value.equals("1") || value.equalsIgnoreCase("true") || value.equalsIgnoreCase("yes");
-                                xtHotPairCount = 1;
-                            }
-                            break;
-                        case "ips":
-                            // IP 策略（default/4/6/4,6/6,4）；缺失回落默认，非法值忽略
-                            if (Preferences.isValidXtIpStrategy(value)) {
-                                xtIpStrategy = value;
-                            }
-                            break;
-                    }
-                }
-            }
-        }
-
-        // 从 fragment 解码配置名称
-        String defaultName = "导入节点";
-        if (!fragment.isEmpty()) {
-            try {
-                defaultName = java.net.URLDecoder.decode(fragment, "UTF-8");
-            } catch (java.io.UnsupportedEncodingException e) {
-                defaultName = fragment;
-            }
-        }
-
-        // 使用这些参数创建新配置
         String newId = UUID.randomUUID().toString();
-        // 询问用户配置名称
-        showImportNameDialog(newId, defaultName, isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM,
-                wssAddr, prefIp, fallbackIp, userId, disableEch,
-                wsConn, enableDynamicPool, dynamicPoolMax,
-                xtToken, xtRelayNodes, xtConnections, xtDisableEch, xtInsecure, xtEnableHotPair, xtHotPairCount,
-                xtIpStrategy);
+        showImportNameDialog(newId, parsed);
     }
 
-    private void showImportNameDialog(final String id, final String defaultName,
-                                      final String protocol,
-                                      final String wssAddr, final String prefIp,
-                                      final String fallbackIp, final String userId,
-                                      final boolean disableEch,
-                                      final int wsConn, final boolean enableDynamicPool,
-                                      final int dynamicPoolMax,
-                                      final String xtToken, final String xtRelayNodes,
-                                      final int xtConnections, final boolean xtDisableEch,
-                                      final boolean xtInsecure, final boolean xtEnableHotPair,
-                                      final int xtHotPairCount, final String xtIpStrategy) {
+    private void showImportNameDialog(final String id, final ProfileUriCodec.ParsedProfile parsed) {
         final EditText input = new EditText(this);
-        input.setText(defaultName);
-        new AlertDialog.Builder(this)
+        input.setText(parsed.name);
+        new MaterialAlertDialogBuilder(this)
                 .setTitle("配置名称")
                 .setView(input)
                 .setPositiveButton("确定", (dialog, whichButton) -> {
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) {
-                        name = defaultName;
+                        name = parsed.name;
                     }
-                    // 添加配置
                     if (profileMutation) return;
                     prefs.addProfile(id, name);
 
-                    Preferences prefs = this.prefs.forProfile(id);
-
-                    // 设置协议与参数
-                    prefs.setProtocol(protocol);
-                    if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
-                        prefs.setXtServerAddr(wssAddr);
-                        prefs.setXtToken(xtToken);
-                        prefs.setXtRelayNodes(xtRelayNodes);
-                        prefs.setXtConnections(xtConnections);
-                        prefs.setXtDisableEch(xtDisableEch);
-                        prefs.setXtInsecure(xtInsecure);
-                        prefs.setXtEnableHotPair(xtEnableHotPair);
-                        prefs.setXtHotPairCount(xtHotPairCount);
-                        prefs.setXtIpStrategy(xtIpStrategy);
-                    } else {
-                        prefs.setWorkerHost(wssAddr);
-                        prefs.setPrefIp(prefIp);
-                        if (!fallbackIp.isEmpty()) prefs.setFallbackIp(fallbackIp);
-                        prefs.setUserID(userId);
-                        prefs.setDisableEch(disableEch);
-                        prefs.setWsConn(wsConn);
-                        prefs.setEnableDynamicPool(enableDynamicPool);
-                        prefs.setDynamicPoolMax(dynamicPoolMax);
-                    }
+                    Preferences profilePrefs = this.prefs.forProfile(id);
+                    ProfileUriCodec.applyToProfile(profilePrefs, parsed);
 
                     mutateProfile(() -> {
                         // New URI profiles keep an unset mode, just like new manual profiles.
-                        // Original URI addresses remain effective until this profile is verified
-                        // and the user confirms the global preview. Never invent an explicit opt-out.
                         new PreferredIpStore(this).read();
                     }, () -> {
                         refreshProfileList();
@@ -1291,16 +1025,29 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     // ======================== Toolbar ========================
 
     private void setupToolbar() {
-        // 标题 = 应用名，副标题 = 版本号（M3 Toolbar 原生两行结构，颜色走主题 attr，
-        // 替代旧的硬编码白色自绘 TextView——顶栏已回归中性 surface 色）
+        // 标题 = 应用名，副标题 = 版本号（M3 Toolbar 原生两行结构）
         try {
             PackageInfo packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
             toolbar.setTitle(getString(R.string.app_name));
             toolbar.setSubtitle(getString(R.string.toolbar_version, packageInfo.versionName));
         } catch (PackageManager.NameNotFoundException e) {
-            // 降级处理：只显示 APP 名称
             toolbar.setTitle(getString(R.string.app_name));
         }
-        // 明暗模式已收敛到全局设置「外观」分组，Toolbar 不再提供快捷菜单
+
+        // 顶栏快捷操作：优选中转、运行日志、全局设置
+        toolbar.setOnMenuItemClickListener(item -> {
+            int id = item.getItemId();
+            if (id == R.id.action_preferred_ip) {
+                startActivity(new Intent(this, PreferredIpActivity.class));
+                return true;
+            } else if (id == R.id.action_logs) {
+                startActivity(new Intent(this, RuntimeLogActivity.class));
+                return true;
+            } else if (id == R.id.action_settings) {
+                startActivity(new Intent(this, SettingsActivity.class));
+                return true;
+            }
+            return false;
+        });
     }
 }

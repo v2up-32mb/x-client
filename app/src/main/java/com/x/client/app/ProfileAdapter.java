@@ -140,9 +140,15 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             holder.textServerAddr.setText("••••••");
         }
 
-        // 设置协议类型标签（右下角）
-        String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "xtunnel" : "GCM";
+        // 设置协议类型标签（大写微徽章）
+        String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "X-TUNNEL" : "GCM";
         holder.textProtocol.setText(protocolLabel);
+        float density = holder.itemView.getResources().getDisplayMetrics().density;
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setShape(GradientDrawable.RECTANGLE);
+        badgeBg.setCornerRadius(6f * density);
+        badgeBg.setColor(MaterialColors.getColor(holder.textProtocol, R.attr.colorTertiaryContainer));
+        holder.textProtocol.setBackground(badgeBg);
 
         // 配置滑动行为（始终允许滑动，分享功能在 VPN 运行时也可用）
         // 注意：编辑/删除按钮在 VPN 运行时会禁用，见下方按钮点击事件
@@ -245,19 +251,31 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     }
 
     private void updateItemFocusVisual(View view, boolean isSelected, boolean hasFocus) {
+        float density = view.getResources().getDisplayMetrics().density;
         int fillColor = MaterialColors.getColor(view, isSelected ? R.attr.xPrimaryContainer : R.attr.xSurface);
+        int strokeColor;
+        int strokeWidth;
+
         if (hasFocus) {
-            int strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
-            int strokeWidth = (int) (2.5f * view.getResources().getDisplayMetrics().density);
-            GradientDrawable gd = new GradientDrawable();
-            gd.setShape(GradientDrawable.RECTANGLE);
-            gd.setColor(fillColor);
-            gd.setCornerRadius(10f * view.getResources().getDisplayMetrics().density);
-            gd.setStroke(strokeWidth, strokeColor);
-            view.setBackground(gd);
+            strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
+            strokeWidth = (int) (2.5f * density);
+            view.setElevation(6f * density);
+        } else if (isSelected) {
+            strokeColor = MaterialColors.getColor(view, R.attr.xPrimary);
+            strokeWidth = (int) (1.5f * density);
+            view.setElevation(2f * density);
         } else {
-            view.setBackgroundColor(fillColor);
+            strokeColor = MaterialColors.getColor(view, R.attr.xOutlineVariant);
+            strokeWidth = (int) (1f * density);
+            view.setElevation(0.5f * density);
         }
+
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.RECTANGLE);
+        gd.setColor(fillColor);
+        gd.setCornerRadius(14f * density);
+        gd.setStroke(strokeWidth, strokeColor);
+        view.setBackground(gd);
     }
 
     @Override

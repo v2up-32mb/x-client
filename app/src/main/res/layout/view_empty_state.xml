@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 空态：图标 + 标题 + 说明 + 可选主按钮（指引下一步动作，来源 research-ux P8/C3b） -->
+<!--
+    空态卡片（Material 3 引导态重构）：
+    - 顶部高亮大图标容器（88dp 圆角卡片，具有 primaryContainer 柔和底色）
+    - 欢迎标题 + 简要能力说明
+    - 居中快捷行动按钮组（剪贴板导入、扫码、手动添加）
+-->
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -7,42 +12,104 @@
     tools:orientation="vertical"
     tools:gravity="center">
 
-    <ImageView
-        android:id="@+id/empty_icon"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:importantForAccessibility="no"
-        android:src="@drawable/ic_inbox"
-        app:tint="?attr/colorOnSurfaceVariant" />
+    <!-- 顶部英雄图标徽章 -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="88dp"
+        android:layout_height="88dp"
+        app:cardCornerRadius="28dp"
+        app:cardElevation="2dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/colorPrimary"
+        app:cardBackgroundColor="?attr/colorPrimaryContainer">
 
+        <ImageView
+            android:id="@+id/empty_icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_shield_hero"
+            app:tint="?attr/colorPrimary" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- 标题 -->
     <TextView
         android:id="@+id/empty_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/spacing_md"
-        android:textAppearance="?attr/textAppearanceTitleMedium"
-        android:textColor="?attr/colorOnSurface"
-        tools:text="还没有配置" />
+        android:layout_marginTop="@dimen/spacing_xl"
+        android:text="@string/empty_title_welcome"
+        android:textAppearance="?attr/textAppearanceTitleLarge"
+        android:textStyle="bold"
+        android:textColor="?attr/colorOnSurface" />
 
+    <!-- 描述说明 -->
     <TextView
         android:id="@+id/empty_message"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/spacing_xl"
+        android:layout_marginEnd="@dimen/spacing_xl"
         android:layout_marginTop="@dimen/spacing_sm"
         android:gravity="center"
+        android:lineSpacingExtra="3dp"
+        android:text="@string/empty_desc_welcome"
         android:textAppearance="?attr/textAppearanceBodyMedium"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        tools:text="点击右下角按钮添加第一个配置" />
+        android:textColor="?attr/colorOnSurfaceVariant" />
 
+    <!-- 快捷行动按钮组 -->
+    <LinearLayout
+        android:layout_width="280dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_xxl"
+        android:orientation="vertical">
+
+        <!-- 1. 剪贴板快速导入（主操作） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_empty_clipboard"
+            style="@style/Widget.XClient.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="@dimen/touch_target_min"
+            android:text="@string/import_from_clipboard"
+            app:icon="@drawable/ic_content_paste"
+            app:iconGravity="textStart"
+            app:iconPadding="@dimen/spacing_sm"
+            app:iconTint="?attr/colorOnPrimary" />
+
+        <!-- 2. 扫描二维码（次级操作） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_empty_scan_qr"
+            style="@style/Widget.XClient.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_md"
+            android:minHeight="@dimen/touch_target_min"
+            android:text="@string/scan_qr_code"
+            app:icon="@drawable/ic_qr_code"
+            app:iconGravity="textStart"
+            app:iconPadding="@dimen/spacing_sm"
+            app:iconTint="?attr/colorPrimary" />
+
+        <!-- 3. 手动新建节点（辅助文本操作） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btn_empty_add_manual"
+            style="@style/Widget.XClient.TextButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            android:minHeight="@dimen/touch_target_min"
+            android:text="@string/add_manual_profile" />
+
+    </LinearLayout>
+
+    <!-- 兼容旧逻辑预留按钮（默认隐藏） -->
     <com.google.android.material.button.MaterialButton
         android:id="@+id/empty_action"
         style="@style/Widget.XClient.Button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/spacing_lg"
-        android:minWidth="@dimen/touch_target_min"
-        android:minHeight="@dimen/touch_target_min"
-        android:visibility="gone"
-        tools:text="添加配置"
-        tools:visibility="visible" />
+        android:layout_marginTop="@dimen/spacing_md"
+        android:visibility="gone" />
+
 </merge>

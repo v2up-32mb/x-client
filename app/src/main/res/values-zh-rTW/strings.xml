@@ -381,4 +381,11 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="set_as_current">設為目前設定</string>
     <string name="import_from_clipboard">從剪貼簿匯入</string>
     <string name="no_camera_hint">目前裝置未偵測到相機，請手動輸入或從剪貼簿匯入</string>
+
+    <!-- 空态与首页体验升级 -->
+    <string name="empty_title_welcome">開啟安全高速連線</string>
+    <string name="empty_desc_welcome">支援 GCM 與 X-Tunnel 多路複用通道協定\n匯入或新增節點即可一鍵連線</string>
+    <string name="scan_qr_code">掃描設定二維碼</string>
+    <string name="add_manual_profile">手動新增節點</string>
+    <string name="clipboard_detected_prompt">偵測到剪貼簿含有節點設定，是否立即匯入？</string>
 </resources>

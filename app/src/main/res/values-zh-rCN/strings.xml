@@ -377,4 +377,11 @@
     <string name="set_as_current">设为当前配置</string>
     <string name="import_from_clipboard">从剪贴板导入</string>
     <string name="no_camera_hint">当前设备未检测到摄像头，请手动输入或从剪贴板导入</string>
+
+    <!-- 空态与首页体验升级 -->
+    <string name="empty_title_welcome">开启安全高速连接</string>
+    <string name="empty_desc_welcome">支持 GCM 与 X-Tunnel 多路复用隧道协议\n导入或新建节点即可一键连接</string>
+    <string name="scan_qr_code">扫描配置二维码</string>
+    <string name="add_manual_profile">手动新建节点</string>
+    <string name="clipboard_detected_prompt">检测到剪贴板中含有节点配置，是否立即导入？</string>
 </resources>

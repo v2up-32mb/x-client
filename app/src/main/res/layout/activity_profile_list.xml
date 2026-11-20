@@ -16,7 +16,8 @@
         android:id="@+id/toolbar"
         style="@style/Widget.XClient.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize" />
+        android:layout_height="?attr/actionBarSize"
+        app:menu="@menu/menu_profile_list" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -28,7 +29,8 @@
             android:id="@+id/profile_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:paddingBottom="160dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="140dp"
             android:clipToPadding="false"
             android:clipChildren="false" />
 

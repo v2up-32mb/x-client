@@ -1,39 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Profile 列表项（滑动操作）token 化重构（redesign-plan §8.1）：
-    - 行高 56dp→64dp，触控目标达标；字号并入 M3 字阶
-    - 滑动操作按钮按语义着色：分享/复制=中性 tonal，编辑=primaryContainer，删除=error
-    - contentDescription 全部走字符串资源
+    Profile 列表项（Material 3 悬浮卡片 + 滑动操作）：
+    - 卡片形态：高 72dp，外边距 16dp 侧边距 + 4dp 垂直边距（卡片间 8dp 网格节奏）
+    - 独立圆角矩形，废弃老旧平铺 1px 分界线
+    - 协议标签采用 M3 药丸形状徽章，结构清晰自然
 -->
 <com.x.client.app.SwipeRevealLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/swipe_layout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
-    <!-- Foreground Layer: Profile Content -->
+    <!-- Foreground Layer: 卡片前景内容 -->
     <LinearLayout
         android:id="@+id/foreground_layout"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="72dp"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/spacing_md"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:paddingStart="@dimen/spacing_md"
+        android:paddingEnd="@dimen/spacing_md"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingBottom="@dimen/spacing_sm"
         android:focusable="true"
         android:clickable="true"
         android:orientation="horizontal"
-        android:paddingStart="@dimen/spacing_lg"
-        android:paddingEnd="@dimen/spacing_lg"
-        android:paddingTop="@dimen/spacing_sm"
-        android:paddingBottom="@dimen/spacing_sm"
-        android:background="?attr/colorSurface"
         android:gravity="center_vertical">
 
-        <!-- 选中指示器 -->
+        <!-- 选中指示器单选钮 -->
         <RadioButton
             android:id="@+id/radio_selected"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:clickable="false"
-            android:focusable="false"/>
+            android:focusable="false" />
 
         <!-- 配置信息（两行） -->
         <LinearLayout
@@ -48,95 +52,119 @@
                 android:id="@+id/text_profile_name"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:ellipsize="end"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurface"
-                android:text="@string/default_profile_name"/>
+                android:textStyle="bold"
+                tools:text="香港优选中转 01" />
 
-            <!-- 服务器地址 -->
-            <TextView
-                android:id="@+id/text_server_addr"
+            <!-- 第二行：协议徽章 + 服务器地址 -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textAppearance="?attr/textAppearanceBodyMedium"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:text="server.com"/>
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <!-- 协议类型徽章（Pill Badge） -->
+                <TextView
+                    android:id="@+id/text_protocol"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:paddingTop="1dp"
+                    android:paddingBottom="1dp"
+                    android:textAppearance="?attr/textAppearanceLabelSmall"
+                    android:textColor="?attr/colorOnTertiaryContainer"
+                    android:background="?attr/colorTertiaryContainer"
+                    android:textStyle="bold"
+                    tools:text="XTUNNEL" />
+
+                <!-- 服务器地址 -->
+                <TextView
+                    android:id="@+id/text_server_addr"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:singleLine="true"
+                    android:ellipsize="end"
+                    android:textAppearance="?attr/textAppearanceBodySmall"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="node1.hk.example.com:443" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
-        <!-- 协议类型标签（右下角） -->
-        <TextView
-            android:id="@+id/text_protocol"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|end"
+        <!-- 右侧展开提示箭头 -->
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
             android:layout_marginStart="@dimen/spacing_xs"
-            android:layout_marginBottom="2dp"
-            android:textAppearance="?attr/textAppearanceLabelMedium"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            android:text="GCM"/>
+            android:importantForAccessibility="no"
+            android:src="@drawable/ic_chevron_right"
+            app:tint="?attr/colorOutline" />
 
     </LinearLayout>
-
-    <!-- 分界线 -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_gravity="bottom"
-        android:background="?attr/colorOutlineVariant"/>
 
     <!-- Overlay Layer: Action Buttons (显示在前景层上方) -->
     <LinearLayout
         android:id="@+id/action_buttons"
         android:layout_width="wrap_content"
-        android:layout_height="64dp"
+        android:layout_height="72dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:layout_marginEnd="@dimen/spacing_md"
         android:layout_gravity="end|top"
         android:orientation="horizontal"
         android:visibility="gone">
 
         <ImageButton
             android:id="@+id/btn_share"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
             android:src="@android:drawable/ic_menu_share"
             android:background="?attr/colorTertiaryContainer"
             app:tint="?attr/colorOnTertiaryContainer"
             android:scaleType="centerInside"
-            android:padding="@dimen/spacing_lg"
-            android:contentDescription="@string/acc_share"/>
+            android:padding="@dimen/spacing_md"
+            android:contentDescription="@string/acc_share" />
 
         <ImageButton
             android:id="@+id/btn_copy"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
             android:src="@drawable/ic_action_copy"
             android:background="?attr/colorSurfaceContainerHigh"
             app:tint="?attr/colorOnSurface"
             android:scaleType="centerInside"
-            android:padding="@dimen/spacing_lg"
-            android:contentDescription="@string/acc_copy"/>
+            android:padding="@dimen/spacing_md"
+            android:contentDescription="@string/acc_copy" />
 
         <ImageButton
             android:id="@+id/btn_edit"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
             android:src="@android:drawable/ic_menu_edit"
             android:background="?attr/xEditContainer"
             app:tint="?attr/xOnEditContainer"
             android:scaleType="centerInside"
-            android:padding="@dimen/spacing_lg"
-            android:contentDescription="@string/acc_edit"/>
+            android:padding="@dimen/spacing_md"
+            android:contentDescription="@string/acc_edit" />
 
         <ImageButton
             android:id="@+id/btn_delete"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:src="@android:drawable/ic_menu_delete"
+            android:layout_width="56dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_delete"
             android:background="?attr/colorError"
             app:tint="?attr/colorOnError"
             android:scaleType="centerInside"
-            android:padding="@dimen/spacing_lg"
-            android:contentDescription="@string/acc_delete"/>
+            android:padding="@dimen/spacing_md"
+            android:contentDescription="@string/acc_delete" />
     </LinearLayout>
 
 </com.x.client.app.SwipeRevealLayout>
