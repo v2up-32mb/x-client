@@ -80,6 +80,19 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         this.xtAdvancedDraft = draft;
     }
 
+    public boolean isAdvancedExpanded() {
+        return xtAdvancedContainer != null && xtAdvancedContainer.getVisibility() == View.VISIBLE;
+    }
+
+    public void setAdvancedExpanded(boolean expanded) {
+        if (xtAdvancedContainer != null) {
+            xtAdvancedContainer.setVisibility(expanded ? View.VISIBLE : View.GONE);
+        }
+        if (xtAdvancedHeader != null) {
+            xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + (expanded ? " ▾" : " ▸"));
+        }
+    }
+
     @Override
     public void bindViews(View root) {
         xtunnelConnectionFields = root.findViewById(R.id.xtunnel_connection_fields);
@@ -113,9 +126,7 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + " ▸");
         xtAdvancedHeader.setOnClickListener(v -> {
             if (!v.isEnabled()) return;
-            boolean visible = xtAdvancedContainer.getVisibility() == View.VISIBLE;
-            xtAdvancedContainer.setVisibility(visible ? View.GONE : View.VISIBLE);
-            xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + (visible ? " ▸" : " ▾"));
+            setAdvancedExpanded(!isAdvancedExpanded());
         });
 
         // Hot Pair 联动
@@ -250,10 +261,7 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         // 收集高级参数
         EditText invalidAdvField = findInvalidXtAdvField();
         if (invalidAdvField != null) {
-            if (xtAdvancedContainer.getVisibility() != View.VISIBLE) {
-                xtAdvancedContainer.setVisibility(View.VISIBLE);
-                xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + " ▾");
-            }
+            setAdvancedExpanded(true);
             FormUtils.showFieldError(invalidAdvField, activity.getString(R.string.error_xt_advanced_invalid));
             return false;
         }

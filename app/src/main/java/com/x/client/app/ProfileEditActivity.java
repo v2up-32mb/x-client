@@ -65,6 +65,8 @@ public class ProfileEditActivity extends BaseActivity {
     private boolean preferredGlobalEnabled;
     private int preferredGlobalCount;
     private String restoredXtAdvancedDraft;
+    private boolean restoredXtAdvancedExpanded;
+    private String restoredProtocolDraft;
     private String pendingPreferredImport;
     private String preferredOriginalMode, restoredPreferredMode;
     private static final String[] PREFERRED_MODES = {"global", "independent", "default"};
@@ -76,10 +78,13 @@ public class ProfileEditActivity extends BaseActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         if (savedInstanceState != null) {
+            hasBeenSaved = savedInstanceState.getBoolean("has_been_saved", false);
+            restoredProtocolDraft = savedInstanceState.getString("protocol_draft");
             restoredPreferredMode = savedInstanceState.getString("preferred_mode_draft");
             preferredDraftDirty = savedInstanceState.getBoolean("preferred_dirty_draft");
             preferredImportedAddresses = savedInstanceState.getBoolean("preferred_imported_addresses");
             restoredXtAdvancedDraft = savedInstanceState.getString("xt_advanced_draft");
+            restoredXtAdvancedExpanded = savedInstanceState.getBoolean("xt_advanced_expanded", false);
             pendingPreferredImport = savedInstanceState.getString("pending_preferred_import");
         }
 
@@ -122,6 +127,9 @@ public class ProfileEditActivity extends BaseActivity {
         xtunnelBinder.bindViews(root);
         if (restoredXtAdvancedDraft != null) {
             xtunnelBinder.setAdvancedDraft(restoredXtAdvancedDraft);
+        }
+        if (restoredXtAdvancedExpanded) {
+            xtunnelBinder.setAdvancedExpanded(true);
         }
 
         // 协议分段切换监听
@@ -188,7 +196,8 @@ public class ProfileEditActivity extends BaseActivity {
 
         // 加载配置名称与协议
         edittext_profile_name.setText(profilePrefs.getProfileName(profileId));
-        String protocol = profilePrefs.getProtocol();
+        String protocol = (restoredProtocolDraft != null) ? restoredProtocolDraft : profilePrefs.getProtocol();
+        restoredProtocolDraft = null;
         setProtocolSelection(protocol);
 
         // 委托协议专属绑定器加载
@@ -334,6 +343,7 @@ public class ProfileEditActivity extends BaseActivity {
                     preferredGlobalCount = globalCount;
                     if (refresh && preferredOriginalMode != null && (preferredDraftDirty
                             || !getSelectedPreferredMode().equals(preferredOriginalMode))) {
+                        showPreferredSummary();
                         return;
                     }
                     refreshPreferredConflict(getSelectedProtocol());
@@ -381,6 +391,10 @@ public class ProfileEditActivity extends BaseActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle out) {
+        out.putBoolean("has_been_saved", hasBeenSaved);
+        if (toggleGroupProtocol != null) {
+            out.putString("protocol_draft", getSelectedProtocol());
+        }
         if (preferredMode != null && preferredLoaded) {
             out.putString("preferred_mode_draft", getSelectedPreferredMode());
         }
@@ -388,6 +402,7 @@ public class ProfileEditActivity extends BaseActivity {
         out.putBoolean("preferred_imported_addresses", preferredImportedAddresses);
         if (xtunnelBinder != null) {
             out.putString("xt_advanced_draft", xtunnelBinder.getAdvancedDraft());
+            out.putBoolean("xt_advanced_expanded", xtunnelBinder.isAdvancedExpanded());
         }
         out.putString("pending_preferred_import", pendingPreferredImport);
         super.onSaveInstanceState(out);
@@ -418,6 +433,7 @@ public class ProfileEditActivity extends BaseActivity {
     @Override
     public void onBackPressed() {
         if (isNewProfile && !hasBeenSaved) {
+            isNewProfile = false;
             preferredWorker.execute(() -> {
                 try {
                     prefs.removeProfile(profileId);
