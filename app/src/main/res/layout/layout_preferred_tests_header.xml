@@ -13,11 +13,11 @@
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="14dp"
+        app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:strokeWidth="1dp"
-        app:strokeColor="?attr/colorOutlineVariant"
-        app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+        app:strokeColor="?attr/xOutlineVariant"
+        app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -30,23 +30,23 @@
                 android:layout_height="wrap_content"
                 android:text="@string/preferred_reference_title"
                 android:textAppearance="?attr/textAppearanceTitleSmall"
-                android:textColor="?attr/colorOnSurface" />
+                android:textColor="?attr/xOnSurface" />
 
             <!-- 节点选择 Spinner 容器 -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                app:cardCornerRadius="8dp"
+                android:layout_marginTop="@dimen/spacing_sm"
+                app:cardCornerRadius="12dp"
                 app:cardElevation="0dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="?attr/colorOutlineVariant"
-                app:cardBackgroundColor="?attr/colorSurface">
+                app:strokeColor="?attr/xOutlineVariant"
+                app:cardBackgroundColor="?attr/xSurface">
 
                 <Spinner
                     android:id="@+id/preferred_reference"
                     android:layout_width="match_parent"
-                    android:layout_height="44dp"
+                    android:layout_height="@dimen/touch_target_min"
                     android:contentDescription="@string/preferred_target" />
             </com.google.android.material.card.MaterialCardView>
 
@@ -55,17 +55,17 @@
                 android:id="@+id/preferred_reference_detail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="@dimen/spacing_xs"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textColor="?attr/xOnSurfaceVariant"
                 android:fontFamily="monospace" />
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"
-                android:background="?attr/colorOutlineVariant" />
+                android:layout_marginTop="@dimen/spacing_sm"
+                android:layout_marginBottom="@dimen/spacing_sm"
+                android:background="?attr/xOutlineVariant" />
 
             <!-- 探测参数：双列紧凑并排 -->
             <LinearLayout
@@ -114,11 +114,11 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/spacing_sm"
-        app:cardCornerRadius="14dp"
+        app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
         app:strokeWidth="1dp"
-        app:strokeColor="?attr/colorOutlineVariant"
-        app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+        app:strokeColor="?attr/xOutlineVariant"
+        app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -137,28 +137,28 @@
                     android:id="@+id/preferred_phase_badge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:background="?attr/colorSurfaceContainerHigh"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="2dp"
-                    android:paddingBottom="2dp"
+                    android:background="@drawable/bg_pill_badge"
+                    android:paddingStart="@dimen/spacing_sm"
+                    android:paddingEnd="@dimen/spacing_sm"
+                    android:paddingTop="@dimen/spacing_xs"
+                    android:paddingBottom="@dimen/spacing_xs"
                     android:text="@string/preferred_ready"
                     android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurface" />
+                    android:textColor="?attr/xOnSurface" />
 
                 <TextView
                     android:id="@+id/preferred_network_badge"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/spacing_xs"
-                    android:background="?attr/colorSurfaceContainerHigh"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="2dp"
-                    android:paddingBottom="2dp"
+                    android:background="@drawable/bg_pill_badge"
+                    android:paddingStart="@dimen/spacing_sm"
+                    android:paddingEnd="@dimen/spacing_sm"
+                    android:paddingTop="@dimen/spacing_xs"
+                    android:paddingBottom="@dimen/spacing_xs"
                     android:text="@string/preferred_direct_net"
                     android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
             </LinearLayout>
 
             <!-- 三指标数据卡片 -->
@@ -168,85 +168,112 @@
                 android:layout_marginTop="@dimen/spacing_sm"
                 android:orientation="horizontal">
 
-                <LinearLayout
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="?attr/colorSurface"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp">
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/xOutlineVariant"
+                    app:cardBackgroundColor="?attr/xSurfaceContainerLowest">
 
-                    <TextView
-                        android:id="@+id/preferred_metric_progress"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="0 / 0"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingTop="@dimen/spacing_sm"
+                        android:paddingBottom="@dimen/spacing_sm">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/preferred_metric_completed_total"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/preferred_metric_progress"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 / 0"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/xOnSurface" />
 
-                <LinearLayout
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/preferred_metric_completed_total"
+                            android:textAppearance="?attr/textAppearanceLabelSmall"
+                            android:textColor="?attr/xOnSurfaceVariant" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:layout_marginStart="4dp"
-                    android:layout_marginEnd="4dp"
-                    android:background="?attr/colorSurface"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp">
+                    android:layout_marginStart="@dimen/spacing_xs"
+                    android:layout_marginEnd="@dimen/spacing_xs"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/xOutlineVariant"
+                    app:cardBackgroundColor="?attr/xSurfaceContainerLowest">
 
-                    <TextView
-                        android:id="@+id/preferred_metric_success"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textColor="?attr/mdSuccess" />
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingTop="@dimen/spacing_sm"
+                        android:paddingBottom="@dimen/spacing_sm">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/preferred_metric_success_nodes"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/preferred_metric_success"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/mdSuccess" />
 
-                <LinearLayout
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/preferred_metric_success_nodes"
+                            android:textAppearance="?attr/textAppearanceLabelSmall"
+                            android:textColor="?attr/xOnSurfaceVariant" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:background="?attr/colorSurface"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:paddingTop="6dp"
-                    android:paddingBottom="6dp">
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="0dp"
+                    app:strokeWidth="1dp"
+                    app:strokeColor="?attr/xOutlineVariant"
+                    app:cardBackgroundColor="?attr/xSurfaceContainerLowest">
 
-                    <TextView
-                        android:id="@+id/preferred_metric_selected"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="0"
-                        android:textAppearance="?attr/textAppearanceTitleMedium"
-                        android:textColor="?attr/colorPrimary" />
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:paddingTop="@dimen/spacing_sm"
+                        android:paddingBottom="@dimen/spacing_sm">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/preferred_metric_checked_nodes"
-                        android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
+                        <TextView
+                            android:id="@+id/preferred_metric_selected"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/xPrimary" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/preferred_metric_checked_nodes"
+                            android:textAppearance="?attr/textAppearanceLabelSmall"
+                            android:textColor="?attr/xOnSurfaceVariant" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
             </LinearLayout>
 
@@ -255,18 +282,18 @@
                 android:id="@+id/preferred_ledger_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
+                android:layout_marginTop="@dimen/spacing_sm"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                android:textColor="?attr/xOnSurfaceVariant" />
 
             <!-- 单行状态提示文本 -->
             <TextView
                 android:id="@+id/preferred_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="@dimen/spacing_xs"
                 android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorPrimary"
+                android:textColor="?attr/xPrimary"
                 android:visibility="gone" />
 
         </LinearLayout>
@@ -278,7 +305,7 @@
         style="@style/Widget.XClient.Button"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="40dp"
+        android:minHeight="@dimen/touch_target_min"
         android:layout_marginTop="@dimen/spacing_md"
         app:icon="@drawable/ic_speed"
         app:iconSize="18dp"
@@ -288,20 +315,20 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
+        android:layout_marginTop="@dimen/spacing_xs"
         android:gravity="center"
         android:text="@string/preferred_test_footer_hint"
         android:textAppearance="?attr/textAppearanceLabelSmall"
-        android:textColor="?attr/colorOnSurfaceVariant" />
+        android:textColor="?attr/xOnSurfaceVariant" />
 
     <!-- 候选列表标题 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/spacing_md"
-        android:layout_marginBottom="2dp"
+        android:layout_marginBottom="@dimen/spacing_xs"
         android:text="@string/preferred_candidate_nodes"
         android:textAppearance="?attr/textAppearanceTitleSmall"
-        android:textColor="?attr/colorOnSurface" />
+        android:textColor="?attr/xOnSurface" />
 
 </LinearLayout>

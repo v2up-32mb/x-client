@@ -23,6 +23,32 @@ final class PreferredIpController {
         void changed(State state);
         default void selectionSettled(String address) { }
     }
+    public enum ActionType {
+        FETCH_V4,
+        FETCH_V6,
+        FETCH_LIST,
+        REFRESH_SOURCE,
+        PARSE_MANUAL
+    }
+    public static final class ActionResult {
+        public final ActionType type;
+        public final String target;
+        public final boolean success;
+        public final String message;
+        public final JSONObject parse;
+        public final State state;
+        public ActionResult(ActionType type, String target, boolean success, String message, JSONObject parse, State state) {
+            this.type = type;
+            this.target = target;
+            this.success = success;
+            this.message = message;
+            this.parse = parse;
+            this.state = state;
+        }
+    }
+    public interface ActionListener {
+        void onActionResult(ActionResult result);
+    }
     interface Work { void run() throws Exception; }
     interface Finished { void run(JSONObject result) throws Exception; }
     static final class State {
@@ -67,6 +93,9 @@ final class PreferredIpController {
     private final Handler main = new Handler(Looper.getMainLooper());
     private final AtomicLong scanEpoch = new AtomicLong(), selectionVersion = new AtomicLong(), cancelVersion = new AtomicLong();
     private volatile Listener listener;
+    private volatile ActionListener actionListener;
+    private volatile State latestState;
+    void setActionListener(ActionListener actionListener) { this.actionListener = actionListener; }
     private volatile boolean foreground, stopRequested = true;
     private volatile String taskId = "";
     // Only the short network/epoch capture is locked; NEVER hold this lock over Store/Go I/O.
@@ -148,6 +177,7 @@ final class PreferredIpController {
     }
     void detach(boolean rotating) {
         listener = null;
+        if (!rotating) actionListener = null;
         // Rotation and same-process return are manually resumable, never automatically restart I/O.
         foreground = false; net.unwatch(); post(() -> validationAllowed = false);
         if (active != null || (scanning && !session.isEmpty())) {
@@ -875,7 +905,7 @@ final class PreferredIpController {
             });
         });
     }
-    void fetch(String id, String url, String kind) {
+    void fetch(String id, String url, String kind, ActionType actionType) {
         post(() -> {
             if (active != null || preparingDisk) throw new IllegalStateException("请先暂停并等待网络退出再更新来源");
             if ("cidr6".equals(kind) && !net.ipv6()) throw new IllegalStateException("当前直连网络无可用 IPv6");
@@ -883,26 +913,58 @@ final class PreferredIpController {
             JSONObject request = new JSONObject().put("operation", "fetch").put("network_id", network)
                     .put("source", new JSONObject().put("id", id).put("url", url).put("kind", kind));
             launch(new Job(null, request, "fetch", response -> {
-                if (!"completed".equals(response.optString("state"))) {
+                boolean completed = "completed".equals(response.optString("state"));
+                if (!completed) {
                     String err = response.optString("error");
                     message = (err != null && !err.isEmpty()) ? err : "来源更新未完成，保留旧快照";
+                    dirty = true;
+                    notifyActionResult(actionType, id, false, message, null);
                     return;
                 }
-                if (response.getJSONArray("errors").length() > 0) {
+                JSONArray errors = response.optJSONArray("errors");
+                if (errors != null && errors.length() > 0) {
                     parsed = response; parseSource = id; parseKind = kind; parseUrl = url; parseAppend = false;
                     message = "来源含无效行，保留旧快照；请确认只导入有效行";
-                } else storageIO.execute(() -> replaceSource(id, url, kind, response, false));
+                    dirty = true;
+                    notifyActionResult(actionType, id, true, message, response);
+                } else {
+                    storageIO.execute(() -> {
+                        replaceSource(id, url, kind, response, false);
+                        notifyActionResult(actionType, id, true, "来源更新完成", null);
+                    });
+                }
             }));
         });
     }
-    void parse(String content, String id, String kind) {
+    void fetch(String id, String url, String kind) {
+        fetch(id, url, kind, null);
+    }
+    void parse(String content, String id, String kind, ActionType actionType) {
         storageIO.execute(() -> {
             try {
                 if (content.getBytes(StandardCharsets.UTF_8).length > 2 * 1024 * 1024) throw new IllegalArgumentException("文本超过2MiB");
                 JSONObject response = new JSONObject(backend.parse(content, id, kind));
-                post(() -> { parsed = response; parseSource = id; parseKind = kind; parseUrl = ""; parseAppend = true;
-                    message = "解析完成，请检查错误行并确认有效行"; dirty = true; });
-            } catch (Exception e) { error(e); }
+                post(() -> {
+                    parsed = response; parseSource = id; parseKind = kind; parseUrl = ""; parseAppend = true;
+                    message = "解析完成，请检查错误行并确认有效行"; dirty = true;
+                    notifyActionResult(actionType, id, true, message, response);
+                });
+            } catch (Exception e) {
+                error(e);
+                notifyActionResult(actionType, id, false, e.getMessage(), null);
+            }
+        });
+    }
+    void parse(String content, String id, String kind) {
+        parse(content, id, kind, null);
+    }
+    private void notifyActionResult(ActionType actionType, String target, boolean success, String msg, JSONObject parseResp) {
+        if (actionType == null) return;
+        main.post(() -> {
+            ActionListener l = actionListener;
+            if (l != null) {
+                l.onActionResult(new ActionResult(actionType, target, success, msg, parseResp, latestState));
+            }
         });
     }
     void importFile(Uri uri) {
@@ -1089,6 +1151,7 @@ final class PreferredIpController {
             loading.message = message; loading.phase = "优选库尚未加载；未修改磁盘"; loading.network = net.label();
             loading.sessionId = ""; loading.activeDownload = ""; loading.paused = true; loading.stale = true;
             loading.metered = net.metered(); dirty = false;
+            latestState = loading;
             main.post(() -> { Listener current = listener; if (current != null) current.changed(loading); });
             return;
         }
@@ -1137,6 +1200,7 @@ final class PreferredIpController {
         }
         state.rows = Collections.unmodifiableList(rows); state.total = candidates.size();
         dirty = false;
+        latestState = state;
         main.post(() -> { Listener current = listener; if (current != null) current.changed(state); });
     }
     private int rank(JSONObject r, boolean member) {

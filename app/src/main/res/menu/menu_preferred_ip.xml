@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/preferred_restart"
+        android:title="@string/preferred_restart_test"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/preferred_enable"
+        android:title="@string/preferred_enable_global_action"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/preferred_disable_action"
+        android:title="@string/preferred_disable"
+        app:showAsAction="never" />
+</menu>

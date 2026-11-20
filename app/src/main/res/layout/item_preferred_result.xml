@@ -2,17 +2,20 @@
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/preferred_card"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginStart="@dimen/spacing_lg"
     android:layout_marginEnd="@dimen/spacing_lg"
-    android:layout_marginTop="2dp"
-    android:layout_marginBottom="2dp"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="0dp"
+    android:layout_marginTop="@dimen/spacing_xs"
+    android:layout_marginBottom="@dimen/spacing_xs"
+    android:focusable="true"
+    android:clickable="true"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0.5dp"
     app:strokeWidth="1dp"
-    app:strokeColor="?attr/colorOutlineVariant"
-    app:cardBackgroundColor="?attr/colorSurfaceContainerLowest">
+    app:strokeColor="?attr/xOutlineVariant"
+    app:cardBackgroundColor="?attr/xSurfaceContainerLowest">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -24,28 +27,27 @@
             android:id="@+id/preferred_row_heading"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:minHeight="46dp"
+            android:minHeight="@dimen/touch_target_min"
             android:orientation="horizontal"
             android:gravity="center_vertical"
             android:clickable="true"
-            android:focusable="true"
             android:background="?attr/selectableItemBackground"
             android:paddingStart="@dimen/spacing_xs"
             android:paddingEnd="@dimen/spacing_sm"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp">
+            android:paddingTop="@dimen/spacing_xs"
+            android:paddingBottom="@dimen/spacing_xs">
 
             <!-- 勾选框 -->
             <com.google.android.material.checkbox.MaterialCheckBox
                 android:id="@+id/preferred_choice"
-                android:layout_width="36dp"
-                android:layout_height="36dp" />
+                android:layout_width="@dimen/touch_target_min"
+                android:layout_height="@dimen/touch_target_min" />
 
-            <!-- 中间信息：单行紧凑排布 IP、地区与评分 -->
+            <!-- 中间信息：单行紧凑排布 IP、地区、延迟微徽章与评分 -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="2dp"
+                android:layout_marginStart="@dimen/spacing_xs"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -63,39 +65,65 @@
                         android:singleLine="true"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textStyle="bold"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="?attr/xOnSurface" />
 
                     <TextView
                         android:id="@+id/preferred_row_location"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="6dp"
-                        android:background="?attr/colorSurfaceContainerHigh"
-                        android:paddingStart="4dp"
-                        android:paddingEnd="4dp"
-                        android:paddingTop="1dp"
-                        android:paddingBottom="1dp"
+                        android:layout_marginStart="@dimen/spacing_xs"
+                        android:background="@drawable/bg_pill_badge"
+                        android:paddingStart="@dimen/spacing_xs"
+                        android:paddingEnd="@dimen/spacing_xs"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
                         android:textAppearance="?attr/textAppearanceLabelSmall"
-                        android:textColor="?attr/colorOnSurfaceVariant" />
+                        android:textColor="?attr/xOnSurfaceVariant" />
                 </LinearLayout>
 
-                <TextView
-                    android:id="@+id/preferred_row_score"
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="1dp"
-                    android:textAppearance="?attr/textAppearanceLabelSmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:layout_marginTop="@dimen/spacing_xs"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <!-- 延迟微徽章 -->
+                    <TextView
+                        android:id="@+id/preferred_latency_badge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_pill_badge"
+                        android:fontFamily="monospace"
+                        android:paddingStart="@dimen/spacing_xs"
+                        android:paddingEnd="@dimen/spacing_xs"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
+                        android:textAppearance="?attr/textAppearanceLabelSmall"
+                        android:textStyle="bold"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <TextView
+                        android:id="@+id/preferred_row_score"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_xs"
+                        android:textAppearance="?attr/textAppearanceLabelSmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+                </LinearLayout>
             </LinearLayout>
 
-            <!-- 引导展开图标：类似 '>' 的右箭头，展开时旋转 90 度向下 -->
-            <ImageView
+            <!-- 引导展开图标：在 TV 上可聚焦并响应遥控器 -->
+            <ImageButton
                 android:id="@+id/preferred_row_chevron"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="@dimen/touch_target_min"
+                android:layout_height="@dimen/touch_target_min"
                 android:layout_marginStart="@dimen/spacing_xs"
+                android:background="@drawable/bg_icon_button_focus"
+                android:focusable="true"
+                android:padding="@dimen/spacing_md"
                 android:src="@drawable/ic_chevron_right"
-                app:tint="?attr/colorOnSurfaceVariant"
+                app:tint="?attr/xOnSurfaceVariant"
                 android:contentDescription="@string/preferred_expand_detail" />
         </LinearLayout>
 
@@ -110,12 +138,12 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="?attr/colorOutlineVariant" />
+                android:background="?attr/xOutlineVariant" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="?attr/colorSurfaceContainerLow"
+                android:background="?attr/xSurfaceContainerLow"
                 android:orientation="vertical"
                 android:padding="@dimen/spacing_sm">
 
@@ -125,7 +153,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="monospace"
                     android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preferred_row_download"
@@ -133,7 +161,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="40dp"
+                    android:minHeight="@dimen/touch_target_min"
                     app:icon="@drawable/ic_speed"
                     app:iconSize="16dp"
                     app:iconGravity="textStart"

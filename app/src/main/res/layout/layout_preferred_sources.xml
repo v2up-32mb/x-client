@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="?attr/xSurface"
     android:fillViewport="true">
 
     <LinearLayout
@@ -19,11 +19,11 @@
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="14dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeWidth="1dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+            app:strokeColor="?attr/xOutlineVariant"
+            app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -41,7 +41,7 @@
                         android:layout_width="18dp"
                         android:layout_height="18dp"
                         android:src="@drawable/ic_inbox"
-                        app:tint="?attr/colorPrimary"
+                        app:tint="?attr/xPrimary"
                         android:contentDescription="@null" />
 
                     <TextView
@@ -50,24 +50,24 @@
                         android:layout_marginStart="@dimen/spacing_xs"
                         android:text="@string/preferred_sources_title"
                         android:textAppearance="?attr/textAppearanceTitleSmall"
-                        android:textColor="?attr/colorOnSurface" />
+                        android:textColor="?attr/xOnSurface" />
                 </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="@dimen/spacing_xs"
                     android:text="@string/preferred_intro"
                     android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
 
                 <TextView
                     android:id="@+id/preferred_sources_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="@dimen/spacing_xs"
                     android:textAppearance="?attr/textAppearanceLabelSmall"
-                    android:textColor="?attr/colorPrimary"
+                    android:textColor="?attr/xPrimary"
                     android:visibility="gone" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -79,16 +79,16 @@
             android:layout_marginTop="@dimen/spacing_lg"
             android:text="@string/preferred_sources_configured"
             android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/xOnSurfaceVariant" />
 
         <TextView
             android:id="@+id/preferred_sources_summary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="@dimen/spacing_xs"
             android:text="@string/preferred_empty_sources"
             android:textAppearance="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/xOnSurfaceVariant" />
 
         <LinearLayout
             android:id="@+id/preferred_sources_container"
@@ -104,17 +104,17 @@
             android:layout_marginTop="@dimen/spacing_lg"
             android:text="@string/preferred_official_prefixes"
             android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/xOnSurfaceVariant" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_xs"
-            app:cardCornerRadius="14dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeWidth="1dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+            app:strokeColor="?attr/xOutlineVariant"
+            app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -127,7 +127,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/preferred_official_desc"
                     android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -141,7 +141,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:minHeight="40dp"
+                        android:minHeight="@dimen/touch_target_min"
                         android:text="@string/preferred_fetch_v4_btn" />
 
                     <com.google.android.material.button.MaterialButton
@@ -151,17 +151,17 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/spacing_sm"
                         android:layout_weight="1"
-                        android:minHeight="40dp"
+                        android:minHeight="@dimen/touch_target_min"
                         android:text="@string/preferred_fetch_v6_btn" />
                 </LinearLayout>
 
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
+                    android:layout_marginTop="@dimen/spacing_xs"
                     android:text="@string/preferred_v6_hint"
                     android:textAppearance="?attr/textAppearanceLabelSmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
@@ -172,17 +172,17 @@
             android:layout_marginTop="@dimen/spacing_lg"
             android:text="@string/preferred_third_party_title"
             android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/xOnSurfaceVariant" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_xs"
-            app:cardCornerRadius="14dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeWidth="1dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+            app:strokeColor="?attr/xOutlineVariant"
+            app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -195,7 +195,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/preferred_third"
                     android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.XClient.TextInputLayout"
@@ -218,7 +218,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_sm"
-                    android:minHeight="40dp"
+                    android:minHeight="@dimen/touch_target_min"
                     android:text="@string/preferred_fetch_list" />
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
@@ -230,17 +230,17 @@
             android:layout_marginTop="@dimen/spacing_lg"
             android:text="@string/preferred_manual_title"
             android:textAppearance="?attr/textAppearanceLabelLarge"
-            android:textColor="?attr/colorOnSurfaceVariant" />
+            android:textColor="?attr/xOnSurfaceVariant" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/spacing_xs"
-            app:cardCornerRadius="14dp"
+            app:cardCornerRadius="16dp"
             app:cardElevation="0dp"
             app:strokeWidth="1dp"
-            app:strokeColor="?attr/colorOutlineVariant"
-            app:cardBackgroundColor="?attr/colorSurfaceContainerLow">
+            app:strokeColor="?attr/xOutlineVariant"
+            app:cardBackgroundColor="?attr/xSurfaceContainerLow">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -253,7 +253,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/preferred_format"
                     android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    android:textColor="?attr/xOnSurfaceVariant" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     style="@style/Widget.XClient.TextInputLayout"
@@ -285,7 +285,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:minHeight="40dp"
+                        android:minHeight="@dimen/touch_target_min"
                         android:text="@string/preferred_parse" />
 
                     <com.google.android.material.button.MaterialButton
@@ -294,7 +294,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="@dimen/spacing_xs"
-                        android:minHeight="40dp"
+                        android:minHeight="@dimen/touch_target_min"
                         android:text="@string/preferred_legacy" />
                 </LinearLayout>
 
@@ -305,11 +305,11 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/spacing_sm"
                     android:visibility="gone"
-                    app:cardCornerRadius="10dp"
+                    app:cardCornerRadius="16dp"
                     app:cardElevation="0dp"
                     app:strokeWidth="1dp"
-                    app:strokeColor="?attr/colorPrimary"
-                    app:cardBackgroundColor="?attr/colorSurfaceContainer">
+                    app:strokeColor="?attr/xPrimary"
+                    app:cardBackgroundColor="?attr/xSurfaceContainer">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -322,7 +322,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:textColor="?attr/colorOnSurface" />
+                            android:textColor="?attr/xOnSurface" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/preferred_btn_accept"
@@ -330,7 +330,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="@dimen/spacing_xs"
-                            android:minHeight="40dp"
+                            android:minHeight="@dimen/touch_target_min"
                             android:text="@string/preferred_accept" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
