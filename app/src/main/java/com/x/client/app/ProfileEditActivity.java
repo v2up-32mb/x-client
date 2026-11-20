@@ -224,11 +224,32 @@ public class ProfileEditActivity extends BaseActivity {
         }
     }
 
+    private int getPreferredModePosition() {
+        if (preferredMode == null) return 0;
+        int pos = preferredMode.getSelectedItemPosition();
+        return (pos >= 0 && pos < PREFERRED_MODES.length) ? pos : 0;
+    }
+
+    private String getSelectedPreferredMode() {
+        return PREFERRED_MODES[getPreferredModePosition()];
+    }
+
+    private void updateRelayEnabled() {
+        boolean independent = (getPreferredModePosition() == 1) && !preferredLocked();
+        if (gcmBinder != null) {
+            gcmBinder.setRelayEnabled(independent);
+        }
+        if (xtunnelBinder != null) {
+            xtunnelBinder.setRelayEnabled(independent);
+        }
+    }
+
     private void setupPreferredIp() {
         if (preferredMode == null) {
             preferredMode = findViewById(R.id.preferred_mode_spinner);
         }
         setPreferredModeEnabled(false);
+        updateRelayEnabled();
         btn_save.setEnabled(false);
         btn_import.setEnabled(false);
         preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -238,9 +259,7 @@ public class ProfileEditActivity extends BaseActivity {
                     preferredMode.setSelection(1);
                     return;
                 }
-                boolean independent = position == 1 && !preferredLocked();
-                gcmBinder.setRelayEnabled(independent);
-                xtunnelBinder.setRelayEnabled(independent);
+                updateRelayEnabled();
                 if (preferredLoaded) showPreferredSummary();
             }
 
@@ -262,6 +281,7 @@ public class ProfileEditActivity extends BaseActivity {
                         preferredDraftDirty = true;
                         refreshPreferredConflict(getSelectedProtocol());
                         preferredMode.setSelection(0);
+                        updateRelayEnabled();
                         showPreferredSummary();
                     } catch (JSONException error) {
                         Toast.makeText(this, R.string.error_xt_advanced_invalid, Toast.LENGTH_LONG).show();
@@ -278,9 +298,8 @@ public class ProfileEditActivity extends BaseActivity {
             summary.setText(R.string.preferred_conflict);
             return;
         }
-        int pos = preferredMode != null ? preferredMode.getSelectedItemPosition() : 0;
-        String mode = PREFERRED_MODES[Math.max(0, pos)];
-        boolean dirty = preferredOriginalMode != null && !mode.equals(preferredOriginalMode);
+        String mode = getSelectedPreferredMode();
+        boolean dirty = preferredDraftDirty || (preferredOriginalMode != null && !mode.equals(preferredOriginalMode));
         String text;
         if ("global".equals(mode)) {
             if (preferredGlobalEnabled && preferredGlobalCount > 0) {
@@ -314,7 +333,7 @@ public class ProfileEditActivity extends BaseActivity {
                     preferredGlobalEnabled = globalEnabled;
                     preferredGlobalCount = globalCount;
                     if (refresh && preferredOriginalMode != null && (preferredDraftDirty
-                            || !PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode))) {
+                            || !getSelectedPreferredMode().equals(preferredOriginalMode))) {
                         return;
                     }
                     refreshPreferredConflict(getSelectedProtocol());
@@ -325,6 +344,7 @@ public class ProfileEditActivity extends BaseActivity {
                             preferredMode.setSelection(i);
                         }
                     }
+                    updateRelayEnabled();
                     restoredPreferredMode = null;
                     preferredOriginalMode = preferredConflict ? "independent" : mode;
                     JSONObject profileModes = pool.optJSONObject("profile_modes");
@@ -342,6 +362,7 @@ public class ProfileEditActivity extends BaseActivity {
                 });
             } catch (Exception error) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     TextView summary = findViewById(R.id.preferred_mode_summary);
                     if (summary != null) summary.setText("优选库读取失败：" + error.getMessage());
                 });
@@ -361,7 +382,7 @@ public class ProfileEditActivity extends BaseActivity {
     @Override
     protected void onSaveInstanceState(Bundle out) {
         if (preferredMode != null && preferredLoaded) {
-            out.putString("preferred_mode_draft", PREFERRED_MODES[preferredMode.getSelectedItemPosition()]);
+            out.putString("preferred_mode_draft", getSelectedPreferredMode());
         }
         out.putBoolean("preferred_dirty_draft", preferredDraftDirty);
         out.putBoolean("preferred_imported_addresses", preferredImportedAddresses);
@@ -387,6 +408,7 @@ public class ProfileEditActivity extends BaseActivity {
         if (preferredConflict && preferredMode != null) {
             preferredMode.setSelection(1);
         }
+        updateRelayEnabled();
         View clearBtn = findViewById(R.id.preferred_clear_conflict);
         if (clearBtn != null) {
             clearBtn.setVisibility(hasRelay && !preferredLocked() ? View.VISIBLE : View.GONE);
@@ -413,13 +435,10 @@ public class ProfileEditActivity extends BaseActivity {
         if (!preferredLoaded) return;
         if (savePrefs()) {
             hasBeenSaved = true;
-            int pos = preferredMode != null ? preferredMode.getSelectedItemPosition() : 0;
-            if (pos < 0 || pos >= PREFERRED_MODES.length) {
-                pos = 0;
-            }
-            String mode = PREFERRED_MODES[pos];
+            String mode = getSelectedPreferredMode();
             boolean saveMode = preferredDraftDirty || !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
             btn_save.setEnabled(false);
+            btn_import.setEnabled(false);
             preferredWorker.execute(() -> {
                 try {
                     if (saveMode) PreferredIpStore.setMode(this, profileId, mode);
@@ -432,6 +451,7 @@ public class ProfileEditActivity extends BaseActivity {
                     runOnUiThread(() -> {
                         if (isFinishing() || isDestroyed()) return;
                         btn_save.setEnabled(true);
+                        btn_import.setEnabled(true);
                         new MaterialAlertDialogBuilder(this)
                                 .setMessage("节点已保存，但优选模式写入失败：" + error.getMessage())
                                 .setPositiveButton(R.string.ok, null).show();
@@ -453,7 +473,7 @@ public class ProfileEditActivity extends BaseActivity {
         }
 
         String protocol = getSelectedProtocol();
-        boolean saveRelay = preferredImportedAddresses || (preferredMode != null && preferredMode.getSelectedItemPosition() == 1);
+        boolean saveRelay = preferredImportedAddresses || (getPreferredModePosition() == 1);
 
         Preferences profilePrefs = this.prefs.forProfile(profileId);
 
@@ -596,12 +616,13 @@ public class ProfileEditActivity extends BaseActivity {
         }
 
         boolean implicitImport = preferredInitialImplicit && !preferredDraftDirty
-                && PREFERRED_MODES[preferredMode.getSelectedItemPosition()].equals(preferredOriginalMode);
+                && getSelectedPreferredMode().equals(preferredOriginalMode);
         preferredImportedAddresses = true;
         if (!implicitImport) {
             preferredDraftDirty = true;
             preferredMode.setSelection(1);
         }
+        updateRelayEnabled();
 
         if (isXtunnel) {
             setProtocolSelection(Preferences.PROTOCOL_X_TUNNEL);

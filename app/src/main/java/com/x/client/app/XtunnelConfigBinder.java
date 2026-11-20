@@ -112,6 +112,7 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         // 高级参数折叠逻辑
         xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + " ▸");
         xtAdvancedHeader.setOnClickListener(v -> {
+            if (!v.isEnabled()) return;
             boolean visible = xtAdvancedContainer.getVisibility() == View.VISIBLE;
             xtAdvancedContainer.setVisibility(visible ? View.GONE : View.VISIBLE);
             xtAdvancedHeader.setText(activity.getString(R.string.xt_advanced_params) + (visible ? " ▸" : " ▾"));
@@ -295,6 +296,9 @@ public class XtunnelConfigBinder implements ProtocolConfigBinder {
         }
         checkXtEnableHotPair.setEnabled(enabled);
         FormUtils.setFieldEnabled(editXtHotPairCount, enabled && checkXtEnableHotPair.isChecked());
+        if (xtAdvancedHeader != null) {
+            xtAdvancedHeader.setEnabled(enabled);
+        }
 
         FormUtils.setFieldEnabled(editXtAdvBackpressure, enabled);
         FormUtils.setFieldEnabled(editXtAdvWriteQueueWait, enabled);
