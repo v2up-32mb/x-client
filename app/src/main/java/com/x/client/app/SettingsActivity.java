@@ -107,6 +107,12 @@ public class SettingsActivity extends BaseActivity {
             Preferences.PALETTE_SHIELD
     };
 
+    private static final int[] PALETTE_LABEL_RES = {
+            R.string.theme_palette_aurora,
+            R.string.theme_palette_titanium,
+            R.string.theme_palette_shield
+    };
+
     private static final int[][] PALETTE_SWATCH_RES = {
             {R.color.x_primary, R.color.x_primary_container, R.color.md_success, R.color.x_surface_container},
             {R.color.ti_primary, R.color.ti_primary_container, R.color.ti_md_success, R.color.ti_x_surface_container},
@@ -620,7 +626,7 @@ public class SettingsActivity extends BaseActivity {
                 buttonApps,
                 checkboxBypassPrivate,
                 checkboxBypassGeoIpCn,
-                checkboxBypassGeositeCn,
+                checkboxBypassGeoSiteCn,
                 checkboxEnableDnsWarmup,
                 checkboxLatencyForceProxy,
                 rowAboutGithub,
