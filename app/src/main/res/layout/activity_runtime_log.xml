@@ -3,94 +3,171 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
+    android:background="?attr/xSurface"
     android:orientation="vertical">
 
-    <LinearLayout
+    <!-- Top Bar: MaterialToolbar with Dynamic Title & Subtitle -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.XClient.Toolbar"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingEnd="@dimen/spacing_md">
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/xSurface"
+        app:navigationContentDescription="@string/back"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="?attr/xOnSurface"
+        app:title="@string/runtime_logs_title"
+        app:titleTextColor="?attr/xOnSurface"
+        app:subtitle="@string/runtime_logs_loading"
+        app:subtitleTextColor="?attr/xOnSurfaceVariant" />
 
-        <ImageButton
-            android:id="@+id/btn_log_back"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="@string/back"
-            android:padding="@dimen/spacing_md"
-            android:src="@drawable/ic_arrow_back"
-            app:tint="?attr/colorOnSurface" />
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/runtime_logs_title"
-            android:textAppearance="?attr/textAppearanceTitleLarge"
-            android:textColor="?attr/colorOnSurface" />
-
-        <TextView
-            android:id="@+id/text_log_status"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/runtime_logs_loading"
-            android:textAppearance="?attr/textAppearanceBodyMedium"
-            android:textColor="?attr/colorOnSurfaceVariant" />
-    </LinearLayout>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="?attr/colorOutlineVariant" />
-
+    <!-- Control Bar Container -->
     <LinearLayout
+        android:id="@+id/layout_log_controls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingHorizontal="@dimen/spacing_md"
-        android:paddingVertical="@dimen/spacing_sm">
+        android:paddingTop="@dimen/spacing_xs"
+        android:paddingBottom="@dimen/spacing_xs">
 
-        <Button
-            android:id="@+id/btn_log_refresh"
-            style="@style/Widget.XClient.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginEnd="@dimen/spacing_xs"
-            android:layout_weight="1"
-            android:text="@string/runtime_logs_refresh" />
-
-        <Button
-            android:id="@+id/btn_log_copy"
-            style="@style/Widget.XClient.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_marginStart="@dimen/spacing_xs"
-            android:layout_weight="1"
-            android:text="@string/runtime_logs_copy" />
-    </LinearLayout>
-
-    <ScrollView
-        android:id="@+id/scroll_runtime_logs"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_margin="@dimen/spacing_md"
-        android:layout_weight="1"
-        android:background="?attr/colorSurfaceContainerLowest"
-        android:fillViewport="true"
-        android:scrollbars="vertical">
-
-        <TextView
-            android:id="@+id/text_runtime_logs"
+        <!-- Row 1: Action Buttons Triad -->
+        <LinearLayout
+            android:id="@+id/layout_log_actions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="monospace"
-            android:padding="@dimen/spacing_md"
-            android:text="@string/runtime_logs_loading"
-            android:textColor="?attr/colorOnSurface"
-            android:textIsSelectable="true"
-            android:textSize="12sp" />
-    </ScrollView>
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_log_refresh"
+                style="@style/Widget.XClient.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="@dimen/spacing_xs"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/runtime_logs_refresh"
+                android:textColor="?attr/xPrimary"
+                app:icon="@drawable/ic_refresh"
+                app:iconGravity="textStart"
+                app:iconSize="18dp"
+                app:iconTint="?attr/xPrimary"
+                app:strokeColor="?attr/xOutlineVariant"
+                android:nextFocusRight="@+id/btn_log_copy"
+                android:nextFocusDown="@+id/chip_filter_all" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_log_copy"
+                style="@style/Widget.XClient.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:layout_marginEnd="@dimen/spacing_xs"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/runtime_logs_copy"
+                android:textColor="?attr/xPrimary"
+                app:icon="@drawable/ic_action_copy"
+                app:iconGravity="textStart"
+                app:iconSize="18dp"
+                app:iconTint="?attr/xPrimary"
+                app:strokeColor="?attr/xOutlineVariant"
+                android:nextFocusLeft="@+id/btn_log_refresh"
+                android:nextFocusRight="@+id/btn_log_clear"
+                android:nextFocusDown="@+id/chip_filter_all" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_log_clear"
+                style="@style/Widget.XClient.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="@dimen/spacing_xs"
+                android:minHeight="@dimen/touch_target_min"
+                android:text="@string/runtime_logs_clear"
+                android:textColor="?attr/xError"
+                app:icon="@drawable/ic_delete"
+                app:iconGravity="textStart"
+                app:iconSize="18dp"
+                app:iconTint="?attr/xError"
+                app:strokeColor="?attr/xOutlineVariant"
+                android:nextFocusLeft="@+id/btn_log_copy"
+                android:nextFocusDown="@+id/chip_filter_warn_error" />
+        </LinearLayout>
+
+        <!-- Row 2: Filter ChipGroup -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_filter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_xs"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_filter_all"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="@string/runtime_logs_filter_all"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:nextFocusUp="@+id/btn_log_refresh"
+                android:nextFocusRight="@+id/chip_filter_warn_error"
+                android:nextFocusDown="@+id/scroll_runtime_logs" />
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chip_filter_warn_error"
+                style="@style/Widget.Material3.Chip.Filter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/runtime_logs_filter_warn_error"
+                android:textAppearance="?attr/textAppearanceLabelMedium"
+                android:nextFocusUp="@+id/btn_log_clear"
+                android:nextFocusLeft="@+id/chip_filter_all"
+                android:nextFocusDown="@+id/scroll_runtime_logs" />
+        </com.google.android.material.chip.ChipGroup>
+    </LinearLayout>
+
+    <!-- Log Window: M3 Card Container (16dp rounded corners, 1dp stroke, xSurfaceContainerLowest) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/card_log_container"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/spacing_md"
+        android:layout_marginEnd="@dimen/spacing_md"
+        android:layout_marginTop="@dimen/spacing_xs"
+        android:layout_marginBottom="@dimen/spacing_md"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp"
+        app:strokeWidth="1dp"
+        app:strokeColor="?attr/xOutlineVariant"
+        app:cardBackgroundColor="?attr/xSurfaceContainerLowest">
+
+        <ScrollView
+            android:id="@+id/scroll_runtime_logs"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:scrollbars="vertical"
+            android:fadeScrollbars="false"
+            android:focusable="true"
+            android:focusableInTouchMode="false"
+            android:nextFocusUp="@+id/chip_filter_all">
+
+            <TextView
+                android:id="@+id/text_runtime_logs"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:padding="@dimen/spacing_md"
+                android:text="@string/runtime_logs_loading"
+                android:textColor="?attr/xOnSurface"
+                android:textIsSelectable="true"
+                android:textSize="12sp"
+                android:lineSpacingExtra="2dp" />
+        </ScrollView>
+    </com.google.android.material.card.MaterialCardView>
 
 </LinearLayout>
