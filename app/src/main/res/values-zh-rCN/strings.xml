@@ -205,7 +205,20 @@
     <string name="settings_vpn_running_toast">VPN 正在运行，无法修改全局设置</string>
     <string name="settings_error_port_format">端口号格式错误</string>
     <string name="settings_error_port_min">端口号必须 ≥ 1024</string>
+    <string name="settings_error_port_range">端口号必须在 1024-65535 之间</string>
     <string name="settings_error_bypass_rules">绕过规则格式错误：%1$s</string>
+    <string name="settings_section_general_desc">语言偏好、代理端口、日志与连接辅助参数</string>
+    <string name="settings_section_bypass_desc">分流规则、分应用代理与自定义绕过名单</string>
+    <string name="settings_section_appearance_desc">主题明暗模式与调色板配色预览</string>
+    <string name="settings_section_about">关于与版本信息</string>
+    <string name="settings_about_desc">客户端架构与开源许可</string>
+    <string name="settings_about_app_desc">Android 多协议加密网络代理客户端</string>
+    <string name="settings_about_core_engine">核心引擎架构</string>
+    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
+    <string name="settings_about_engine_ready">引擎就绪</string>
+    <string name="settings_about_github">GitHub 开源仓库</string>
+    <string name="settings_about_github_copied">项目仓库链接已复制到剪贴板</string>
+    <string name="settings_about_license">Apache 2.0 / MIT License</string>
 
     <!-- ===== Per-App Proxy ===== -->
     <string name="app_selected_count">已选 %1$d 个应用</string>

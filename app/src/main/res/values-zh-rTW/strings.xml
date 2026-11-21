@@ -209,7 +209,20 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_vpn_running_toast">VPN 正在執行，無法修改全域設定</string>
     <string name="settings_error_port_format">連接埠格式錯誤</string>
     <string name="settings_error_port_min">連接埠必須 ≥ 1024</string>
+    <string name="settings_error_port_range">連接埠必須在 1024-65535 之間</string>
     <string name="settings_error_bypass_rules">分流規則格式錯誤：%1$s</string>
+    <string name="settings_section_general_desc">語言偏好、代理埠、日誌與連線輔助參數</string>
+    <string name="settings_section_bypass_desc">分流規則、分應用代理與自訂繞過名單</string>
+    <string name="settings_section_appearance_desc">主題明暗模式與調色盤配色預覽</string>
+    <string name="settings_section_about">關於與版本資訊</string>
+    <string name="settings_about_desc">客戶端架構與開源授權</string>
+    <string name="settings_about_app_desc">Android 多協議加密網路代理客戶端</string>
+    <string name="settings_about_core_engine">核心引擎架構</string>
+    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
+    <string name="settings_about_engine_ready">引擎就緒</string>
+    <string name="settings_about_github">GitHub 開源倉庫</string>
+    <string name="settings_about_github_copied">專案倉庫連結已複製到剪貼簿</string>
+    <string name="settings_about_license">Apache 2.0 / MIT License</string>
 
     <!-- ===== Per-App Proxy ===== -->
     <string name="app_selected_count">已選 %1$d 個應用程式</string>

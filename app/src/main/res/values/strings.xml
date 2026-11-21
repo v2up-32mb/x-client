@@ -209,7 +209,20 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_vpn_running_toast">VPN is running, cannot modify global settings</string>
     <string name="settings_error_port_format">Invalid port format</string>
     <string name="settings_error_port_min">Port must be ≥ 1024</string>
+    <string name="settings_error_port_range">Port must be between 1024 and 65535</string>
     <string name="settings_error_bypass_rules">Invalid bypass rules format: %1$s</string>
+    <string name="settings_section_general_desc">Language, local port, logging, and display options</string>
+    <string name="settings_section_bypass_desc">Routing rules, per-app proxy, and custom lists</string>
+    <string name="settings_section_appearance_desc">Theme mode and color palette preview</string>
+    <string name="settings_section_about">About &amp; Version</string>
+    <string name="settings_about_desc">Client architecture and open-source license</string>
+    <string name="settings_about_app_desc">Android Multi-Protocol Proxy Client</string>
+    <string name="settings_about_core_engine">Core Engine Architecture</string>
+    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
+    <string name="settings_about_engine_ready">Engine Ready</string>
+    <string name="settings_about_github">GitHub Repository</string>
+    <string name="settings_about_github_copied">Repository link copied to clipboard</string>
+    <string name="settings_about_license">Apache 2.0 / MIT License</string>
 
     <!-- ===== Per-App Proxy ===== -->
     <string name="app_selected_count">%1$d apps selected</string>

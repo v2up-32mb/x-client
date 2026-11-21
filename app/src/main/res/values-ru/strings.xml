@@ -209,7 +209,20 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_vpn_running_toast">VPN запущен, изменение глобальных настроек невозможно</string>
     <string name="settings_error_port_format">Неверный формат номера порта</string>
     <string name="settings_error_port_min">Номер порта должен быть ≥ 1024</string>
+    <string name="settings_error_port_range">Порт должен быть в диапазоне от 1024 до 65535</string>
     <string name="settings_error_bypass_rules">Ошибка в правилах обхода: %1$s</string>
+    <string name="settings_section_general_desc">Язык, локальный порт, логи и вспомогательные параметры</string>
+    <string name="settings_section_bypass_desc">Правила маршрутизации, раздельное туннелирование и списки</string>
+    <string name="settings_section_appearance_desc">Режим темы и предварительный просмотр палитры</string>
+    <string name="settings_section_about">О приложении и версии</string>
+    <string name="settings_about_desc">Архитектура клиента и открытая лицензия</string>
+    <string name="settings_about_app_desc">Многопротокольный прокси-клиент для Android</string>
+    <string name="settings_about_core_engine">Архитектура ядра</string>
+    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
+    <string name="settings_about_engine_ready">Ядро готово</string>
+    <string name="settings_about_github">Репозиторий GitHub</string>
+    <string name="settings_about_github_copied">Ссылка на репозиторий скопирована</string>
+    <string name="settings_about_license">Лицензия Apache 2.0 / MIT</string>
 
     <!-- ===== Per-App Proxy ===== -->
     <string name="app_selected_count">Выбрано: %1$d</string>

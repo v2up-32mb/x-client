@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    全局设置（C7 Settings 重构）：
-    - M3 Toolbar（返回导航）替代屏内自绘标题
-    - AOSP 分组（research-ux B8）：组头 LabelLarge/colorOnSurfaceVariant，
-      组间 spacing_xl、组内 spacing_sm；分组：通用 / 网络 / 代理绕过 / ECH 与 DNS
-    - 每项尽量补当前值 summary（loadSettings 时填充）；
-      需重启 VPN 生效的分组尾部有生效条件提示，实时生效项不受限
-    - 分应用代理入口 = 整行可点（colorSurfaceContainerHigh 底 + chevron，≥48dp）
-    - 校验 inline 反馈（TextInputLayout.setError），Toast 保留，语义不变
+    全局设置（Material 3 规范与语义 Token 重构）：
+    - M3 Toolbar（返回导航）与沉浸式背景
+    - 4 个标准 M3 Outlined Card 分组（16dp 圆角，1dp xOutlineVariant 描边，xSurfaceContainerLow 容器底色）：
+      1. 常规基础设置 (card_general)
+      2. 路由绕过规则 (card_bypass)
+      3. 调色板主题切换预览 (card_palette)
+      4. 关于与版本信息 (card_about)
+    - 100% 语义 Token（?attr/x*），严格禁止硬编码色值与旧版 generic ?attr/color*
+    - Android TV 遥控器 D-pad 友好：Spinner 使用 bg_spinner_field 包裹，CheckBox 使用 bg_interactive_item，多行文本防卡死，TV overscan 安全边距
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -22,547 +23,1155 @@
         android:layout_height="?attr/actionBarSize"
         app:navigationContentDescription="@string/back"
         app:navigationIcon="@drawable/ic_arrow_back"
-        app:navigationIconTint="?attr/colorOnSurface" />
+        app:navigationIconTint="?attr/xOnSurface" />
 
     <ScrollView
+        android:id="@+id/settings_scroll_view"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
 
         <LinearLayout
+            android:id="@+id/settings_scroll_content"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:paddingStart="@dimen/spacing_lg"
-            android:paddingTop="@dimen/spacing_lg"
+            android:paddingTop="@dimen/spacing_md"
             android:paddingEnd="@dimen/spacing_lg"
-            android:paddingBottom="@dimen/spacing_xl">
+            android:paddingBottom="@dimen/spacing_xxl">
 
-            <!-- ===== 通用（界面显示，实时生效） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/settings_section_general"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
+            <!-- ==================== Card 1: 常规基础设置 ==================== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_general"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:focusable="false"
+                app:cardBackgroundColor="?attr/xSurfaceContainerLow"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/xOutlineVariant"
+                app:strokeWidth="1dp">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/settings_language_label"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurface" />
-
-                <Spinner
-                    android:id="@+id/spinner_language"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/touch_target_min" />
-
-                <TextView
-                    android:id="@+id/text_language_summary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="@dimen/spacing_sm"
-                    android:textAppearance="?attr/textAppearanceBodySmall"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-
-                <CheckBox
-                    android:id="@+id/checkbox_show_server_addr"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/show_server_addr" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/show_server_addr_hint"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
-
-            <!-- ===== 外观（明暗模式 + 色彩方案，实时生效，不受 VPN 运行限制） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
-                android:text="@string/settings_section_appearance"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
-                android:id="@+id/group_appearance"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/theme_mode_label"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurface" />
-
-                <Spinner
-                    android:id="@+id/spinner_theme_mode"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min" />
-
-                <!-- 当前明暗模式 summary（loadSettings 时填充） -->
-                <TextView
-                    android:id="@+id/text_theme_mode_summary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-
-                <!-- 色彩方案入口行：整行可点，右侧当前配色实时色卡 + chevron -->
                 <LinearLayout
-                    android:id="@+id/button_palette"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:background="?attr/colorSurfaceContainerHigh"
-                    android:baselineAligned="false"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:orientation="horizontal"
-                    android:paddingStart="@dimen/spacing_lg"
-                    android:paddingTop="@dimen/spacing_md"
-                    android:paddingEnd="@dimen/spacing_lg"
-                    android:paddingBottom="@dimen/spacing_md">
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg">
 
+                    <!-- 卡片标题与副标题 -->
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="@dimen/spacing_sm"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_settings"
+                            app:tint="?attr/xPrimary" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/theme_palette_label"
+                            android:text="@string/settings_section_general"
                             android:textAppearance="?attr/textAppearanceTitleMedium"
-                            android:textColor="?attr/colorOnSurface" />
-
-                        <TextView
-                            android:id="@+id/text_palette_summary"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/spacing_xs"
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant" />
+                            android:textColor="?attr/xPrimary"
+                            android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- 当前配色实时色卡（loadSettings 时按主题属性填充） -->
-                    <LinearLayout
-                        android:id="@+id/palette_preview_swatches"
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/settings_section_general_desc"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 1. 语言选择（实时生效） -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_language_label"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:addStatesFromChildren="true"
+                        android:background="@drawable/bg_spinner_field">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:clickable="false"
+                            android:focusable="false"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant" />
+
+                        <Spinner
+                            android:id="@+id/spinner_language"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:minHeight="@dimen/touch_target_min"
+                            android:paddingStart="@dimen/spacing_md"
+                            android:paddingEnd="44dp" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:id="@+id/text_language_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 2. 显示服务器地址（实时生效） -->
+                    <CheckBox
+                        android:id="@+id/checkbox_show_server_addr"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/show_server_addr"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_sm"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/show_server_addr_hint"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 3. 本地代理端口（需重启 VPN） -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_socks_port"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/settings_socks_port_label"
+                        app:placeholderText="@string/settings_placeholder_socks_port">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edittext_socks_port"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="number"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- 4. 日志记录等级（需重启 VPN） -->
+                    <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="@dimen/spacing_sm"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal" />
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/log_level_label"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
 
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:importantForAccessibility="no"
-                        android:rotation="180"
-                        android:src="@drawable/ic_arrow_back"
-                        app:tint="?attr/colorOnSurfaceVariant" />
-                </LinearLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/settings_appearance_hint"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
-
-            <!-- ===== 网络（端口/全局开关，需重启 VPN 生效） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
-                android:text="@string/settings_section_network"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
-                android:id="@+id/group_network"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
-
-                <CheckBox
-                    android:id="@+id/checkbox_global"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/global" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/settings_global_hint"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_socks_port"
-                    style="@style/Widget.XClient.TextInputLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_sm"
-                    android:hint="@string/settings_socks_port_label"
-                    app:placeholderText="@string/settings_placeholder_socks_port">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edittext_socks_port"
+                    <FrameLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="number"
-                        android:singleLine="true" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:addStatesFromChildren="true"
+                        android:background="@drawable/bg_spinner_field">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/settings_restart_required"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:clickable="false"
+                            android:focusable="false"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant" />
 
-            <!-- ===== 代理绕过（分应用代理入口 + 绕过项，需重启 VPN 生效） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
-                android:text="@string/settings_section_bypass"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                        <Spinner
+                            android:id="@+id/spinner_log_level"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:minHeight="@dimen/touch_target_min"
+                            android:paddingStart="@dimen/spacing_md"
+                            android:paddingEnd="44dp" />
+                    </FrameLayout>
 
-            <LinearLayout
-                android:id="@+id/group_bypass"
+                    <TextView
+                        android:id="@+id/text_log_level_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/log_level_hint"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 5. ECH 与 DNS 设置（需重启 VPN） -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_ech_dns"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="@string/settings_ech_dns_label"
+                        app:placeholderText="@string/settings_placeholder_ech_dns">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edittext_ech_dns"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_ech_domain"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:hint="@string/settings_ech_domain_label"
+                        app:placeholderText="@string/settings_placeholder_ech_domain">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edittext_ech_domain"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <CheckBox
+                        android:id="@+id/checkbox_enable_dns_warmup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_sm"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/enable_dns_warmup"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <!-- 6. 代理延迟测试（实时生效） -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/pref_latency_title"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textColor="?attr/xOnSurface"
+                        android:textStyle="bold" />
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_latency_url"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:hint="@string/pref_latency_url"
+                        app:placeholderText="@string/pref_latency_url_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edit_latency_url"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textUri"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/pref_latency_interval"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:addStatesFromChildren="true"
+                        android:background="@drawable/bg_spinner_field">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:clickable="false"
+                            android:focusable="false"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant" />
+
+                        <Spinner
+                            android:id="@+id/spinner_latency_interval"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:minHeight="@dimen/touch_target_min"
+                            android:paddingStart="@dimen/spacing_md"
+                            android:paddingEnd="44dp" />
+                    </FrameLayout>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/pref_latency_timeout"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:addStatesFromChildren="true"
+                        android:background="@drawable/bg_spinner_field">
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:clickable="false"
+                            android:focusable="false"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant" />
+
+                        <Spinner
+                            android:id="@+id/spinner_latency_timeout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:minHeight="@dimen/touch_target_min"
+                            android:paddingStart="@dimen/spacing_md"
+                            android:paddingEnd="44dp" />
+                    </FrameLayout>
+
+                    <!-- VPN 重启提示 -->
+                    <TextView
+                        android:id="@+id/text_general_restart_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/settings_restart_required"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ==================== Card 2: 路由绕过规则 ==================== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_bypass"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:focusable="false"
+                app:cardBackgroundColor="?attr/xSurfaceContainerLow"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/xOutlineVariant"
+                app:strokeWidth="1dp">
 
-                <!-- 分应用代理入口行：整行可点 ≥48dp，右侧当前状态 summary + chevron -->
                 <LinearLayout
-                    android:id="@+id/button_apps"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="?attr/colorSurfaceContainerHigh"
-                    android:baselineAligned="false"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:gravity="center_vertical"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:orientation="horizontal"
-                    android:paddingStart="@dimen/spacing_lg"
-                    android:paddingTop="@dimen/spacing_md"
-                    android:paddingEnd="@dimen/spacing_lg"
-                    android:paddingBottom="@dimen/spacing_md">
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg">
 
+                    <!-- 卡片标题与副标题 -->
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="@dimen/spacing_sm"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_tune"
+                            app:tint="?attr/xPrimary" />
 
                         <TextView
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="@string/apps"
+                            android:text="@string/settings_section_bypass"
                             android:textAppearance="?attr/textAppearanceTitleMedium"
-                            android:textColor="?attr/colorOnSurface" />
-
-                        <TextView
-                            android:id="@+id/text_apps_summary"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="@dimen/spacing_xs"
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant" />
+                            android:textColor="?attr/xPrimary"
+                            android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- chevron：复用返回箭头旋转 180°，避免新增资源 -->
-                    <ImageView
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:importantForAccessibility="no"
-                        android:rotation="180"
-                        android:src="@drawable/ic_arrow_back"
-                        app:tint="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/settings_section_bypass_desc"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 全局代理开关 -->
+                    <CheckBox
+                        android:id="@+id/checkbox_global"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/global"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/spacing_sm"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:text="@string/settings_global_hint"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+
+                    <!-- 分应用代理入口行 -->
+                    <LinearLayout
+                        android:id="@+id/button_apps"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:background="@drawable/bg_interactive_item"
+                        android:baselineAligned="false"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/spacing_md"
+                        android:paddingTop="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_md"
+                        android:paddingBottom="@dimen/spacing_sm">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/apps"
+                                android:textAppearance="?attr/textAppearanceTitleSmall"
+                                android:textColor="?attr/xOnSurface"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/text_apps_summary"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/spacing_xs"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/xOnSurfaceVariant" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="?attr/xOnSurfaceVariant" />
+                    </LinearLayout>
+
+                    <!-- 系统内置分流开关 -->
+                    <CheckBox
+                        android:id="@+id/checkbox_bypass_private"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/bypass_private"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <CheckBox
+                        android:id="@+id/checkbox_bypass_geoip_cn"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/bypass_geoip_cn"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <CheckBox
+                        android:id="@+id/checkbox_bypass_geosite_cn"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/bypass_geosite_cn"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <!-- 延迟测试走代理开关 -->
+                    <CheckBox
+                        android:id="@+id/checkbox_latency_force_proxy"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:background="@drawable/bg_interactive_item"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:text="@string/latency_force_proxy"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
+
+                    <!-- 自定义绕过规则（多行，D-pad 焦点防陷阱） -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_bypass_rules"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:hint="@string/manual_bypass_rules"
+                        app:placeholderText="@string/manual_bypass_rules_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edittext_bypass_rules"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textNoSuggestions"
+                            android:maxLines="10"
+                            android:minLines="3"
+                            android:nextFocusDown="@+id/edittext_force_proxy"
+                            android:scrollbars="vertical" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- 强制代理规则（多行，D-pad 焦点防陷阱） -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/til_force_proxy"
+                        style="@style/Widget.XClient.TextInputLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:hint="@string/force_proxy_rules"
+                        app:placeholderText="@string/force_proxy_rules_hint">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/edittext_force_proxy"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textNoSuggestions"
+                            android:maxLines="6"
+                            android:minLines="2"
+                            android:nextFocusDown="@+id/spinner_theme_mode"
+                            android:scrollbars="vertical" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- VPN 重启提示 -->
+                    <TextView
+                        android:id="@+id/text_bypass_restart_hint"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:text="@string/settings_restart_required"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
                 </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
-                <CheckBox
-                    android:id="@+id/checkbox_bypass_private"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_sm"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/bypass_private" />
-
-                <CheckBox
-                    android:id="@+id/checkbox_bypass_geoip_cn"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/bypass_geoip_cn" />
-
-                <CheckBox
-                    android:id="@+id/checkbox_bypass_geosite_cn"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/bypass_geosite_cn" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_bypass_rules"
-                    style="@style/Widget.XClient.TextInputLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:hint="@string/manual_bypass_rules"
-                    app:placeholderText="@string/manual_bypass_rules_hint">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edittext_bypass_rules"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="top|start"
-                        android:inputType="textMultiLine|textNoSuggestions"
-                        android:maxLines="10"
-                        android:minLines="4"
-                        android:scrollbars="vertical" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_force_proxy"
-                    style="@style/Widget.XClient.TextInputLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:hint="@string/force_proxy_rules"
-                    app:placeholderText="@string/force_proxy_rules_hint">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edittext_force_proxy"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="top|start"
-                        android:inputType="textMultiLine|textNoSuggestions"
-                        android:maxLines="6"
-                        android:minLines="2"
-                        android:scrollbars="vertical" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/settings_restart_required"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
-
-            <!-- ===== ECH 与 DNS（需重启 VPN 生效） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
-                android:text="@string/settings_section_ech_dns"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
-
-            <LinearLayout
-                android:id="@+id/group_ech"
+            <!-- ==================== Card 3: 调色板主题切换预览 ==================== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_palette"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:focusable="false"
+                app:cardBackgroundColor="?attr/xSurfaceContainerLow"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/xOutlineVariant"
+                app:strokeWidth="1dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_ech_dns"
-                    style="@style/Widget.XClient.TextInputLayout"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/settings_ech_dns_label"
-                    app:placeholderText="@string/settings_placeholder_ech_dns">
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edittext_ech_dns"
+                    <!-- 卡片标题与副标题 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:singleLine="true" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_ech_domain"
-                    style="@style/Widget.XClient.TextInputLayout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:hint="@string/settings_ech_domain_label"
-                    app:placeholderText="@string/settings_placeholder_ech_domain">
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="@dimen/spacing_sm"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_shield_hero"
+                            app:tint="?attr/xPrimary" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edittext_ech_domain"
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_section_appearance"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/xPrimary"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:singleLine="true" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/settings_section_appearance_desc"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
 
-                <CheckBox
-                    android:id="@+id/checkbox_enable_dns_warmup"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_sm"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/enable_dns_warmup" />
+                    <!-- 明暗模式 (Theme Mode) -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/theme_mode_label"
+                        android:textAppearance="?attr/textAppearanceBodyMedium"
+                        android:textColor="?attr/xOnSurface" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:text="@string/log_level_label"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurface" />
+                    <FrameLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:addStatesFromChildren="true"
+                        android:background="@drawable/bg_spinner_field">
 
-                <Spinner
-                    android:id="@+id/spinner_log_level"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min" />
+                        <ImageView
+                            android:layout_width="24dp"
+                            android:layout_height="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_marginEnd="@dimen/spacing_md"
+                            android:clickable="false"
+                            android:focusable="false"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_expand_more"
+                            app:tint="?attr/xOnSurfaceVariant" />
 
-                <!-- 当前日志等级 summary（loadSettings 时填充） -->
-                <TextView
-                    android:id="@+id/text_log_level_summary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                        <Spinner
+                            android:id="@+id/spinner_theme_mode"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:minHeight="@dimen/touch_target_min"
+                            android:paddingStart="@dimen/spacing_md"
+                            android:paddingEnd="44dp" />
+                    </FrameLayout>
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/log_level_hint"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/text_theme_mode_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:text="@string/settings_restart_required"
-                    android:textAppearance="?attr/textAppearanceLabelMedium"
-                    android:textColor="?attr/colorOnSurfaceVariant" />
-            </LinearLayout>
+                    <!-- 调色板方案选择预览 -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/theme_palette_label"
+                        android:textAppearance="?attr/textAppearanceTitleSmall"
+                        android:textColor="?attr/xOnSurface"
+                        android:textStyle="bold" />
 
-            <!-- ===== 代理延迟测试（实时生效） ===== -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
-                android:text="@string/pref_latency_title"
-                android:textAppearance="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView
+                        android:id="@+id/text_palette_summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
 
-            <LinearLayout
-                android:id="@+id/group_latency"
+                    <!-- 3 套内联调色板选项卡片 -->
+                    <!-- Option 0: Aurora (赛博极光) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/palette_card_aurora"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="?attr/xSurfaceContainerLowest"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="?attr/xOutlineVariant"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="@dimen/spacing_md">
+
+                            <LinearLayout
+                                android:id="@+id/palette_swatches_aurora"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_md"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_palette_aurora"
+                                    android:textAppearance="?attr/textAppearanceTitleSmall"
+                                    android:textColor="?attr/xOnSurface"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/theme_palette_aurora_desc"
+                                    android:textAppearance="?attr/textAppearanceBodySmall"
+                                    android:textColor="?attr/xOnSurfaceVariant" />
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/badge_palette_aurora"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_marginStart="@dimen/spacing_sm"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_check_circle"
+                                android:visibility="gone"
+                                app:tint="?attr/xPrimary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Option 1: Titanium (钛金极简) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/palette_card_titanium"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="?attr/xSurfaceContainerLowest"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="?attr/xOutlineVariant"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="@dimen/spacing_md">
+
+                            <LinearLayout
+                                android:id="@+id/palette_swatches_titanium"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_md"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_palette_titanium"
+                                    android:textAppearance="?attr/textAppearanceTitleSmall"
+                                    android:textColor="?attr/xOnSurface"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/theme_palette_titanium_desc"
+                                    android:textAppearance="?attr/textAppearanceBodySmall"
+                                    android:textColor="?attr/xOnSurfaceVariant" />
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/badge_palette_titanium"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_marginStart="@dimen/spacing_sm"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_check_circle"
+                                android:visibility="gone"
+                                app:tint="?attr/xPrimary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- Option 2: Shield (瑞士暗盾) -->
+                    <com.google.android.material.card.MaterialCardView
+                        android:id="@+id/palette_card_shield"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="@dimen/spacing_sm"
+                        android:clickable="true"
+                        android:focusable="true"
+                        app:cardBackgroundColor="?attr/xSurfaceContainerLowest"
+                        app:cardCornerRadius="12dp"
+                        app:cardElevation="0dp"
+                        app:strokeColor="?attr/xOutlineVariant"
+                        app:strokeWidth="1dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="@dimen/spacing_md">
+
+                            <LinearLayout
+                                android:id="@+id/palette_swatches_shield"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/spacing_md"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/theme_palette_shield"
+                                    android:textAppearance="?attr/textAppearanceTitleSmall"
+                                    android:textColor="?attr/xOnSurface"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="2dp"
+                                    android:text="@string/theme_palette_shield_desc"
+                                    android:textAppearance="?attr/textAppearanceBodySmall"
+                                    android:textColor="?attr/xOnSurfaceVariant" />
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/badge_palette_shield"
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:layout_marginStart="@dimen/spacing_sm"
+                                android:importantForAccessibility="no"
+                                android:src="@drawable/ic_check_circle"
+                                android:visibility="gone"
+                                app:tint="?attr/xPrimary" />
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <!-- 即时生效提示 -->
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:text="@string/settings_appearance_hint"
+                        android:textAppearance="?attr/textAppearanceLabelMedium"
+                        android:textColor="?attr/xOnSurfaceVariant" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ==================== Card 4: 关于与版本信息 ==================== -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_about"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_sm"
-                android:orientation="vertical">
+                android:layout_marginBottom="@dimen/spacing_lg"
+                android:focusable="false"
+                app:cardBackgroundColor="?attr/xSurfaceContainerLow"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="0dp"
+                app:strokeColor="?attr/xOutlineVariant"
+                app:strokeWidth="1dp">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/til_latency_url"
-                    style="@style/Widget.XClient.TextInputLayout"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="@string/pref_latency_url"
-                    app:placeholderText="@string/pref_latency_url_hint">
+                    android:orientation="vertical"
+                    android:padding="@dimen/spacing_lg">
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/edit_latency_url"
+                    <!-- 卡片标题与副标题 -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:inputType="textUri"
-                        android:singleLine="true" />
-                </com.google.android.material.textfield.TextInputLayout>
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:text="@string/pref_latency_interval"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurface" />
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="@dimen/spacing_sm"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_description"
+                            app:tint="?attr/xPrimary" />
 
-                <Spinner
-                    android:id="@+id/spinner_latency_interval"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/settings_section_about"
+                            android:textAppearance="?attr/textAppearanceTitleMedium"
+                            android:textColor="?attr/xPrimary"
+                            android:textStyle="bold" />
+                    </LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_md"
-                    android:text="@string/pref_latency_timeout"
-                    android:textAppearance="?attr/textAppearanceBodyMedium"
-                    android:textColor="?attr/colorOnSurface" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_xs"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:text="@string/settings_about_desc"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/xOnSurfaceVariant" />
 
-                <Spinner
-                    android:id="@+id/spinner_latency_timeout"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_xs"
-                    android:minHeight="@dimen/touch_target_min" />
+                    <!-- 1. 应用身份行 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:paddingBottom="@dimen/spacing_md">
 
-                <CheckBox
-                    android:id="@+id/checkbox_latency_force_proxy"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="@dimen/spacing_sm"
-                    android:minHeight="@dimen/touch_target_min"
-                    android:text="@string/latency_force_proxy" />
-            </LinearLayout>
+                        <ImageView
+                            android:layout_width="48dp"
+                            android:layout_height="48dp"
+                            android:importantForAccessibility="no"
+                            android:src="@mipmap/ic_launcher" />
 
-            <!-- 保存按钮（M3 填充按钮，主题 colorPrimary） -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="@dimen/spacing_md"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="@string/app_name"
+                                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                                    android:textColor="?attr/xOnSurface"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/text_about_version"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="@dimen/spacing_sm"
+                                    android:background="@drawable/bg_pill_badge"
+                                    android:paddingStart="@dimen/spacing_sm"
+                                    android:paddingTop="@dimen/badge_padding_vertical"
+                                    android:paddingEnd="@dimen/spacing_sm"
+                                    android:paddingBottom="@dimen/badge_padding_vertical"
+                                    android:textAppearance="?attr/textAppearanceLabelMedium"
+                                    android:textColor="?attr/xPrimary"
+                                    android:textStyle="bold" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/settings_about_app_desc"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/xOnSurfaceVariant" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <!-- 分割线 -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginBottom="@dimen/spacing_md"
+                        android:background="?attr/xOutlineVariant" />
+
+                    <!-- 2. 核心引擎与架构信息 -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/settings_about_core_engine"
+                                android:textAppearance="?attr/textAppearanceTitleSmall"
+                                android:textColor="?attr/xOnSurface"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/settings_about_core_info"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/xOnSurfaceVariant" />
+                        </LinearLayout>
+
+                        <!-- 引擎就绪徽章 -->
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_pill_badge"
+                            android:paddingStart="@dimen/spacing_sm"
+                            android:paddingTop="@dimen/badge_padding_vertical"
+                            android:paddingEnd="@dimen/spacing_sm"
+                            android:paddingBottom="@dimen/badge_padding_vertical"
+                            android:text="@string/settings_about_engine_ready"
+                            android:textAppearance="?attr/textAppearanceLabelMedium"
+                            android:textColor="?attr/mdSuccess"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- 3. 开源信息与仓库入口 -->
+                    <LinearLayout
+                        android:id="@+id/row_about_github"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_md"
+                        android:background="@drawable/bg_interactive_item"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:gravity="center_vertical"
+                        android:minHeight="@dimen/touch_target_min"
+                        android:orientation="horizontal"
+                        android:paddingStart="@dimen/spacing_sm"
+                        android:paddingTop="@dimen/spacing_xs"
+                        android:paddingEnd="@dimen/spacing_sm"
+                        android:paddingBottom="@dimen/spacing_xs">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:layout_marginEnd="@dimen/spacing_sm"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_action_copy"
+                            app:tint="?attr/xPrimary" />
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/settings_about_github"
+                                android:textAppearance="?attr/textAppearanceBodyMedium"
+                                android:textColor="?attr/xOnSurface" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="2dp"
+                                android:text="@string/settings_about_license"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/xOnSurfaceVariant" />
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_chevron_right"
+                            app:tint="?attr/xOnSurfaceVariant" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- 保存按钮（M3 填充按钮，主题 xPrimary） -->
             <Button
                 android:id="@+id/btn_save"
                 style="@style/Widget.XClient.Button"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/spacing_xl"
+                android:layout_marginTop="@dimen/spacing_md"
+                android:layout_marginBottom="@dimen/spacing_lg"
                 android:minHeight="@dimen/touch_target_min"
                 android:text="@string/save" />
         </LinearLayout>
