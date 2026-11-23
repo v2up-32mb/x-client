@@ -14,7 +14,6 @@ import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -207,19 +206,10 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
         // TV 遥控器与 D-pad 焦点链导航连接
         fabMain.setFocusable(true);
-        boolean isLandscape = getResources().getConfiguration().orientation
-                == Configuration.ORIENTATION_LANDSCAPE;
-        if (isLandscape) {
-            fabMain.setNextFocusLeftId(R.id.profile_list);
-            fabMain.setNextFocusRightId(R.id.vpn_fab);
-            vpnFab.setNextFocusLeftId(R.id.fab_main);
-            vpnFab.setNextFocusUpId(R.id.profile_list);
-        } else {
-            fabMain.setNextFocusDownId(R.id.vpn_fab);
-            fabMain.setNextFocusLeftId(R.id.profile_list);
-            vpnFab.setNextFocusUpId(R.id.fab_main);
-            vpnFab.setNextFocusLeftId(R.id.profile_list);
-        }
+        fabMain.setNextFocusDownId(R.id.vpn_fab);
+        fabMain.setNextFocusLeftId(R.id.profile_list);
+        vpnFab.setNextFocusUpId(R.id.fab_main);
+        vpnFab.setNextFocusLeftId(R.id.profile_list);
         fabMain.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 v.animate().scaleX(1.1f).scaleY(1.1f).translationZ(8f).setDuration(120).start();
