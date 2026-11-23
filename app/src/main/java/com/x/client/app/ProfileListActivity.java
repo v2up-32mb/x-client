@@ -173,29 +173,11 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         adapter = new ProfileAdapter(this, prefs, spanCount);
         recyclerView.setAdapter(adapter);
 
-        // 添加触摸监听器，点击空白处关闭打开的项
-        recyclerView.addOnItemTouchListener(new RecyclerView.SimpleOnItemTouchListener() {
-            @Override
-            public boolean onInterceptTouchEvent(RecyclerView rv, android.view.MotionEvent e) {
-                if (e.getAction() == android.view.MotionEvent.ACTION_DOWN) {
-                    // 检查是否点击在任何 item 之外
-                    View child = rv.findChildViewUnder(e.getX(), e.getY());
-                    if (child == null) {
-                        // 点击在空白处，关闭所有打开的项
-                        adapter.closeAllItems();
-                        return true; // 拦截事件
-                    }
-                }
-                return false; // 不拦截，让 item 处理点击
-            }
-        });
-
-        // 添加滚动监听器，滚动时关闭打开的项（含 VPN FAB 展开卡，与“一滚全收起”心智一致，review §2.2）
+        // 添加滚动监听器，滚动时收起 VPN FAB 展开卡（review §2.2）
         recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             @Override
             public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_DRAGGING) {
-                    adapter.closeAllItems();
                     vpnFab.collapse();
                 }
             }
@@ -636,37 +618,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         return null;
     }
 
-    @Override
-    public void onShareClick(String profileId) {
-        // 分享配置
-        exportProfile(profileId);
-    }
-
-    @Override
-    public void onCopyClick(String profileId) {
-        // 复制配置：弹出名称输入框，确定后以新 UUID 创建相同配置；取消则不创建
-        copyProfile(profileId);
-    }
-
-    @Override
-    public void onEditClick(String profileId) {
-        if (profileMutation) return;
-        // 编辑配置
-        editProfile(profileId);
-    }
-
-    @Override
-    public void onDeleteClick(String profileId) {
-        // 删除配置
-        deleteProfile(profileId);
-    }
-
-    @Override
-    public void onBackPressed() {
-        // 关闭所有打开的项
-        adapter.closeAllItems();
-        super.onBackPressed();
-    }
 
     private void showProfileMenu(View anchor, String profileId, Preferences.ProfileInfo profile) {
         if (profileId == null) return;

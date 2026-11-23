@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    Profile 列表项（Material 3 悬浮卡片 + 滑动操作）：
+    Profile 列表项（Material 3 悬浮卡片）：
     - 卡片形态：高 72dp，外边距 16dp 侧边距 + 4dp 垂直边距（卡片间 8dp 网格节奏）
     - 独立圆角矩形，废弃老旧平铺 1px 分界线
     - 协议标签采用 M3 药丸形状徽章，结构清晰自然
 -->
-<com.x.client.app.SwipeRevealLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/swipe_layout"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
@@ -114,61 +113,4 @@
 
     </LinearLayout>
 
-    <!-- Overlay Layer: Action Buttons (显示在前景层上方) -->
-    <LinearLayout
-        android:id="@+id/action_buttons"
-        android:layout_width="wrap_content"
-        android:layout_height="72dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="4dp"
-        android:layout_marginEnd="@dimen/spacing_md"
-        android:layout_gravity="end|top"
-        android:orientation="horizontal"
-        android:visibility="gone">
-
-        <ImageButton
-            android:id="@+id/btn_share"
-            android:layout_width="56dp"
-            android:layout_height="72dp"
-            android:src="@android:drawable/ic_menu_share"
-            android:background="?attr/colorTertiaryContainer"
-            app:tint="?attr/colorOnTertiaryContainer"
-            android:scaleType="centerInside"
-            android:padding="@dimen/spacing_md"
-            android:contentDescription="@string/acc_share" />
-
-        <ImageButton
-            android:id="@+id/btn_copy"
-            android:layout_width="56dp"
-            android:layout_height="72dp"
-            android:src="@drawable/ic_action_copy"
-            android:background="?attr/colorSurfaceContainerHigh"
-            app:tint="?attr/colorOnSurface"
-            android:scaleType="centerInside"
-            android:padding="@dimen/spacing_md"
-            android:contentDescription="@string/acc_copy" />
-
-        <ImageButton
-            android:id="@+id/btn_edit"
-            android:layout_width="56dp"
-            android:layout_height="72dp"
-            android:src="@android:drawable/ic_menu_edit"
-            android:background="?attr/xEditContainer"
-            app:tint="?attr/xOnEditContainer"
-            android:scaleType="centerInside"
-            android:padding="@dimen/spacing_md"
-            android:contentDescription="@string/acc_edit" />
-
-        <ImageButton
-            android:id="@+id/btn_delete"
-            android:layout_width="56dp"
-            android:layout_height="72dp"
-            android:src="@drawable/ic_delete"
-            android:background="@drawable/bg_action_delete"
-            app:tint="?attr/colorOnError"
-            android:scaleType="centerInside"
-            android:padding="@dimen/spacing_md"
-            android:contentDescription="@string/acc_delete" />
-    </LinearLayout>
-
-</com.x.client.app.SwipeRevealLayout>
+</FrameLayout>
