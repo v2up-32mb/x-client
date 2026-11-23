@@ -178,7 +178,6 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         // 设置协议类型标签（大写微徽章）
         String protocolLabel = Preferences.PROTOCOL_X_TUNNEL.equals(profile.protocol) ? "X-TUNNEL" : "GCM";
         holder.textProtocol.setText(protocolLabel);
-        float density = holder.itemView.getResources().getDisplayMetrics().density;
         GradientDrawable badgeBg = new GradientDrawable();
         badgeBg.setShape(GradientDrawable.RECTANGLE);
         badgeBg.setCornerRadius(6f * density);
