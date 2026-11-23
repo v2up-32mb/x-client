@@ -47,7 +47,7 @@ X Client is a high-performance multi-protocol VPN client designed for Android. E
 - **Material 3 Design & UI**:
   - 3 custom color palettes: Cyber Aurora, Titanium Minimal, and Swiss Dark Shield;
   - 5-state dynamic floating action button (Connection FAB) with expandable status cards and marquee detail display;
-  - Swipe reveal action menus for profiles (Pin / Edit / Share / Copy / Delete) and contextual empty state prompts.
+  - Profile secondary action menus (Toggle / Edit / Share / Copy / Delete) and contextual empty state prompts.
 - **Diagnostics & Runtime Logs**:
   - In-memory ring buffer with timestamps synchronized to the Android system timezone;
   - 4 verbosity levels (Debug, Info, Warn, Error) with one-tap clipboard export.
