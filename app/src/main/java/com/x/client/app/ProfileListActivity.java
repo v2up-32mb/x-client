@@ -597,6 +597,12 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     @Override
+    public void onProfileMenuClick(View anchor, String profileId, Preferences.ProfileInfo profile) {
+        if (profileMutation) return;
+        showProfileMenu(anchor, profileId, profile);
+    }
+
+    @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             View focused = getCurrentFocus();

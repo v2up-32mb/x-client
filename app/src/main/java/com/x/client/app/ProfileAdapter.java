@@ -33,6 +33,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     public interface OnProfileActionListener {
         void onProfileClick(String profileId);
         void onProfileLongClick(View anchor, String profileId, Preferences.ProfileInfo profile);
+        void onProfileMenuClick(View anchor, String profileId, Preferences.ProfileInfo profile);
         void onShareClick(String profileId);
         void onCopyClick(String profileId);
         void onEditClick(String profileId);
@@ -128,6 +129,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             lp.rightMargin = rightMargin;
             holder.foregroundLayout.setLayoutParams(lp);
         }
+        ViewGroup.MarginLayoutParams actionLp = (ViewGroup.MarginLayoutParams) holder.actionButtons.getLayoutParams();
+        if (actionLp != null && actionLp.rightMargin != rightMargin) {
+            actionLp.rightMargin = rightMargin;
+            holder.actionButtons.setLayoutParams(actionLp);
+        }
+        holder.actionButtons.setTranslationZ(8f * density);
 
         // 设置 tag 便于在遥控器菜单键响应时找到对应项
         holder.foregroundLayout.setTag(profile.id);
@@ -156,10 +163,10 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             }
         });
 
-        // 长按事件：呼出 TV / 遥控器节点操作菜单（替代手势滑动）
+        // 长按事件：呼出 TV / 遥控器节点操作菜单（以 btnProfileMenu 为锚点紧贴弹出）
         holder.foregroundLayout.setOnLongClickListener(v -> {
             if (listener != null) {
-                listener.onProfileLongClick(v, profile.id, profile);
+                listener.onProfileLongClick(holder.btnProfileMenu, profile.id, profile);
                 return true;
             }
             return false;
@@ -230,6 +237,18 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
                 if (listener != null) {
                     listener.onProfileClick(profile.id);
                 }
+            }
+        });
+
+        // 右侧操作菜单按钮
+        holder.btnProfileMenu.setOnClickListener(v -> {
+            if (currentlyOpenedLayout != null) {
+                SwipeRevealLayout toClose = currentlyOpenedLayout;
+                currentlyOpenedLayout = null;
+                toClose.close(true);
+            }
+            if (listener != null) {
+                listener.onProfileMenuClick(v, profile.id, profile);
             }
         });
 
@@ -321,10 +340,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     static class ViewHolder extends RecyclerView.ViewHolder {
         SwipeRevealLayout swipeLayout;
         View foregroundLayout;
+        View actionButtons;
         RadioButton radioSelected;
         TextView textProfileName;
         TextView textServerAddr;
         TextView textProtocol;
+        ImageButton btnProfileMenu;
         ImageButton btnShare;
         ImageButton btnCopy;
         ImageButton btnEdit;
@@ -334,10 +355,12 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
             super(itemView);
             swipeLayout = (SwipeRevealLayout) itemView;
             foregroundLayout = itemView.findViewById(R.id.foreground_layout);
+            actionButtons = itemView.findViewById(R.id.action_buttons);
             radioSelected = itemView.findViewById(R.id.radio_selected);
             textProfileName = itemView.findViewById(R.id.text_profile_name);
             textServerAddr = itemView.findViewById(R.id.text_server_addr);
             textProtocol = itemView.findViewById(R.id.text_protocol);
+            btnProfileMenu = itemView.findViewById(R.id.btn_profile_menu);
             btnShare = itemView.findViewById(R.id.btn_share);
             btnCopy = itemView.findViewById(R.id.btn_copy);
             btnEdit = itemView.findViewById(R.id.btn_edit);

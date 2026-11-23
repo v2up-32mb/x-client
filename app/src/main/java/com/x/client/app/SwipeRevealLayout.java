@@ -311,6 +311,7 @@ public class SwipeRevealLayout extends FrameLayout {
 
         // 更新可见性和透明度
         if (currentRevealWidth > 0) {
+            actionButtons.bringToFront();
             actionButtons.setVisibility(View.VISIBLE);
             // currentRevealWidth 越大，按钮越可见
             float alpha = currentRevealWidth / actionWidth;

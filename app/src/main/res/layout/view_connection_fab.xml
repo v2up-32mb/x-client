@@ -110,6 +110,7 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:importantForAccessibility="no"
+                app:tint="?attr/colorOnPrimaryContainer"
                 android:src="@drawable/ic_power" />
 
             <!-- material 的 onMeasure 直接 setMeasuredDimension(preferred) 无视

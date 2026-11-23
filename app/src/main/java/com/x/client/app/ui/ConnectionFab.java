@@ -170,6 +170,8 @@ public class ConnectionFab extends MaterialCardView {
         details.setOnClickListener(v -> {
             if (detailsListener != null) detailsListener.onDetails();
         });
+
+        applyVisuals(state);
     }
 
     // ================================ 对外 API ================================

@@ -99,14 +99,18 @@
 
         </LinearLayout>
 
-        <!-- 右侧展开提示箭头 -->
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
+        <!-- 右侧次级菜单操作按钮 -->
+        <ImageButton
+            android:id="@+id/btn_profile_menu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_marginStart="@dimen/spacing_xs"
-            android:importantForAccessibility="no"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
             android:src="@drawable/ic_chevron_right"
-            app:tint="?attr/colorOutline" />
+            app:tint="?attr/colorOutline"
+            android:contentDescription="@string/profile_menu_title"
+            android:focusable="true" />
 
     </LinearLayout>
 
@@ -160,7 +164,7 @@
             android:layout_width="56dp"
             android:layout_height="72dp"
             android:src="@drawable/ic_delete"
-            android:background="?attr/colorError"
+            android:background="@drawable/bg_action_delete"
             app:tint="?attr/colorOnError"
             android:scaleType="centerInside"
             android:padding="@dimen/spacing_md"
