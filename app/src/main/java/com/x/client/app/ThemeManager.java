@@ -2,6 +2,7 @@ package com.x.client.app;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.res.Configuration;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
@@ -18,9 +19,20 @@ final class ThemeManager {
         applyMode(mode);
     }
 
-    /** 当前调色板对应的主题样式资源（赛博极光 = 默认 Theme.XClient）。 */
+    /** 当前调色板对应的主题样式资源。如果未显式设置，则暗色返回赛博极光，亮色返回钛金极简。 */
     static int themeRes(Context context) {
-        switch (new Preferences(context).getPalette()) {
+        Preferences prefs = new Preferences(context);
+        if (!prefs.hasExplicitPalette()) {
+            boolean isDark = false;
+            if (context != null && context.getResources() != null) {
+                int uiMode = context.getResources().getConfiguration().uiMode;
+                isDark = (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+            } else {
+                isDark = prefs.isNightMode();
+            }
+            return isDark ? R.style.Theme_XClient : R.style.Theme_XClient_Titanium;
+        }
+        switch (prefs.getPalette()) {
             case Preferences.PALETTE_TITANIUM:
                 return R.style.Theme_XClient_Titanium;
             case Preferences.PALETTE_SHIELD:

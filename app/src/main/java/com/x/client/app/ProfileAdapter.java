@@ -31,7 +31,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
 
     public interface OnProfileActionListener {
         void onProfileClick(String profileId);
-        void onProfileLongClick(String profileId, Preferences.ProfileInfo profile);
+        void onProfileLongClick(View anchor, String profileId, Preferences.ProfileInfo profile);
         void onShareClick(String profileId);
         void onCopyClick(String profileId);
         void onEditClick(String profileId);
@@ -124,7 +124,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
         // 长按事件：呼出 TV / 遥控器节点操作菜单（替代手势滑动）
         holder.foregroundLayout.setOnLongClickListener(v -> {
             if (listener != null) {
-                listener.onProfileLongClick(profile.id, profile);
+                listener.onProfileLongClick(v, profile.id, profile);
                 return true;
             }
             return false;

@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.HashSet;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 
 public class Preferences
 {
@@ -409,10 +410,33 @@ public class Preferences
 		prefs.edit().putInt(THEME_MODE, mode).apply();
 	}
 
+	public boolean hasExplicitPalette() {
+		return prefs.contains(THEME_PALETTE);
+	}
+
+	public boolean isNightMode() {
+		int mode = getThemeMode();
+		if (mode == THEME_DARK) {
+			return true;
+		}
+		if (mode == THEME_LIGHT) {
+			return false;
+		}
+		if (appContext != null && appContext.getResources() != null) {
+			int uiMode = appContext.getResources().getConfiguration().uiMode;
+			return (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+		}
+		return false;
+	}
+
 	public int getPalette() {
-		int palette = prefs.getInt(THEME_PALETTE, PALETTE_AURORA);
-		if (palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
-			return PALETTE_AURORA;
+		int defaultPalette = isNightMode() ? PALETTE_AURORA : PALETTE_TITANIUM;
+		if (!hasExplicitPalette()) {
+			return defaultPalette;
+		}
+		int palette = prefs.getInt(THEME_PALETTE, defaultPalette);
+		if (palette != PALETTE_AURORA && palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
+			return defaultPalette;
 		}
 		return palette;
 	}

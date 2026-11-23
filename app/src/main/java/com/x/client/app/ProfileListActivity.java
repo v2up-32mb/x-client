@@ -27,17 +27,21 @@ import android.net.VpnService;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.graphics.drawable.Drawable;
 import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.x.client.app.ui.ConnectionFab;
 import com.x.client.app.ui.EmptyStateView;
@@ -455,7 +459,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         popup.getMenu().add(0, 2, 0, getString(R.string.scan_qr_code));
         popup.getMenu().add(0, 3, 0, "手动输入链接");
         popup.getMenu().add(0, 4, 0, getString(R.string.add_manual_profile));
-        popup.getMenu().add(0, 5, 0, getString(R.string.settings_title));
 
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
@@ -470,9 +473,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                     return true;
                 case 4:
                     showAddProfileDialog();
-                    return true;
-                case 5:
-                    startActivity(new Intent(this, SettingsActivity.class));
                     return true;
             }
             return false;
@@ -593,9 +593,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     @Override
-    public void onProfileLongClick(String profileId, Preferences.ProfileInfo profile) {
+    public void onProfileLongClick(View anchor, String profileId, Preferences.ProfileInfo profile) {
         if (profileMutation) return;
-        showProfileMenuDialog(profileId, profile);
+        showProfileMenu(anchor, profileId, profile);
     }
 
     @Override
@@ -604,12 +604,12 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             View focused = getCurrentFocus();
             String profileId = findFocusedProfileId(focused);
             if (profileId != null) {
-                showProfileMenuDialog(profileId, adapter.getProfileInfo(profileId));
+                showProfileMenu(focused, profileId, adapter.getProfileInfo(profileId));
                 return true;
             } else {
                 String currentId = prefs.getCurrentProfileId();
                 if (currentId != null) {
-                    showProfileMenuDialog(currentId, adapter.getProfileInfo(currentId));
+                    showProfileMenu(null, currentId, adapter.getProfileInfo(currentId));
                     return true;
                 }
             }
@@ -664,21 +664,23 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         super.onBackPressed();
     }
 
-    private void showProfileMenuDialog(String profileId, Preferences.ProfileInfo profile) {
+    private void showProfileMenu(View anchor, String profileId, Preferences.ProfileInfo profile) {
         if (profileId == null) return;
-        String profileName = profile != null ? profile.name : prefs.getProfileName(profileId);
+        View targetAnchor = anchor != null ? anchor : recyclerView;
+        if (targetAnchor == null) return;
+
+        PopupMenu popup = new PopupMenu(this, targetAnchor);
         boolean isVpnRunning = prefs.getEnable();
         boolean isCurrent = profileId.equals(prefs.getCurrentProfileId());
 
-        List<String> options = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
 
         if (isCurrent) {
-            options.add(getString(isVpnRunning ? R.string.acc_disconnect : R.string.acc_connect));
+            popup.getMenu().add(0, actions.size(), 0, getString(isVpnRunning ? R.string.acc_disconnect : R.string.acc_connect));
             actions.add(this::toggleVpn);
         } else {
             if (!isVpnRunning) {
-                options.add(getString(R.string.set_as_current));
+                popup.getMenu().add(0, actions.size(), 0, getString(R.string.set_as_current));
                 actions.add(() -> {
                     prefs.setCurrentProfileId(profileId);
                     refreshProfileList();
@@ -686,29 +688,29 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             }
         }
 
-        options.add(getString(R.string.acc_edit));
+        popup.getMenu().add(0, actions.size(), 0, getString(R.string.acc_edit));
         actions.add(() -> editProfile(profileId));
 
-        options.add(getString(R.string.acc_copy));
+        popup.getMenu().add(0, actions.size(), 0, getString(R.string.acc_copy));
         actions.add(() -> copyProfile(profileId));
 
-        options.add(getString(R.string.acc_share));
+        popup.getMenu().add(0, actions.size(), 0, getString(R.string.acc_share));
         actions.add(() -> exportProfile(profileId));
 
         if (!isCurrent || !isVpnRunning) {
-            options.add(getString(R.string.acc_delete));
+            popup.getMenu().add(0, actions.size(), 0, getString(R.string.acc_delete));
             actions.add(() -> deleteProfile(profileId));
         }
 
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(profileName != null && !profileName.isEmpty() ? profileName : getString(R.string.profile_menu_title))
-                .setItems(options.toArray(new String[0]), (dialog, which) -> {
-                    if (which >= 0 && which < actions.size()) {
-                        actions.get(which).run();
-                    }
-                })
-                .setNegativeButton(android.R.string.cancel, null)
-                .show();
+        popup.setOnMenuItemClickListener(item -> {
+            int index = item.getItemId();
+            if (index >= 0 && index < actions.size()) {
+                actions.get(index).run();
+                return true;
+            }
+            return false;
+        });
+        popup.show();
     }
 
     private void editProfile(String profileId) {
@@ -1031,6 +1033,16 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             toolbar.setSubtitle(getString(R.string.toolbar_version, packageInfo.versionName));
         } catch (PackageManager.NameNotFoundException e) {
             toolbar.setTitle(getString(R.string.app_name));
+        }
+
+        int iconTint = MaterialColors.getColor(toolbar, com.google.android.material.R.attr.colorOnSurfaceVariant);
+        Menu menu = toolbar.getMenu();
+        for (int i = 0; i < menu.size(); i++) {
+            MenuItem item = menu.getItem(i);
+            Drawable icon = item.getIcon();
+            if (icon != null) {
+                icon.mutate().setTint(iconTint);
+            }
         }
 
         // 顶栏快捷操作：优选中转、运行日志、全局设置

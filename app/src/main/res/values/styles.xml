@@ -180,5 +180,6 @@
         <item name="android:background">?attr/colorSurface</item>
         <item name="titleTextColor">?attr/colorOnSurface</item>
         <item name="subtitleTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="navigationIconTint">?attr/colorOnSurface</item>
     </style>
 </resources>
