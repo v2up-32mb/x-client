@@ -416,4 +416,14 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="scan_qr_code">掃描設定二維碼</string>
     <string name="add_manual_profile">手動新增節點</string>
     <string name="clipboard_detected_prompt">偵測到剪貼簿含有節點設定，是否立即匯入？</string>
+    <string name="scanner_flashlight_on">開啟手電筒</string>
+    <string name="scanner_flashlight_off">關閉手電筒</string>
+    <string name="import_config_link">匯入設定連結</string>
+    <string name="export_profile_title">匯出設定</string>
+    <string name="copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="system_share">系統分享</string>
+    <string name="share_profile">分享設定連結</string>
+    <string name="no_share_app_hint">未找到可用分享應用</string>
+    <string name="profile_name">設定名稱</string>
+    <string name="unnamed_profile">未命名設定</string>
 </resources>

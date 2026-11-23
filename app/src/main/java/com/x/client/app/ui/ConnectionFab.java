@@ -141,6 +141,9 @@ public class ConnectionFab extends MaterialCardView {
 
         setOnClickListener(v -> onTapped());
         setOnLongClickListener(v -> {
+            if (state == State.DISCONNECTED) {
+                return false;
+            }
             if (!expanded) {
                 expand();
             }
@@ -151,7 +154,7 @@ public class ConnectionFab extends MaterialCardView {
             public void onInitializeAccessibilityNodeInfo(@NonNull View host,
                                                           @NonNull AccessibilityNodeInfo info) {
                 super.onInitializeAccessibilityNodeInfo(host, info);
-                if (!expanded) {
+                if (!expanded && state != State.DISCONNECTED) {
                     // 长按动作带标签，TalkBack 动作菜单可直接读出用途（review §1）
                     info.removeAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_LONG_CLICK);
                     info.addAction(new AccessibilityNodeInfo.AccessibilityAction(
@@ -249,7 +252,7 @@ public class ConnectionFab extends MaterialCardView {
     // ================================ morph 动画 ================================
 
     private void expand() {
-        if (expanded) {
+        if (expanded || state == State.DISCONNECTED) {
             return;
         }
         expanded = true;

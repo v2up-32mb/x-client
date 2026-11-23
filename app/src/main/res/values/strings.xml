@@ -416,4 +416,14 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="scan_qr_code">Scan QR Code</string>
     <string name="add_manual_profile">Create Node Manually</string>
     <string name="clipboard_detected_prompt">Node configuration found in clipboard. Import now?</string>
+    <string name="scanner_flashlight_on">Flashlight On</string>
+    <string name="scanner_flashlight_off">Flashlight Off</string>
+    <string name="import_config_link">Import Config Link</string>
+    <string name="export_profile_title">Export Profile</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="system_share">Share</string>
+    <string name="share_profile">Share Profile Link</string>
+    <string name="no_share_app_hint">No sharing application found</string>
+    <string name="profile_name">Profile Name</string>
+    <string name="unnamed_profile">Unnamed Profile</string>
 </resources>

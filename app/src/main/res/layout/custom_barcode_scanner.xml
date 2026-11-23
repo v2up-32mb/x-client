@@ -18,17 +18,21 @@
         app:scannerCornerColor="@color/scanner_corner"
         app:scannerLineColor="@color/scanner_line" />
 
-    <!-- 提示文本 -->
+    <!-- 提示文本：M3 药丸圆角背景，置于扫描框下方 -->
     <TextView
         android:id="@+id/zxing_status_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal|bottom"
-        android:layout_marginBottom="80dp"
+        android:layout_marginBottom="96dp"
+        android:gravity="center"
         android:text="@string/scanner_hint"
         android:textColor="@color/scanner_frame"
-        android:textAppearance="?attr/textAppearanceBodyLarge"
-        android:background="@color/scanner_mask"
-        android:padding="@dimen/spacing_md" />
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:background="@drawable/bg_scanner_status_pill"
+        android:paddingStart="@dimen/spacing_lg"
+        android:paddingEnd="@dimen/spacing_lg"
+        android:paddingTop="@dimen/spacing_sm"
+        android:paddingBottom="@dimen/spacing_sm" />
 
 </merge>

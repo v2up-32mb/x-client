@@ -19,22 +19,16 @@ final class ThemeManager {
         applyMode(mode);
     }
 
-    /** 判断当前上下文是否为暗色模式（夜间模式）。 */
+    /** 判断当前上下文是否为暗色模式（夜间模式）。单一真理源委派给 Preferences.isNightMode()。 */
     static boolean isDark(Context context) {
-        if (context != null && context.getResources() != null) {
-            int uiMode = context.getResources().getConfiguration().uiMode;
-            return (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
-        }
         return context != null && new Preferences(context).isNightMode();
     }
 
     /** 当前调色板对应的主题样式资源。如果未显式设置，则暗色返回赛博极光，亮色返回钛金极简。 */
     static int themeRes(Context context) {
+        boolean dark = isDark(context);
         Preferences prefs = new Preferences(context);
-        if (!prefs.hasExplicitPalette()) {
-            return isDark(context) ? R.style.Theme_XClient : R.style.Theme_XClient_Titanium;
-        }
-        switch (prefs.getPalette()) {
+        switch (prefs.getPalette(dark)) {
             case Preferences.PALETTE_TITANIUM:
                 return R.style.Theme_XClient_Titanium;
             case Preferences.PALETTE_SHIELD:
@@ -50,7 +44,7 @@ final class ThemeManager {
     }
 
     static void setPalette(Context context, int palette) {
-        new Preferences(context).setPalette(palette);
+        new Preferences(context).setPalette(palette, isDark(context));
     }
 
     private static void applyMode(int mode) {

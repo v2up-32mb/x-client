@@ -412,4 +412,14 @@
     <string name="scan_qr_code">扫描配置二维码</string>
     <string name="add_manual_profile">手动新建节点</string>
     <string name="clipboard_detected_prompt">检测到剪贴板中含有节点配置，是否立即导入？</string>
+    <string name="scanner_flashlight_on">打开手电筒</string>
+    <string name="scanner_flashlight_off">关闭手电筒</string>
+    <string name="import_config_link">导入配置链接</string>
+    <string name="export_profile_title">导出配置</string>
+    <string name="copied_to_clipboard">已复制到剪贴板</string>
+    <string name="system_share">系统分享</string>
+    <string name="share_profile">分享配置链接</string>
+    <string name="no_share_app_hint">未找到可用分享应用</string>
+    <string name="profile_name">配置名称</string>
+    <string name="unnamed_profile">未命名配置</string>
 </resources>

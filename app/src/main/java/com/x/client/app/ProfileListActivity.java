@@ -10,6 +10,7 @@ package com.x.client.app;
 
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -32,7 +33,10 @@ import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
+import android.util.TypedValue;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -435,23 +439,22 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     private void showFabMenu() {
         if (profileMutation) return;
         PopupMenu popup = new PopupMenu(this, fabMain);
-        popup.getMenu().add(0, 1, 0, getString(R.string.import_from_clipboard));
-        popup.getMenu().add(0, 2, 0, getString(R.string.scan_qr_code));
-        popup.getMenu().add(0, 3, 0, "手动输入链接");
-        popup.getMenu().add(0, 4, 0, getString(R.string.add_manual_profile));
+        boolean hasCamera = DeviceUtils.hasCamera(this);
+        if (hasCamera) {
+            popup.getMenu().add(0, 1, 0, getString(R.string.scan_qr_code));
+        }
+        popup.getMenu().add(0, 2, 0, getString(R.string.import_config_link));
+        popup.getMenu().add(0, 3, 0, getString(R.string.add_manual_profile));
 
         popup.setOnMenuItemClickListener(item -> {
             switch (item.getItemId()) {
                 case 1:
-                    importFromClipboard();
-                    return true;
-                case 2:
                     scanQrCode();
                     return true;
-                case 3:
+                case 2:
                     showManualInputDialog();
                     return true;
-                case 4:
+                case 3:
                     showAddProfileDialog();
                     return true;
             }
@@ -777,10 +780,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     }
 
     private void showExportDialog(String protocol) {
-        // 创建自定义对话框，包含 QR 码和协议文本
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("导出配置（当前有效入口快照）");
-
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_export, null);
         TextView textProtocol = dialogView.findViewById(R.id.text_protocol);
         ImageView imageQr = dialogView.findViewById(R.id.image_qr);
@@ -790,7 +789,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         // 生成 QR 码
         try {
             MultiFormatWriter writer = new MultiFormatWriter();
-            BitMatrix matrix = writer.encode(protocol, BarcodeFormat.QR_CODE, 300, 300);
+            BitMatrix matrix = writer.encode(protocol, BarcodeFormat.QR_CODE, 400, 400);
             BarcodeEncoder encoder = new BarcodeEncoder();
             Bitmap bitmap = encoder.createBitmap(matrix);
             imageQr.setImageBitmap(bitmap);
@@ -799,46 +798,28 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             imageQr.setImageResource(android.R.drawable.ic_dialog_alert);
         }
 
-        builder.setView(dialogView);
-        builder.setPositiveButton("复制", (dialog, which) -> {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("GCM Protocol", protocol);
-            clipboard.setPrimaryClip(clip);
-            Toast.makeText(this, "已复制到剪贴板", Toast.LENGTH_SHORT).show();
-        });
-        builder.setNegativeButton("关闭", null);
-        builder.show();
-    }
-
-    private void importProfile() {
-        // 显示导入选项对话框：手动输入或扫描 QR 码
-        showImportDialog();
-    }
-
-    private void showImportDialog() {
-        if (!DeviceUtils.hasCamera(this)) {
-            Toast.makeText(this, R.string.no_camera_hint, Toast.LENGTH_SHORT).show();
-            showManualInputDialog();
-            return;
-        }
-        // 显示三个选项的对话框：剪贴板导入、手动输入和扫描 QR
-        final CharSequence[] options = {
-                getString(R.string.import_from_clipboard),
-                "手动输入",
-                "扫描二维码"
-        };
         new MaterialAlertDialogBuilder(this)
-                .setTitle("导入配置")
-                .setItems(options, (dialog, which) -> {
-                    if (which == 0) {
-                        importFromClipboard();
-                    } else if (which == 1) {
-                        showManualInputDialog();
-                    } else if (which == 2) {
-                        scanQrCode();
+                .setTitle(R.string.export_profile_title)
+                .setView(dialogView)
+                .setPositiveButton(R.string.copy, (dialog, which) -> {
+                    ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    if (clipboard != null) {
+                        ClipData clip = ClipData.newPlainText("X Client Protocol", protocol);
+                        clipboard.setPrimaryClip(clip);
+                        Toast.makeText(this, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNeutralButton(R.string.system_share, (dialog, which) -> {
+                    try {
+                        Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                        shareIntent.setType("text/plain");
+                        shareIntent.putExtra(Intent.EXTRA_TEXT, protocol);
+                        startActivity(Intent.createChooser(shareIntent, getString(R.string.share_profile)));
+                    } catch (ActivityNotFoundException e) {
+                        Toast.makeText(this, R.string.no_share_app_hint, Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(R.string.close, null)
                 .show();
     }
 
@@ -850,7 +831,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 CharSequence text = clip.getItemAt(0).getText();
                 if (text != null) {
                     String str = text.toString().trim();
-                    if (str.startsWith("gcm://") || str.startsWith("xtunnel://") || str.startsWith("ech://")) {
+                    if (ProfileUriCodec.isSupportedUri(str)) {
                         importFromProtocol(str);
                         return;
                     }
@@ -863,7 +844,8 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
-        input.setHint("gcm://server.com?ip=1.1.1.1:443&fip=2.2.2.2&user_id=v2up#Name");
+        input.setHint(R.string.manual_import_hint);
+        input.setSingleLine(true);
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard != null && clipboard.hasPrimaryClip()) {
             ClipData clip = clipboard.getPrimaryClip();
@@ -871,29 +853,42 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 CharSequence text = clip.getItemAt(0).getText();
                 if (text != null) {
                     String str = text.toString().trim();
-                    if (str.startsWith("gcm://") || str.startsWith("xtunnel://") || str.startsWith("ech://")) {
+                    if (ProfileUriCodec.isSupportedUri(str)) {
                         input.setText(str);
                         input.setSelection(str.length());
                     }
                 }
             }
         }
+        FrameLayout container = new FrameLayout(this);
+        int padH = dp(24);
+        int padV = dp(8);
+        container.setPadding(padH, padV, padH, padV);
+        container.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         new MaterialAlertDialogBuilder(this)
-                .setTitle("导入配置")
-                .setView(input)
-                .setPositiveButton("确定", (dialog, whichButton) -> {
+                .setTitle(R.string.dialog_title_import)
+                .setView(container)
+                .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
                     String protocol = input.getText().toString().trim();
                     if (!protocol.isEmpty()) {
                         importFromProtocol(protocol);
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
     private void scanQrCode() {
+        if (!DeviceUtils.hasCamera(this)) {
+            Toast.makeText(this, R.string.no_camera_hint, Toast.LENGTH_SHORT).show();
+            showManualInputDialog();
+            return;
+        }
         ScanOptions options = new ScanOptions();
-        options.setPrompt("扫描配置二维码");
+        options.setPrompt(getString(R.string.scan_qr_code));
         options.setBeepEnabled(false);
         options.setOrientationLocked(true);
         options.setCaptureActivity(CustomCaptureActivity.class);
@@ -902,7 +897,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             Intent intent = options.createScanIntent(this);
             startActivityForResult(intent, REQUEST_SCAN_QR);
         } catch (Exception e) {
-            Toast.makeText(this, "无法启动扫描器", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.no_camera_hint, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -951,14 +946,28 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
     private void showImportNameDialog(final String id, final ProfileUriCodec.ParsedProfile parsed) {
         final EditText input = new EditText(this);
-        input.setText(parsed.name);
+        input.setSingleLine(true);
+        if (parsed.name != null && !parsed.name.isEmpty()) {
+            input.setText(parsed.name);
+            input.setSelection(parsed.name.length());
+        }
+        FrameLayout container = new FrameLayout(this);
+        int padH = dp(24);
+        int padV = dp(8);
+        container.setPadding(padH, padV, padH, padV);
+        container.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
         new MaterialAlertDialogBuilder(this)
-                .setTitle("配置名称")
-                .setView(input)
-                .setPositiveButton("确定", (dialog, whichButton) -> {
+                .setTitle(R.string.profile_name)
+                .setView(container)
+                .setPositiveButton(android.R.string.ok, (dialog, whichButton) -> {
                     String name = input.getText().toString().trim();
                     if (name.isEmpty()) {
-                        name = parsed.name;
+                        name = (parsed.name != null && !parsed.name.isEmpty())
+                                ? parsed.name
+                                : getString(R.string.unnamed_profile);
                     }
                     if (profileMutation) return;
                     prefs.addProfile(id, name);
@@ -974,7 +983,7 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                         Toast.makeText(this, "配置已导入；原入口保留，全局跟随需在优选页验证并确认", Toast.LENGTH_LONG).show();
                     });
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(android.R.string.cancel, null)
                 .show();
     }
 
@@ -1015,5 +1024,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
             }
             return false;
         });
+    }
+
+    private int dp(int value) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, value, getResources().getDisplayMetrics());
     }
 }

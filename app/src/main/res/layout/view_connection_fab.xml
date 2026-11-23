@@ -45,7 +45,8 @@
                 android:id="@+id/fab_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textAppearance="?attr/textAppearanceTitleSmall"
+                android:textStyle="bold"
                 tools:text="正在连接…" />
 
             <!-- 定宽滚动视口：节点名/错误信息单行滚动，滚完即收折（用户反馈精修） -->
@@ -54,6 +55,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:layout_marginStart="@dimen/spacing_xs"
                 android:scrollbars="none"
                 android:clipToPadding="false">
 

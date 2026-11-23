@@ -416,4 +416,14 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="scan_qr_code">Сканировать QR-код</string>
     <string name="add_manual_profile">Создать узел вручную</string>
     <string name="clipboard_detected_prompt">В буфере обмена обнаружен узел. Импортировать?</string>
+    <string name="scanner_flashlight_on">Включить фонарик</string>
+    <string name="scanner_flashlight_off">Выключить фонарик</string>
+    <string name="import_config_link">Импорт ссылки конфигурации</string>
+    <string name="export_profile_title">Экспорт конфигурации</string>
+    <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
+    <string name="system_share">Поделиться</string>
+    <string name="share_profile">Поделиться ссылкой на профиль</string>
+    <string name="no_share_app_hint">Приложение для отправки не найдено</string>
+    <string name="profile_name">Имя профиля</string>
+    <string name="unnamed_profile">Безымянный профиль</string>
 </resources>

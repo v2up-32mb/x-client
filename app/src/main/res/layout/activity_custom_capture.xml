@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
 
     <!-- 扫码视图 -->
     <com.journeyapps.barcodescanner.DecoratedBarcodeView
@@ -10,5 +11,37 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:zxing_scanner_layout="@layout/custom_barcode_scanner" />
+
+    <!-- 顶部 Toolbar：返回导航、标题、深色渐变背景与状态栏 Insets 适配 -->
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="@drawable/bg_scanner_toolbar"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="@android:color/white"
+        app:title="@string/scan_qr_code"
+        app:titleTextColor="@android:color/white" />
+
+    <!-- 底部手电筒（Flashlight）切换按钮 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_flashlight"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal|bottom"
+        android:layout_marginBottom="36dp"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="10dp"
+        android:text="@string/scanner_flashlight_on"
+        android:textColor="@android:color/white"
+        android:textSize="14sp"
+        app:icon="@drawable/ic_flashlight_on"
+        app:iconTint="@android:color/white"
+        app:iconSize="20dp"
+        app:cornerRadius="24dp"
+        app:backgroundTint="#99000000"
+        app:strokeColor="#33FFFFFF"
+        app:strokeWidth="1dp" />
 
 </FrameLayout>

@@ -45,6 +45,8 @@ public class Preferences
         public static final String LANGUAGE_RU = "ru";
         // 色彩方案（调色板）：赛博极光 / 钛金极简 / 瑞士暗盾，默认赛博极光
         public static final String THEME_PALETTE = "ThemePalette";
+        public static final String THEME_PALETTE_LIGHT = "ThemePaletteLight";
+        public static final String THEME_PALETTE_DARK = "ThemePaletteDark";
         public static final int PALETTE_AURORA = 0;
         public static final int PALETTE_TITANIUM = 1;
         public static final int PALETTE_SHIELD = 2;
@@ -411,7 +413,12 @@ public class Preferences
 	}
 
 	public boolean hasExplicitPalette() {
-		return prefs.contains(THEME_PALETTE);
+		return hasExplicitPalette(isNightMode());
+	}
+
+	public boolean hasExplicitPalette(boolean isNight) {
+		String key = isNight ? THEME_PALETTE_DARK : THEME_PALETTE_LIGHT;
+		return prefs.contains(key);
 	}
 
 	public boolean isNightMode() {
@@ -422,19 +429,25 @@ public class Preferences
 		if (mode == THEME_LIGHT) {
 			return false;
 		}
-		if (appContext != null && appContext.getResources() != null) {
-			int uiMode = appContext.getResources().getConfiguration().uiMode;
+		Context ctx = context != null ? context : appContext;
+		if (ctx != null && ctx.getResources() != null) {
+			int uiMode = ctx.getResources().getConfiguration().uiMode;
 			return (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 		}
 		return false;
 	}
 
 	public int getPalette() {
-		int defaultPalette = isNightMode() ? PALETTE_AURORA : PALETTE_TITANIUM;
-		if (!hasExplicitPalette()) {
+		return getPalette(isNightMode());
+	}
+
+	public int getPalette(boolean isNight) {
+		int defaultPalette = isNight ? PALETTE_AURORA : PALETTE_TITANIUM;
+		String key = isNight ? THEME_PALETTE_DARK : THEME_PALETTE_LIGHT;
+		if (!prefs.contains(key)) {
 			return defaultPalette;
 		}
-		int palette = prefs.getInt(THEME_PALETTE, defaultPalette);
+		int palette = prefs.getInt(key, defaultPalette);
 		if (palette != PALETTE_AURORA && palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
 			return defaultPalette;
 		}
@@ -442,10 +455,15 @@ public class Preferences
 	}
 
 	public void setPalette(int palette) {
+		setPalette(palette, isNightMode());
+	}
+
+	public void setPalette(int palette, boolean isNight) {
 		if (palette != PALETTE_TITANIUM && palette != PALETTE_SHIELD) {
 			palette = PALETTE_AURORA;
 		}
-		prefs.edit().putInt(THEME_PALETTE, palette).apply();
+		String key = isNight ? THEME_PALETTE_DARK : THEME_PALETTE_LIGHT;
+		prefs.edit().putInt(key, palette).apply();
 	}
 
 	public String getLanguage() {

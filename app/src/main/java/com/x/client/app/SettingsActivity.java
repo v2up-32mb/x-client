@@ -503,6 +503,7 @@ public class SettingsActivity extends BaseActivity {
                         ThemeManager.setMode(SettingsActivity.this, mode);
                         textThemeModeSummary.setText(getString(R.string.settings_theme_mode_summary,
                                 getString(THEME_MODE_LABEL_RES[position])));
+                        recreate();
                     }
                 }
             }
