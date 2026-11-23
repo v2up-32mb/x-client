@@ -429,9 +429,8 @@ public class Preferences
 		if (mode == THEME_LIGHT) {
 			return false;
 		}
-		Context ctx = context != null ? context : appContext;
-		if (ctx != null && ctx.getResources() != null) {
-			int uiMode = ctx.getResources().getConfiguration().uiMode;
+		if (appContext != null && appContext.getResources() != null) {
+			int uiMode = appContext.getResources().getConfiguration().uiMode;
 			return (uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
 		}
 		return false;
