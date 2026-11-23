@@ -27,13 +27,23 @@ android {
                 }
     }
 
+    signingConfigs {
+        debug {
+            v1SigningEnabled true
+            v2SigningEnabled true
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
+            signingConfig signingConfigs.debug
             if (trialBuild) {
                 applicationIdSuffix ".trial"
-                signingConfig signingConfigs.debug
             }
+        }
+        release {
+            minifyEnabled false
         }
     }
 

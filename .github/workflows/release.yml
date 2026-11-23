@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*'  # tag 触发：构建 + 签名 + 发版
-  workflow_dispatch:  # 默认 unsigned release CI；可选独立 debug 试用，均不发版
+  workflow_dispatch:  # 手动触发：非 tag 自动进行 debug 签名（v1+v2，可直接安装测试，不发版）；可选独立 trial 试用
     inputs:
       trial_build:
         description: '构建独立安装的试用 APK（Go race + gomobile + debug 签名；不运行 App 测试，不发布）'
@@ -285,10 +285,10 @@ jobs:
           path: app/build/outputs/apk/release/*-unsigned.apk
           retention-days: 1
 
-  # ── 3. 签名（仅 tag）：zipalign + apksigner ──
+  # ── 3. 签名：tag 触发使用正式发布密钥；手动非 tag 触发使用标准 debug 密钥签名（方便测试安装） ──
   sign:
     needs: [meta, compile]
-    if: needs.meta.outputs.is_tag == 'true'
+    if: needs.meta.outputs.is_trial != 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Download unsigned APKs
@@ -306,6 +306,7 @@ jobs:
       # 与 SDK 包列表（34.0.0）不匹配，改用 build-tools 34.0.0 自带 zipalign + apksigner 等价签名
       - name: Sign APKs
         env:
+          IS_TAG: ${{ needs.meta.outputs.is_tag }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           ALIAS: ${{ secrets.ALIAS }}
           KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
@@ -313,25 +314,55 @@ jobs:
         run: |
           BT=/usr/local/lib/android/sdk/build-tools/34.0.0
           mkdir -p apk-signed
-          echo "$SIGNING_KEY" | base64 --decode > keystore.jks
-          EXTRA_KEY_ARGS=""
-          if [ -n "$KEY_PASSWORD" ]; then
-            EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
+          if [[ "$IS_TAG" == "true" ]]; then
+            echo "执行正式发布密钥签名..."
+            echo "$SIGNING_KEY" | base64 --decode > keystore.jks
+            EXTRA_KEY_ARGS=""
+            if [ -n "$KEY_PASSWORD" ]; then
+              EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
+            fi
+            for apk in apk-unsigned/*-unsigned.apk; do
+              [ -e "$apk" ] || continue
+              base="$(basename "${apk%-unsigned.apk}")"
+              "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
+              # shellcheck disable=SC2086
+              "$BT/apksigner" sign \
+                --v1-signing-enabled true \
+                --v2-signing-enabled true \
+                --ks keystore.jks --ks-key-alias "$ALIAS" \
+                --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
+                --out "apk-signed/x-client-${base#app-}.apk" "${base}-aligned.apk"
+              rm -f "${base}-aligned.apk"
+              echo "Signed (release key): apk-signed/x-client-${base#app-}.apk"
+            done
+            rm -f keystore.jks
+          else
+            echo "执行测试用途 debug 密钥签名（启用 v1 + v2 签名，确保各系统/电视端均可安装）..."
+            mkdir -p ~/.android
+            if [ ! -f ~/.android/debug.keystore ]; then
+              keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
+                -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+                -dname "CN=Android Debug,O=Android,C=US"
+            fi
+            for apk in apk-unsigned/*-unsigned.apk; do
+              [ -e "$apk" ] || continue
+              base="$(basename "${apk%-unsigned.apk}")"
+              "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
+              "$BT/apksigner" sign \
+                --v1-signing-enabled true \
+                --v2-signing-enabled true \
+                --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey \
+                --ks-pass pass:android --key-pass pass:android \
+                --out "apk-signed/x-client-${base#app-}.apk" "${base}-aligned.apk"
+              rm -f "${base}-aligned.apk"
+              echo "Signed (debug key): apk-signed/x-client-${base#app-}.apk"
+            done
           fi
-          for apk in apk-unsigned/*-unsigned.apk; do
-            [ -e "$apk" ] || continue
-            base="$(basename "${apk%-unsigned.apk}")"
-            "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
-            # shellcheck disable=SC2086
-            "$BT/apksigner" sign \
-              --ks keystore.jks --ks-key-alias "$ALIAS" \
-              --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
-              --out "apk-signed/x-client-${base#app-}.apk" "${base}-aligned.apk"
-            rm -f "${base}-aligned.apk"
-            echo "Signed: apk-signed/x-client-${base#app-}.apk"
-          done
-          rm -f keystore.jks
           ls -la apk-signed
+          for apk in apk-signed/*.apk; do
+            echo "验证签名: $apk"
+            "$BT/apksigner" verify --verbose --print-certs "$apk"
+          done
 
       - name: Upload signed APK artifact
         uses: actions/upload-artifact@v7
@@ -432,21 +463,21 @@ jobs:
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
           files: apk-signed/*.apk
 
-  # ── 5. 手动触发的构建验证产物（非 tag）：unsigned APK 归档 ──
+  # ── 5. 手动触发的构建产物（非 tag）：已签名的测试 APK 归档（可直接在手机/电视安装测试） ──
   ci-artifacts:
-    needs: [meta, compile]
+    needs: [meta, compile, sign]
     if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Download unsigned APKs
+      - name: Download signed APKs
         uses: actions/download-artifact@v8
         with:
-          name: apk-unsigned
-          path: apk-unsigned
+          name: apk-signed
+          path: apk-signed
 
-      - name: Upload CI artifacts (manual dispatch, unsigned)
+      - name: Upload CI artifacts (manual dispatch, signed for testing)
         uses: actions/upload-artifact@v7
         with:
-          name: x-client-release-ci-unsigned
-          path: apk-unsigned/*.apk
+          name: x-client-ci-signed
+          path: apk-signed/*.apk
           retention-days: 7

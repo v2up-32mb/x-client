@@ -50,7 +50,7 @@ Hot Pair + UDP associate + 独立 HTTP 代理 + 背压控制。协议细节见 `
 
 - **Release 构建**: `.github/workflows/release.yml`
   - **tag 触发**（`v*`）：构建 release APK → 签名 → 自动创建 GitHub Release（语义化版本带 `-preview`/`-beta`/`-rc` 后缀自动标记 prerelease）
-  - **手动 workflow_dispatch**：仅普通 CI 构建验证（release 构建类型，unsigned，不发版）；版本名 `ci-<shortsha>`
+  - **手动 workflow_dispatch**：仅普通 CI 构建验证（release 构建类型，自动附带 debug 签名供直接安装测试，不发版）；版本名 `ci-<shortsha>`
   - 缓存：`gradle.properties` 开启 `org.gradle.caching=true`；`gomobile` AAR 按 `golib/**` 内容哈希缓存
 
 ## 配置导出/导入 URI
