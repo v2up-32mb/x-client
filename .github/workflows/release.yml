@@ -300,16 +300,22 @@ jobs:
         run: |
           BT=/usr/local/lib/android/sdk/build-tools/34.0.0
           mkdir -p apk-signed
-          if [[ "$IS_TAG" == "true" ]]; then
-            echo "执行正式发布密钥签名（Release Key，包名 com.x.client.app）..."
+          if [ -n "$SIGNING_KEY" ]; then
+            echo "使用仓库持久化密钥签名（确保每次构建签名一致，支持平滑覆盖升级）..."
             echo "$SIGNING_KEY" | base64 --decode > keystore.jks
             EXTRA_KEY_ARGS=""
             if [ -n "$KEY_PASSWORD" ]; then
               EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
             fi
-            for apk in app/build/outputs/apk/release/*-unsigned.apk; do
+            if [[ "$IS_TAG" == "true" ]]; then
+              src_apks=(app/build/outputs/apk/release/*-unsigned.apk)
+            else
+              src_apks=(app/build/outputs/apk/debug/*-debug.apk)
+            fi
+            for apk in "${src_apks[@]}"; do
               [ -e "$apk" ] || continue
               base="$(basename "${apk%-unsigned.apk}")"
+              base="$(basename "${base%.apk}")"
               "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
               # shellcheck disable=SC2086
               "$BT/apksigner" sign \
@@ -320,17 +326,15 @@ jobs:
                 --ks-pass "pass:$KEY_STORE_PASSWORD" $EXTRA_KEY_ARGS \
                 --out "apk-signed/x-client-${base#app-}.apk" "${base}-aligned.apk"
               rm -f "${base}-aligned.apk"
-              echo "Signed (release key): apk-signed/x-client-${base#app-}.apk"
+              echo "Signed (keystore.jks): apk-signed/x-client-${base#app-}.apk"
             done
             rm -f keystore.jks
           else
-            echo "执行测试用途 debug 密钥签名（包名 com.x.client.app.debug，启用 v1 + v2 双重签名）..."
+            echo "未配置 SIGNING_KEY，使用临时 debug 密钥签名..."
             mkdir -p ~/.android
-            if [ ! -f ~/.android/debug.keystore ]; then
-              keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
-                -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
-                -dname "CN=Android Debug,O=Android,C=US"
-            fi
+            keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
+              -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
             for apk in app/build/outputs/apk/debug/*-debug.apk; do
               [ -e "$apk" ] || continue
               base="$(basename "${apk%.apk}")"
