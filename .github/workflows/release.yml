@@ -327,6 +327,7 @@ jobs:
               "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
               # shellcheck disable=SC2086
               "$BT/apksigner" sign \
+                --min-sdk-version 23 \
                 --v1-signing-enabled true \
                 --v2-signing-enabled true \
                 --ks keystore.jks --ks-key-alias "$ALIAS" \
@@ -349,6 +350,7 @@ jobs:
               base="$(basename "${apk%-unsigned.apk}")"
               "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
               "$BT/apksigner" sign \
+                --min-sdk-version 23 \
                 --v1-signing-enabled true \
                 --v2-signing-enabled true \
                 --ks ~/.android/debug.keystore --ks-key-alias androiddebugkey \
@@ -361,7 +363,16 @@ jobs:
           ls -la apk-signed
           for apk in apk-signed/*.apk; do
             echo "验证签名: $apk"
-            "$BT/apksigner" verify --verbose --print-certs "$apk"
+            verify_out=$("$BT/apksigner" verify --verbose --print-certs "$apk")
+            echo "$verify_out"
+            echo "$verify_out" | grep -F "Verified using v1 scheme (JAR signing): true" || {
+              echo "::error::v1 签名缺失: $apk"
+              exit 1
+            }
+            echo "$verify_out" | grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" || {
+              echo "::error::v2 签名缺失: $apk"
+              exit 1
+            }
           done
 
       - name: Upload signed APK artifact
@@ -474,6 +485,20 @@ jobs:
         with:
           name: apk-signed
           path: apk-signed
+
+      - name: Write CI test guidance
+        run: |
+          {
+            echo "### 📱 测试用途 APK（已签名，可直接安装）"
+            echo "下载本次运行的 **x-client-ci-signed** artifact（保留 7 天）。"
+            echo "已使用标准 debug 密钥完成签名并包含 v1 (JAR) + v2 (APK Signature Scheme) 双重签名，兼容各大厂商手机与电视盒子系统："
+            echo "- \`x-client-arm64-v8a-release.apk\`（主流 64 位手机）"
+            echo "- \`x-client-armeabi-v7a-release.apk\`（32 位手机 / 老旧电视机顶盒）"
+            echo "- \`x-client-universal-release.apk\`（全架构通用包）"
+            echo "- \`x-client-x86-release.apk\` / \`x-client-x86_64-release.apk\`（PC 模拟器）"
+            echo ""
+            echo "> 💡 **提示**：若安装时提示“与已安装应用签名不一致”，请先卸载手机上原有的同包名应用（或使用 trial 试用版）后再安装测试。"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload CI artifacts (manual dispatch, signed for testing)
         uses: actions/upload-artifact@v7
