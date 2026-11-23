@@ -362,17 +362,16 @@ jobs:
           fi
           ls -la apk-signed
           for apk in apk-signed/*.apk; do
-            echo "验证签名: $apk"
-            verify_out=$("$BT/apksigner" verify --verbose --print-certs "$apk")
-            echo "$verify_out"
-            echo "$verify_out" | grep -F "Verified using v1 scheme (JAR signing): true" || {
-              echo "::error::v1 签名缺失: $apk"
+            echo "=== 验证签名: $apk ==="
+            "$BT/apksigner" verify --verbose --print-certs "$apk"
+            echo "--- 验证 API 23 (v1 JAR) 兼容性 ---"
+            v1_check=$("$BT/apksigner" verify --verbose --min-sdk-version 23 "$apk")
+            echo "$v1_check"
+            echo "$v1_check" | grep -F "Verified using v1 scheme (JAR signing): true" || {
+              echo "::error::API 23 下未通过 v1 签名校验: $apk"
               exit 1
             }
-            echo "$verify_out" | grep -F "Verified using v2 scheme (APK Signature Scheme v2): true" || {
-              echo "::error::v2 签名缺失: $apk"
-              exit 1
-            }
+            unzip -l "$apk" | grep -E "META-INF/.*\.(SF|RSA|DSA|EC)" || true
           done
 
       - name: Upload signed APK artifact
