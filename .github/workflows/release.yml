@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   # ── 1. 基础信息（串行头）：版本计算与发布判定，输出给全部下游 job ──
@@ -269,42 +270,27 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Build release APK
-        if: needs.meta.outputs.is_trial != 'true'
+      # 非 trial 非 tag 手动构建：构建 debug APK（独立包名 com.x.client.app.debug，可与正式版并存）
+      - name: Build debug APK (manual CI testing, .debug package)
+        if: needs.meta.outputs.is_trial != 'true' && needs.meta.outputs.is_tag != 'true'
+        run: |
+          ./gradlew assembleDebug \
+            -PVERSION_CODE=${{ needs.meta.outputs.version_code }} \
+            -PVERSION_NAME=${{ needs.meta.outputs.version_name }}-debug \
+            --no-daemon
+
+      # 仅 tag 触发构建：构建正式 release APK（包名 com.x.client.app）
+      - name: Build release APK (tag release)
+        if: needs.meta.outputs.is_trial != 'true' && needs.meta.outputs.is_tag == 'true'
         run: |
           ./gradlew assembleRelease \
             -PVERSION_CODE=${{ needs.meta.outputs.version_code }} \
             -PVERSION_NAME=${{ needs.meta.outputs.version_name }} \
             --no-daemon
 
-      - name: Upload unsigned APK artifact
-        if: needs.meta.outputs.is_trial != 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: apk-unsigned
-          path: app/build/outputs/apk/release/*-unsigned.apk
-          retention-days: 1
-
-  # ── 3. 签名：tag 触发使用正式发布密钥；手动非 tag 触发使用标准 debug 密钥签名（方便测试安装） ──
-  sign:
-    needs: [meta, compile]
-    if: needs.meta.outputs.is_trial != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download unsigned APKs
-        uses: actions/download-artifact@v8
-        with:
-          name: apk-unsigned
-          path: apk-unsigned
-
-      - name: Setup build-tools for signing
-        uses: android-actions/setup-android@v4
-        with:
-          packages: build-tools;34.0.0
-
-      # r0adkll/sign-android-release 全系列硬编码 build-tools 29.0.3（无 buildToolsVersion 输入），
-      # 与 SDK 包列表（34.0.0）不匹配，改用 build-tools 34.0.0 自带 zipalign + apksigner 等价签名
+      # 在本 job 原地签名：无需跨 job 上传中间 unsigned APK
       - name: Sign APKs
+        if: needs.meta.outputs.is_trial != 'true'
         env:
           IS_TAG: ${{ needs.meta.outputs.is_tag }}
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
@@ -315,13 +301,13 @@ jobs:
           BT=/usr/local/lib/android/sdk/build-tools/34.0.0
           mkdir -p apk-signed
           if [[ "$IS_TAG" == "true" ]]; then
-            echo "执行正式发布密钥签名..."
+            echo "执行正式发布密钥签名（Release Key，包名 com.x.client.app）..."
             echo "$SIGNING_KEY" | base64 --decode > keystore.jks
             EXTRA_KEY_ARGS=""
             if [ -n "$KEY_PASSWORD" ]; then
               EXTRA_KEY_ARGS="--key-pass pass:$KEY_PASSWORD"
             fi
-            for apk in apk-unsigned/*-unsigned.apk; do
+            for apk in app/build/outputs/apk/release/*-unsigned.apk; do
               [ -e "$apk" ] || continue
               base="$(basename "${apk%-unsigned.apk}")"
               "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
@@ -338,16 +324,16 @@ jobs:
             done
             rm -f keystore.jks
           else
-            echo "执行测试用途 debug 密钥签名（启用 v1 + v2 签名，确保各系统/电视端均可安装）..."
+            echo "执行测试用途 debug 密钥签名（包名 com.x.client.app.debug，启用 v1 + v2 双重签名）..."
             mkdir -p ~/.android
             if [ ! -f ~/.android/debug.keystore ]; then
               keytool -genkeypair -v -keystore ~/.android/debug.keystore -storepass android \
                 -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
                 -dname "CN=Android Debug,O=Android,C=US"
             fi
-            for apk in apk-unsigned/*-unsigned.apk; do
+            for apk in app/build/outputs/apk/debug/*-debug.apk; do
               [ -e "$apk" ] || continue
-              base="$(basename "${apk%-unsigned.apk}")"
+              base="$(basename "${apk%.apk}")"
               "$BT/zipalign" -f -p 4 "$apk" "${base}-aligned.apk"
               "$BT/apksigner" sign \
                 --min-sdk-version 23 \
@@ -372,18 +358,49 @@ jobs:
               exit 1
             }
             unzip -l "$apk" | grep -E "META-INF/.*\.(SF|RSA|DSA|EC)" || true
+            if [[ "$IS_TAG" != "true" ]]; then
+              echo "--- 验证独立 Debug 包名 (com.x.client.app.debug) ---"
+              "$BT/aapt" dump badging "$apk" | grep -F "package: name='com.x.client.app.debug'" || {
+                echo "::error::未检测到 com.x.client.app.debug 包名: $apk"
+                exit 1
+              }
+            fi
           done
 
-      - name: Upload signed APK artifact
+      - name: Write CI test guidance
+        if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial != 'true'
+        run: |
+          {
+            echo "### 📱 测试用途 APK（已签名，独立 Debug 包名）"
+            echo "下载本次运行的 **x-client-ci-signed** artifact（保留 7 天）。"
+            echo "已使用独立包名 \`com.x.client.app.debug\`，可与手机上的正式版同时并存安装，互不影响："
+            echo "- \`x-client-arm64-v8a-debug.apk\`（主流 64 位手机）"
+            echo "- \`x-client-armeabi-v7a-debug.apk\`（32 位手机 / 老旧电视机顶盒）"
+            echo "- \`x-client-universal-debug.apk\`（全架构通用包）"
+            echo "- \`x-client-x86-debug.apk\` / \`x-client-x86_64-debug.apk\`（PC 模拟器）"
+            echo ""
+            echo "> 💡 **提示**：已启用 v1 (JAR) + v2 (APK Signature Scheme) 双重签名，兼容各大厂商手机与电视盒子系统。"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CI artifacts (manual dispatch, signed for testing)
+        if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: x-client-ci-signed
+          path: apk-signed/*.apk
+          retention-days: 7
+
+      - name: Upload signed APK artifact (tag release)
+        if: needs.meta.outputs.is_tag == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: apk-signed
           path: apk-signed/*.apk
           retention-days: 1
 
-  # ── 4. 发布（仅 tag，串行在签名后）：release notes + GitHub Release ──
+  # ── 3. 发布（仅 tag，串行在编译签名后）：release notes + GitHub Release ──
   publish:
-    needs: [meta, sign]
+    needs: [meta, compile]
     if: needs.meta.outputs.is_tag == 'true'
     runs-on: ubuntu-latest
     steps:
@@ -473,35 +490,9 @@ jobs:
           prerelease: ${{ needs.meta.outputs.is_prerelease == 'true' }}
           files: apk-signed/*.apk
 
-  # ── 5. 手动触发的构建产物（非 tag）：已签名的测试 APK 归档（可直接在手机/电视安装测试） ──
-  ci-artifacts:
-    needs: [meta, compile, sign]
-    if: needs.meta.outputs.is_tag != 'true' && needs.meta.outputs.is_trial != 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download signed APKs
-        uses: actions/download-artifact@v8
-        with:
-          name: apk-signed
-          path: apk-signed
-
-      - name: Write CI test guidance
+      - name: Cleanup intermediate signed APK artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          {
-            echo "### 📱 测试用途 APK（已签名，可直接安装）"
-            echo "下载本次运行的 **x-client-ci-signed** artifact（保留 7 天）。"
-            echo "已使用标准 debug 密钥完成签名并包含 v1 (JAR) + v2 (APK Signature Scheme) 双重签名，兼容各大厂商手机与电视盒子系统："
-            echo "- \`x-client-arm64-v8a-release.apk\`（主流 64 位手机）"
-            echo "- \`x-client-armeabi-v7a-release.apk\`（32 位手机 / 老旧电视机顶盒）"
-            echo "- \`x-client-universal-release.apk\`（全架构通用包）"
-            echo "- \`x-client-x86-release.apk\` / \`x-client-x86_64-release.apk\`（PC 模拟器）"
-            echo ""
-            echo "> 💡 **提示**：若安装时提示“与已安装应用签名不一致”，请先卸载手机上原有的同包名应用（或使用 trial 试用版）后再安装测试。"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload CI artifacts (manual dispatch, signed for testing)
-        uses: actions/upload-artifact@v7
-        with:
-          name: x-client-ci-signed
-          path: apk-signed/*.apk
-          retention-days: 7
+          gh api -X DELETE "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --jq '.artifacts[] | select(.name=="apk-signed") | .id' 2>/dev/null || true

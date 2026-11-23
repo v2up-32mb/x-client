@@ -40,6 +40,8 @@ android {
             signingConfig signingConfigs.debug
             if (trialBuild) {
                 applicationIdSuffix ".trial"
+            } else {
+                applicationIdSuffix ".debug"
             }
         }
         release {
@@ -52,6 +54,12 @@ android {
         sourceSets {
             debug {
                 res.srcDir 'src/trial/res'
+            }
+        }
+    } else {
+        sourceSets {
+            debug {
+                res.srcDir 'src/debug/res'
             }
         }
     }
