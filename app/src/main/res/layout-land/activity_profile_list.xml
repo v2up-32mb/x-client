@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    主页横屏布局（layout-land）：
+    - 针对横屏有限垂直高度优化 FAB 间距与列表底部 padding
+    - 右下角 FAB 横向并排排列（VPN FAB 居右 16dp，Add FAB 居左 84dp）
+    - RecyclerView paddingBottom 调优为 84dp，完全避免遮挡列表最末尾卡片并大幅释放垂直空间
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        style="@style/Widget.XClient.Toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:menu="@menu/menu_profile_list" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipChildren="false">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/profile_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:paddingTop="8dp"
+            android:paddingBottom="84dp"
+            android:clipToPadding="false"
+            android:clipChildren="false" />
+
+        <com.x.client.app.ui.EmptyStateView
+            android:id="@+id/empty_state"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:visibility="gone" />
+
+        <!-- 右下：添加/导入（居 VPN FAB 之左，横向并排） -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_main"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="84dp"
+            android:layout_marginBottom="16dp"
+            android:contentDescription="@string/acc_add_profile"
+            android:src="@drawable/ic_add"
+            app:tint="?attr/colorOnPrimaryContainer"
+            app:backgroundTint="?attr/colorPrimaryContainer" />
+
+        <!-- 右下最右：VPN 连接主操作（compact 56dp 主色 container，morph 向左展开） -->
+        <com.x.client.app.ui.ConnectionFab
+            android:id="@+id/vpn_fab"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp" />
+
+    </FrameLayout>
+
+</LinearLayout>

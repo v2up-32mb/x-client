@@ -25,6 +25,7 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     private String selectedProfileId;
     private OnProfileActionListener listener;
     private Preferences prefs;
+    private int spanCount = 1;
 
     // 跟踪当前打开的项
     private SwipeRevealLayout currentlyOpenedLayout;
@@ -39,9 +40,19 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     }
 
     public ProfileAdapter(OnProfileActionListener listener, Preferences prefs) {
+        this(listener, prefs, 1);
+    }
+
+    public ProfileAdapter(OnProfileActionListener listener, Preferences prefs, int spanCount) {
         this.profiles = new ArrayList<>();
         this.listener = listener;
         this.prefs = prefs;
+        this.spanCount = Math.max(1, spanCount);
+    }
+
+    public void setSpanCount(int spanCount) {
+        this.spanCount = Math.max(1, spanCount);
+        notifyDataSetChanged();
     }
 
     public void setProfiles(List<Preferences.ProfileInfo> profiles, String selectedProfileId) {
@@ -99,9 +110,33 @@ public class ProfileAdapter extends RecyclerView.Adapter<ProfileAdapter.ViewHold
     public void onBindViewHolder(ViewHolder holder, int position) {
         Preferences.ProfileInfo profile = profiles.get(position);
 
-        // 设置 tag 便于在遥控器菜单键响应时找到对应项，并配置向右导航至 VPN 悬浮按钮
+        // 根据列位置动态调整卡片左右边距（外侧 12dp，中缝 12dp，8-point 体系对称）
+        int col = spanCount > 1 ? (position % spanCount) : 0;
+        float density = holder.itemView.getResources().getDisplayMetrics().density;
+        int leftMargin;
+        int rightMargin;
+        if (spanCount <= 1) {
+            leftMargin = Math.round(12f * density);
+            rightMargin = Math.round(12f * density);
+        } else {
+            leftMargin = Math.round((12f - (float) col * 12f / spanCount) * density);
+            rightMargin = Math.round(((float) 12f / spanCount * (col + 1)) * density);
+        }
+        ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) holder.foregroundLayout.getLayoutParams();
+        if (lp != null && (lp.leftMargin != leftMargin || lp.rightMargin != rightMargin)) {
+            lp.leftMargin = leftMargin;
+            lp.rightMargin = rightMargin;
+            holder.foregroundLayout.setLayoutParams(lp);
+        }
+
+        // 设置 tag 便于在遥控器菜单键响应时找到对应项
         holder.foregroundLayout.setTag(profile.id);
-        holder.foregroundLayout.setNextFocusRightId(R.id.vpn_fab);
+        // TV 遥控器 D-pad：仅列表末尾项引导至 VPN FAB，其余项自然按网格 focusSearch
+        if (position == profiles.size() - 1) {
+            holder.foregroundLayout.setNextFocusRightId(R.id.vpn_fab);
+        } else {
+            holder.foregroundLayout.setNextFocusRightId(View.NO_ID);
+        }
 
         // 设置选中状态
         boolean isSelected = profile.id.equals(selectedProfileId);

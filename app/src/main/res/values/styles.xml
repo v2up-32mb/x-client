@@ -79,9 +79,11 @@
         <item name="colorErrorContainer">?attr/xErrorContainer</item>
         <item name="colorOnErrorContainer">?attr/xOnErrorContainer</item>
 
-        <!-- 系统栏：跟随 surface 角色（night 下自动切换），windowLight* 在 values-night 覆写 -->
-        <item name="android:statusBarColor">?attr/xSurface</item>
-        <item name="android:navigationBarColor">?attr/xSurface</item>
+        <!-- 系统栏与全面屏延伸：透明系统栏，底色与异形屏 shortEdges 铺满 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">?attr/xSurface</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
     </style>

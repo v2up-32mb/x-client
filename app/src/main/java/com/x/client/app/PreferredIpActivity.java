@@ -79,13 +79,6 @@ public class PreferredIpActivity extends BaseActivity implements
 
         setContentView(R.layout.activity_preferred_ip);
 
-        // Android TV 遥控器与大屏安全边距适配
-        if (DeviceUtils.isTv(this)) {
-            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
-            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
-
         MaterialToolbar toolbar = findViewById(R.id.preferred_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         toolbar.inflateMenu(R.menu.menu_preferred_ip);

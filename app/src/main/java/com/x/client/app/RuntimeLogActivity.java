@@ -75,12 +75,6 @@ public class RuntimeLogActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_runtime_log);
 
-        if (DeviceUtils.isTv(this)) {
-            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
-            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
-
         toolbar = findViewById(R.id.toolbar);
         btnRefresh = findViewById(R.id.btn_log_refresh);
         btnCopy = findViewById(R.id.btn_log_copy);

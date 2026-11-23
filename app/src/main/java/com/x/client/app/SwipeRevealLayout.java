@@ -124,18 +124,22 @@ public class SwipeRevealLayout extends FrameLayout {
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        // 查找子视图
-        if (getChildCount() >= 3) {
-            foregroundView = getChildAt(0);
-            // getChildAt(1) 是分界线
-            actionButtons = getChildAt(2);
+        // 查找子视图：优先通过 ID 查找，并在未指定 ID 时兼容按子 View 数量回退查找
+        foregroundView = findViewById(R.id.foreground_layout);
+        actionButtons = findViewById(R.id.action_buttons);
 
-            // 初始化按钮位置（固定在右侧）
-            if (actionButtons != null) {
-                actionButtons.setVisibility(View.GONE);
-                // 按钮固定在右侧，不使用 translationX
-                currentRevealWidth = 0f;
-            }
+        if (foregroundView == null && getChildCount() > 0) {
+            foregroundView = getChildAt(0);
+        }
+        if (actionButtons == null && getChildCount() >= 2) {
+            actionButtons = getChildAt(getChildCount() - 1);
+        }
+
+        // 初始化按钮位置（固定在右侧）
+        if (actionButtons != null) {
+            actionButtons.setVisibility(View.GONE);
+            // 按钮固定在右侧，不使用 translationX
+            currentRevealWidth = 0f;
         }
 
         // 启用绘制裁剪

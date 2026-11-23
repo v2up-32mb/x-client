@@ -187,13 +187,6 @@ public class SettingsActivity extends BaseActivity {
         prefs = new Preferences(this);
         setContentView(R.layout.activity_settings);
 
-        // TV 端 overscan 安全边距适配（左右 32dp，上下 20dp）
-        if (DeviceUtils.isTv(this)) {
-            int safeH = dp(32);
-            int safeV = dp(20);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
-
         initViews();
         setupToolbar();
         setupGeneralCard();

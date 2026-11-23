@@ -99,13 +99,6 @@ public class ProfileEditActivity extends BaseActivity {
 
         setContentView(R.layout.activity_profile_edit);
 
-        // 电视设备 overscan 安全边距
-        if (DeviceUtils.isTv(this)) {
-            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
-            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
-
         // 初始化 M3 Toolbar
         MaterialToolbar toolbar = findViewById(R.id.toolbar);
         toolbar.setTitle(getString(R.string.edit_profile_title, prefs.getProfileName(profileId)));

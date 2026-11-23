@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 响应式屏幕内容水平内边距（平板/中大屏：64dp） -->
+    <dimen name="screen_content_padding_horizontal">64dp</dimen>
+</resources>

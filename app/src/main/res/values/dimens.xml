@@ -13,4 +13,7 @@
 
     <!-- 微徽章紧凑垂直边距（用于标签文本光学居中） -->
     <dimen name="badge_padding_vertical">2dp</dimen>
+
+    <!-- 响应式屏幕内容水平内边距（防横向过度拉伸） -->
+    <dimen name="screen_content_padding_horizontal">16dp</dimen>
 </resources>

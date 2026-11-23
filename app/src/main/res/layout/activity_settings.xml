@@ -37,9 +37,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="@dimen/spacing_lg"
+            android:paddingStart="@dimen/screen_content_padding_horizontal"
             android:paddingTop="@dimen/spacing_md"
-            android:paddingEnd="@dimen/spacing_lg"
+            android:paddingEnd="@dimen/screen_content_padding_horizontal"
             android:paddingBottom="@dimen/spacing_xxl">
 
             <!-- ==================== Card 1: 常规基础设置 ==================== -->

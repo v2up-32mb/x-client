@@ -14,6 +14,7 @@ import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -38,6 +39,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.core.content.ContextCompat;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.appbar.MaterialToolbar;
@@ -162,9 +164,14 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         emptyState = findViewById(R.id.empty_state);
         fabMain = findViewById(R.id.fab_main);
 
-        // 设置 RecyclerView
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new ProfileAdapter(this, prefs);
+        // 设置 RecyclerView（自适应单列/多列网格）
+        int spanCount = getResources().getInteger(R.integer.profile_grid_columns);
+        if (spanCount <= 1) {
+            recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        } else {
+            recyclerView.setLayoutManager(new GridLayoutManager(this, spanCount));
+        }
+        adapter = new ProfileAdapter(this, prefs, spanCount);
         recyclerView.setAdapter(adapter);
 
         // 添加触摸监听器，点击空白处关闭打开的项
@@ -200,8 +207,19 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
         // TV 遥控器与 D-pad 焦点链导航连接
         fabMain.setFocusable(true);
-        fabMain.setNextFocusDownId(R.id.vpn_fab);
-        fabMain.setNextFocusLeftId(R.id.profile_list);
+        boolean isLandscape = getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+        if (isLandscape) {
+            fabMain.setNextFocusLeftId(R.id.profile_list);
+            fabMain.setNextFocusRightId(R.id.vpn_fab);
+            vpnFab.setNextFocusLeftId(R.id.fab_main);
+            vpnFab.setNextFocusUpId(R.id.profile_list);
+        } else {
+            fabMain.setNextFocusDownId(R.id.vpn_fab);
+            fabMain.setNextFocusLeftId(R.id.profile_list);
+            vpnFab.setNextFocusUpId(R.id.fab_main);
+            vpnFab.setNextFocusLeftId(R.id.profile_list);
+        }
         fabMain.setOnFocusChangeListener((v, hasFocus) -> {
             if (hasFocus) {
                 v.animate().scaleX(1.1f).scaleY(1.1f).translationZ(8f).setDuration(120).start();
@@ -209,16 +227,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
                 v.animate().scaleX(1.0f).scaleY(1.0f).translationZ(0f).setDuration(120).start();
             }
         });
-
-        vpnFab.setNextFocusUpId(R.id.fab_main);
-        vpnFab.setNextFocusLeftId(R.id.profile_list);
-
-        if (DeviceUtils.isTv(this)) {
-            // 电视端 overscan 安全边距（左右 32dp，上下 20dp），防止电视裁切边缘
-            int safeH = (int) (32 * getResources().getDisplayMetrics().density);
-            int safeV = (int) (20 * getResources().getDisplayMetrics().density);
-            findViewById(android.R.id.content).setPadding(safeH, safeV, safeH, safeV);
-        }
 
         // VPN FAB：tap=连接/断开主操作（展开态中 tap 由组件内部折叠，review §1）
         vpnFab.setOnToggleListener(() -> toggleVpn());

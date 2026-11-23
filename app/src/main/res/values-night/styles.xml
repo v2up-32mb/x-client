@@ -75,9 +75,11 @@
         <item name="colorErrorContainer">?attr/xErrorContainer</item>
         <item name="colorOnErrorContainer">?attr/xOnErrorContainer</item>
 
-        <!-- 系统栏：夜间模式下浅色状态栏图标关闭 -->
-        <item name="android:statusBarColor">?attr/xSurface</item>
-        <item name="android:navigationBarColor">?attr/xSurface</item>
+        <!-- 系统栏与全面屏延伸：夜间透明系统栏，底色与异形屏 shortEdges 铺满 -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">?attr/xSurface</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="p">shortEdges</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item>
     </style>
