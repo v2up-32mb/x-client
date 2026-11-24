@@ -9,12 +9,14 @@
 
 package com.x.client.app;
 
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.Editable;
@@ -604,12 +606,17 @@ public class SettingsActivity extends BaseActivity {
         }
 
         rowAboutGithub.setOnClickListener(v -> {
-            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("GitHub Repository", GITHUB_REPO_URL);
-            if (clipboard != null) {
-                clipboard.setPrimaryClip(clip);
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_REPO_URL));
+                startActivity(intent);
+            } catch (ActivityNotFoundException e) {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("GitHub Repository", GITHUB_REPO_URL);
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(clip);
+                }
+                Toast.makeText(this, getString(R.string.settings_about_github_copied), Toast.LENGTH_SHORT).show();
             }
-            Toast.makeText(this, getString(R.string.settings_about_github_copied), Toast.LENGTH_SHORT).show();
         });
     }
 
