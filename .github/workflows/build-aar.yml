@@ -46,7 +46,7 @@ jobs:
       # cache-dependency-path 必须指向 golib/（v6 默认在仓库根找 go.mod → 本仓结构触发告警）
       uses: actions/setup-go@v6
       with:
-        go-version: '1.26'
+        go-version: '1.27'
         cache-dependency-path: |
           golib/go.mod
           golib/go.sum

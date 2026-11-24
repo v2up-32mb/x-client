@@ -108,7 +108,7 @@ jobs:
         if: needs.meta.outputs.is_trial == 'true' || steps.aar_cache.outputs.cache-hit != 'true'
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: '1.27'
           # 关闭 action 内置缓存（下方已显式用 actions/cache 管理 GOMODCACHE/GOCACHE，
           # 双层缓存会重复上传；且内置缓存在仓库根探测 go.mod，本仓在 golib/ 下会发告警）
           cache: false
@@ -202,9 +202,9 @@ jobs:
           CGO_ENABLED: '1'
           GOFLAGS: -mod=readonly
         run: |
-          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/gcm)" = v0.1.1
-          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xshared)" = v0.1.5
-          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xtunnel)" = v0.3.4
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/gcm)" = v0.1.3
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xshared)" = v0.1.6
+          test "$(go list -m -f '{{.Version}}' github.com/v2up-32mb/xtunnel)" = v0.3.5
           # 无参数 download 不写回新增校验和；显式 all 只下载当前已选集合。
           # 仅此命令允许写 sum，之后恢复 readonly；模块文件/版本列表均须不变。
           cp go.mod "$RUNNER_TEMP/bind-resolved.go.mod"
