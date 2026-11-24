@@ -264,11 +264,8 @@ public class SettingsActivity extends BaseActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        // 从分应用代理界面返回时刷新已选数量
-        int selectedApps = prefs.getApps().size();
-        textAppsSummary.setText(selectedApps > 0
-                ? getString(R.string.settings_apps_row_summary, selectedApps)
-                : getString(R.string.settings_apps_row_summary_none));
+        // 从分应用代理界面返回时刷新已选数量与全局模式联动状态
+        updateAppsSummary();
     }
 
     @Override
@@ -439,6 +436,13 @@ public class SettingsActivity extends BaseActivity {
 
     private void setupBypassCard() {
         buttonApps.setOnClickListener(v -> startActivity(new Intent(this, AppListActivity.class)));
+
+        checkboxGlobal.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (!isLoadingSettings) {
+                prefs.setGlobal(isChecked);
+                updateAppsSummary();
+            }
+        });
 
         checkboxLatencyForceProxy.setOnCheckedChangeListener((btn, isChecked) -> {
             if (!isLoadingSettings) {
@@ -692,10 +696,7 @@ public class SettingsActivity extends BaseActivity {
 
             // 加载路由绕过设置
             checkboxGlobal.setChecked(prefs.getGlobal());
-            int selectedApps = prefs.getApps().size();
-            textAppsSummary.setText(selectedApps > 0
-                    ? getString(R.string.settings_apps_row_summary, selectedApps)
-                    : getString(R.string.settings_apps_row_summary_none));
+            updateAppsSummary();
 
             checkboxBypassPrivate.setChecked(prefs.getBypassPrivate());
             checkboxBypassGeoIpCn.setChecked(prefs.getBypassGeoIpCn());
@@ -723,6 +724,17 @@ public class SettingsActivity extends BaseActivity {
             }
         } finally {
             isLoadingSettings = false;
+        }
+    }
+
+    private void updateAppsSummary() {
+        int selectedApps = prefs.getApps().size();
+        if (selectedApps == 0) {
+            textAppsSummary.setText(R.string.settings_apps_row_summary_none);
+        } else if (checkboxGlobal != null && checkboxGlobal.isChecked()) {
+            textAppsSummary.setText(getString(R.string.settings_apps_row_summary_global, selectedApps));
+        } else {
+            textAppsSummary.setText(getString(R.string.settings_apps_row_summary, selectedApps));
         }
     }
 

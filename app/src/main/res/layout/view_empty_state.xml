@@ -59,6 +59,7 @@
 
     <!-- 快捷行动按钮组 -->
     <LinearLayout
+        android:id="@+id/empty_profile_actions"
         android:layout_width="280dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/spacing_xxl"

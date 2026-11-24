@@ -9,177 +9,150 @@
 
 package com.x.client.app;
 
-import java.util.Set;
-import java.util.List;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Comparator;
-import java.util.Collections;
+import java.text.Collator;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 import android.Manifest;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.LruCache;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.LayoutInflater;
-import android.content.Context;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.checkbox.MaterialCheckBox;
 import com.google.android.material.textfield.TextInputEditText;
 import com.x.client.app.ui.EmptyStateView;
 
 public class AppListActivity extends BaseActivity {
+	private static final int MENU_SELECT_ALL = 1;
+	private static final int MENU_INVERT = 2;
+	private static final int MENU_CLEAR = 3;
+	private static final int MENU_SHOW_SYSTEM = 4;
+
 	private Preferences prefs;
-	private AppArrayAdapter adapter;
-	private ListView listView;
+	private AppAdapter adapter;
+	private RecyclerView recyclerView;
 	private MaterialToolbar toolbar;
 	private TextInputEditText searchBox;
 	private TextView selectedCountView;
 	private View bottomBar;
 	private View loadingContainer;
 	private EmptyStateView emptyState;
+
+	private final List<AppItem> allApps = new ArrayList<>();
+	private final List<AppItem> filteredApps = new ArrayList<>();
+	private final LruCache<String, Drawable> iconCache = new LruCache<>(128);
+	private final Collator collator = Collator.getInstance(Locale.getDefault());
+
+	private String currentQuery = "";
+	private boolean showSystemApps = false;
 	private boolean isChanged = false;
 	private boolean loaded = false;
+	private MenuItem showSystemMenuItem;
 
-	/* 列表排序规则与原实现一致：已选优先，其余按应用名 */
-	private final Comparator<Package> packageOrder = (a, b) -> {
-		if (a.selected != b.selected)
-			return a.selected ? -1 : 1;
-		return a.label.compareTo(b.label);
-	};
-
-	private class Package {
-		public PackageInfo info;
+	public static class AppItem {
+		public final PackageInfo info;
+		public final String packageName;
+		public final String label;
+		public final boolean isSystemApp;
 		public boolean selected;
-		public String label;
 
-		public Package(PackageInfo info, boolean selected, String label) {
+		public AppItem(PackageInfo info, boolean selected, String label, boolean isSystemApp) {
 			this.info = info;
+			this.packageName = info != null ? info.packageName : "";
 			this.selected = selected;
-			this.label = label;
+			this.label = (label != null && !label.isEmpty()) ? label : this.packageName;
+			this.isSystemApp = isSystemApp;
 		}
 	}
 
-	private static class ViewHolder {
+	private static class AppViewHolder extends RecyclerView.ViewHolder {
 		final ImageView icon;
 		final TextView name;
+		final TextView badgeSystem;
 		final TextView packageName;
-		final CheckBox checked;
+		final MaterialCheckBox checked;
 
-		ViewHolder(View row) {
-			icon = (ImageView) row.findViewById(R.id.icon);
-			name = (TextView) row.findViewById(R.id.name);
-			packageName = (TextView) row.findViewById(R.id.package_name);
-			checked = (CheckBox) row.findViewById(R.id.checked);
+		AppViewHolder(@NonNull View itemView) {
+			super(itemView);
+			icon = itemView.findViewById(R.id.icon);
+			name = itemView.findViewById(R.id.name);
+			badgeSystem = itemView.findViewById(R.id.badge_system);
+			packageName = itemView.findViewById(R.id.package_name);
+			checked = itemView.findViewById(R.id.checked);
 		}
 	}
 
-	private class AppArrayAdapter extends ArrayAdapter<Package> {
-		private final List<Package> allPackages = new ArrayList<Package>();
-		private final List<Package> filteredPackages = new ArrayList<Package>();
-		private String lastFilter = "";
-
-		/* 应用图标缓存（固定条数，上界确定）：避免滚动时重复 loadIcon 造成卡顿 */
-		private final LruCache<String, Drawable> iconCache = new LruCache<String, Drawable>(128);
-
-		public AppArrayAdapter(Context context) {
-			super(context, R.layout.appitem);
-		}
-
-		public void setPackages(List<Package> packages) {
-			allPackages.clear();
-			allPackages.addAll(packages);
-			applyFilter(lastFilter);
+	private class AppAdapter extends RecyclerView.Adapter<AppViewHolder> {
+		@NonNull
+		@Override
+		public AppViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+			View view = LayoutInflater.from(parent.getContext())
+					.inflate(R.layout.appitem, parent, false);
+			return new AppViewHolder(view);
 		}
 
 		@Override
-		public void clear() {
-			allPackages.clear();
-			filteredPackages.clear();
-			notifyDataSetChanged();
-		}
+		public void onBindViewHolder(@NonNull AppViewHolder holder, int position) {
+			AppItem item = filteredApps.get(position);
+			holder.name.setText(item.label);
+			holder.packageName.setText(item.packageName);
+			holder.badgeSystem.setVisibility(item.isSystemApp ? View.VISIBLE : View.GONE);
+			holder.checked.setChecked(item.selected);
 
-		@Override
-		public int getCount() {
-			return filteredPackages.size();
-		}
+			holder.itemView.setContentDescription(
+					getString(R.string.acc_app_select, item.label));
 
-		@Override
-		public Package getItem(int position) {
-			return filteredPackages.get(position);
-		}
-
-		public List<Package> getAllPackages() {
-			return allPackages;
-		}
-
-		public List<Package> getFilteredPackages() {
-			return filteredPackages;
-		}
-
-		private boolean matchesFilter(Package pkg, String filter) {
-			if (filter == null || filter.length() == 0)
-				return true;
-			return pkg.label.toLowerCase().contains(filter.toLowerCase());
-		}
-
-		public void applyFilter(String filter) {
-			lastFilter = filter != null ? filter : "";
-			filteredPackages.clear();
-			if (lastFilter.length() == 0) {
-				filteredPackages.addAll(allPackages);
+			Drawable icon = iconCache.get(item.packageName);
+			if (icon != null) {
+				holder.icon.setImageDrawable(icon);
 			} else {
-				String f = lastFilter.toLowerCase();
-				for (Package p : allPackages) {
-					if (p.label != null && p.label.toLowerCase().contains(f))
-						filteredPackages.add(p);
+				holder.icon.setImageDrawable(null);
+				if (item.info != null && item.info.applicationInfo != null) {
+					try {
+						icon = item.info.applicationInfo.loadIcon(getPackageManager());
+						iconCache.put(item.packageName, icon);
+						holder.icon.setImageDrawable(icon);
+					} catch (Exception ignored) {
+					}
 				}
 			}
-			notifyDataSetChanged();
+
+			holder.itemView.setOnClickListener(v -> {
+				int pos = holder.getBindingAdapterPosition();
+				if (pos >= 0 && pos < filteredApps.size()) {
+					AppItem target = filteredApps.get(pos);
+					target.selected = !target.selected;
+					notifyItemChanged(pos);
+					isChanged = true;
+					updateSelectedCount();
+				}
+			});
 		}
 
 		@Override
-		public View getView(int position, View convertView, ViewGroup parent) {
-			View rowView = convertView;
-			ViewHolder holder;
-			if (rowView == null) {
-				rowView = LayoutInflater.from(getContext())
-					.inflate(R.layout.appitem, parent, false);
-				holder = new ViewHolder(rowView);
-				rowView.setTag(holder);
-			} else {
-				holder = (ViewHolder) rowView.getTag();
-			}
-
-			Package pkg = getItem(position);
-			Context context = getContext();
-			Drawable icon = iconCache.get(pkg.info.packageName);
-			if (icon == null) {
-				icon = pkg.info.applicationInfo
-					.loadIcon(context.getPackageManager());
-				iconCache.put(pkg.info.packageName, icon);
-			}
-			holder.icon.setImageDrawable(icon);
-			holder.name.setText(pkg.label);
-			holder.packageName.setText(pkg.info.packageName);
-			holder.checked.setChecked(pkg.selected);
-			/* 无障碍：按应用名朗读，勾选状态由 CheckBox 自动播报 */
-			holder.checked.setContentDescription(
-					context.getString(R.string.acc_app_select, pkg.label));
-
-			return rowView;
+		public int getItemCount() {
+			return filteredApps.size();
 		}
 	}
 
@@ -188,36 +161,23 @@ public class AppListActivity extends BaseActivity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_app_list);
 
-		toolbar = (MaterialToolbar) findViewById(R.id.toolbar);
-		listView = (ListView) findViewById(R.id.app_list);
-		searchBox = (TextInputEditText) findViewById(R.id.search_apps);
-		selectedCountView = (TextView) findViewById(R.id.selected_count);
+		toolbar = findViewById(R.id.toolbar);
+		recyclerView = findViewById(R.id.app_recycler_view);
+		searchBox = findViewById(R.id.search_apps);
+		selectedCountView = findViewById(R.id.selected_count);
 		bottomBar = findViewById(R.id.bottom_bar);
 		loadingContainer = findViewById(R.id.loading_container);
-		emptyState = (EmptyStateView) findViewById(R.id.empty_state);
-		MaterialButton saveButton = (MaterialButton) findViewById(R.id.btn_save);
+		emptyState = findViewById(R.id.empty_state);
+		MaterialButton saveButton = findViewById(R.id.btn_save);
 
 		setupToolbar();
 
-		listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
-
 		prefs = new Preferences(this);
-		adapter = new AppArrayAdapter(this);
-		listView.setAdapter(adapter);
-
-		listView.setOnItemClickListener((parent, view, position, id) -> {
-			Package pkg = adapter.getItem(position);
-			pkg.selected = !pkg.selected;
-			ViewHolder holder = (ViewHolder) view.getTag();
-			if (holder != null) {
-				holder.checked.setChecked(pkg.selected);
-			}
-			isChanged = true;
-			updateSelectedCount();
-		});
+		adapter = new AppAdapter();
+		recyclerView.setLayoutManager(new LinearLayoutManager(this));
+		recyclerView.setAdapter(adapter);
 
 		saveButton.setOnClickListener(v -> {
-			/* 显式保存：与 onDestroy 兜底同一套逻辑（同 prefs.setApps） */
 			saveSelection();
 			finish();
 		});
@@ -228,8 +188,8 @@ public class AppListActivity extends BaseActivity {
 
 			@Override
 			public void onTextChanged(CharSequence s, int start, int before, int count) {
-				adapter.applyFilter(s.toString());
-				updateEmptyState();
+				currentQuery = s != null ? s.toString() : "";
+				applyFilter();
 			}
 
 			@Override
@@ -243,82 +203,154 @@ public class AppListActivity extends BaseActivity {
 		toolbar.setTitle(R.string.apps);
 		toolbar.setNavigationIcon(R.drawable.ic_arrow_back);
 		toolbar.setNavigationContentDescription(R.string.back);
-		toolbar.setNavigationOnClickListener(v -> finish());
+		toolbar.setNavigationOnClickListener(v -> onBackPressed());
 
-		/* 溢出菜单：文字项（放不进图标资源，走标题文案）。
-		 * 三个选择动作均作用于"当前过滤后的结果集"（WireGuard 惯例）：
-		 * 无过滤时即作用于全部应用。 */
-		MenuItem selectAll = toolbar.getMenu().add(R.string.action_select_all);
+		MenuItem selectAll = toolbar.getMenu().add(0, MENU_SELECT_ALL, 0, R.string.action_select_all);
 		selectAll.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 		selectAll.setOnMenuItemClickListener(item -> {
 			setFilteredSelection(true);
 			return true;
 		});
 
-		MenuItem invert = toolbar.getMenu().add(R.string.action_invert_selection);
+		MenuItem invert = toolbar.getMenu().add(0, MENU_INVERT, 1, R.string.action_invert_selection);
 		invert.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 		invert.setOnMenuItemClickListener(item -> {
 			invertFilteredSelection();
 			return true;
 		});
 
-		MenuItem clearSel = toolbar.getMenu().add(R.string.action_clear_selection);
+		MenuItem clearSel = toolbar.getMenu().add(0, MENU_CLEAR, 2, R.string.action_clear_selection);
 		clearSel.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
 		clearSel.setOnMenuItemClickListener(item -> {
 			setFilteredSelection(false);
 			return true;
 		});
+
+		showSystemMenuItem = toolbar.getMenu().add(0, MENU_SHOW_SYSTEM, 3, R.string.action_show_system_apps);
+		showSystemMenuItem.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER);
+		showSystemMenuItem.setCheckable(true);
+		showSystemMenuItem.setChecked(showSystemApps);
+		showSystemMenuItem.setOnMenuItemClickListener(item -> {
+			showSystemApps = !showSystemApps;
+			item.setChecked(showSystemApps);
+			applyFilter();
+			return true;
+		});
 	}
 
-	/* 应用枚举放后台线程，onCreate 立即展示加载态；过滤规则与原实现逐条一致 */
 	private void loadApps() {
 		new Thread(() -> {
 			PackageManager pm = getPackageManager();
-			Set<String> apps = prefs.getApps();
-			List<Package> packages = new ArrayList<Package>();
+			Set<String> selectedSet = prefs.getApps();
+			List<AppItem> list = new ArrayList<>();
 
-			for (PackageInfo info : pm.getInstalledPackages(PackageManager.GET_PERMISSIONS)) {
-				if (info.packageName.equals(getPackageName()))
-					continue;
-				if (info.requestedPermissions == null)
-					continue;
-				if (!Arrays.asList(info.requestedPermissions).contains(Manifest.permission.INTERNET))
-					continue;
-				boolean selected = apps.contains(info.packageName);
-				String label = info.applicationInfo.loadLabel(pm).toString();
-				packages.add(new Package(info, selected, label));
+			List<PackageInfo> installedPackages;
+			try {
+				installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
+			} catch (Exception e) {
+				installedPackages = Collections.emptyList();
 			}
 
-			Collections.sort(packages, packageOrder);
+			String myPackage = getPackageName();
+			for (PackageInfo info : installedPackages) {
+				if (info == null || info.packageName == null || info.packageName.equals(myPackage)) {
+					continue;
+				}
+				if (info.applicationInfo == null) {
+					continue;
+				}
+				if (info.requestedPermissions == null) {
+					continue;
+				}
+				boolean hasInternet = false;
+				for (String perm : info.requestedPermissions) {
+					if (Manifest.permission.INTERNET.equals(perm)) {
+						hasInternet = true;
+						break;
+					}
+				}
+				if (!hasInternet) {
+					continue;
+				}
+
+				boolean isSystem = (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+				boolean selected = selectedSet.contains(info.packageName);
+				String label;
+				try {
+					CharSequence cs = info.applicationInfo.loadLabel(pm);
+					label = cs != null ? cs.toString().trim() : info.packageName;
+				} catch (Exception e) {
+					label = info.packageName;
+				}
+
+				list.add(new AppItem(info, selected, label, isSystem));
+			}
+
+			sortAppList(list);
 
 			runOnUiThread(() -> {
-				if (isDestroyed() || isFinishing())
+				if (isDestroyed() || isFinishing()) {
 					return;
-				adapter.setPackages(packages);
+				}
+				allApps.clear();
+				allApps.addAll(list);
 				loaded = true;
 				loadingContainer.setVisibility(View.GONE);
-				listView.setVisibility(View.VISIBLE);
+				recyclerView.setVisibility(View.VISIBLE);
 				bottomBar.setVisibility(View.VISIBLE);
+				applyFilter();
 				updateSelectedCount();
-				updateEmptyState();
 			});
 		}, "app-list-loader").start();
 	}
 
-	/* 全选/清除选择：作用于当前过滤后的结果集（无过滤 = 全部应用） */
+	private void sortAppList(List<AppItem> list) {
+		Collections.sort(list, (a, b) -> {
+			if (a.selected != b.selected) {
+				return a.selected ? -1 : 1;
+			}
+			if (a.isSystemApp != b.isSystemApp) {
+				return a.isSystemApp ? 1 : -1;
+			}
+			return collator.compare(a.label, b.label);
+		});
+	}
+
+	private void applyFilter() {
+		String query = currentQuery.trim().toLowerCase(Locale.getDefault());
+		filteredApps.clear();
+		for (AppItem app : allApps) {
+			if (!showSystemApps && app.isSystemApp && !app.selected) {
+				continue;
+			}
+			if (query.isEmpty()) {
+				filteredApps.add(app);
+			} else {
+				boolean matchLabel = app.label != null
+						&& app.label.toLowerCase(Locale.getDefault()).contains(query);
+				boolean matchPkg = app.packageName != null
+						&& app.packageName.toLowerCase(Locale.getDefault()).contains(query);
+				if (matchLabel || matchPkg) {
+					filteredApps.add(app);
+				}
+			}
+		}
+		adapter.notifyDataSetChanged();
+		updateEmptyState();
+	}
+
 	private void setFilteredSelection(boolean selected) {
-		for (Package pkg : adapter.getFilteredPackages()) {
-			pkg.selected = selected;
+		for (AppItem item : filteredApps) {
+			item.selected = selected;
 		}
 		isChanged = true;
 		adapter.notifyDataSetChanged();
 		updateSelectedCount();
 	}
 
-	/* 反选：在当前过滤后的结果集内翻转 */
 	private void invertFilteredSelection() {
-		for (Package pkg : adapter.getFilteredPackages()) {
-			pkg.selected = !pkg.selected;
+		for (AppItem item : filteredApps) {
+			item.selected = !item.selected;
 		}
 		isChanged = true;
 		adapter.notifyDataSetChanged();
@@ -327,22 +359,24 @@ public class AppListActivity extends BaseActivity {
 
 	private void updateSelectedCount() {
 		int count = 0;
-		for (Package pkg : adapter.getAllPackages()) {
-			if (pkg.selected)
+		for (AppItem app : allApps) {
+			if (app.selected) {
 				count++;
+			}
 		}
 		selectedCountView.setText(getString(R.string.app_selected_count, count));
 	}
 
 	private void updateEmptyState() {
-		/* 加载完成前不判空，避免把"还没加载出来"误读成"无结果" */
 		if (!loaded) {
 			emptyState.setVisibility(View.GONE);
 			return;
 		}
-		boolean empty = adapter.getCount() == 0;
+		boolean empty = filteredApps.isEmpty();
 		emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
 		if (empty) {
+			emptyState.setProfileActionsVisible(false);
+			emptyState.setIconResource(android.R.drawable.ic_menu_search);
 			emptyState.setTitle(getString(R.string.empty_search_title));
 			emptyState.setMessage(getString(R.string.empty_search_message));
 			emptyState.setAction(getString(R.string.action_clear_search),
@@ -355,11 +389,11 @@ public class AppListActivity extends BaseActivity {
 			return;
 		}
 
-		Set<String> apps = new HashSet<String>();
-
-		for (Package pkg : adapter.getAllPackages()) {
-			if (pkg.selected)
-				apps.add(pkg.info.packageName);
+		Set<String> apps = new HashSet<>();
+		for (AppItem app : allApps) {
+			if (app.selected) {
+				apps.add(app.packageName);
+			}
 		}
 
 		prefs.setApps(apps);
@@ -367,11 +401,20 @@ public class AppListActivity extends BaseActivity {
 	}
 
 	@Override
-	protected void onDestroy() {
-		/* 兜底：显式保存（保存按钮）已置 isChanged=false，此处不会重复写 prefs */
+	protected void onPause() {
 		saveSelection();
-
-		super.onDestroy();
+		super.onPause();
 	}
 
+	@Override
+	public void onBackPressed() {
+		saveSelection();
+		super.onBackPressed();
+	}
+
+	@Override
+	protected void onDestroy() {
+		saveSelection();
+		super.onDestroy();
+	}
 }

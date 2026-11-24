@@ -204,6 +204,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_placeholder_ech_domain">cloudflare-ech.com</string>
     <string name="settings_socks_port_summary">目前連接埠：%1$d</string>
     <string name="settings_apps_row_summary">已選擇 %1$d 個應用程式</string>
+    <string name="settings_apps_row_summary_global">已選擇 %1$d 個應用程式（全域模式生效中）</string>
     <string name="settings_apps_row_summary_none">未選擇任何應用程式</string>
     <string name="settings_log_level_summary">目前層級：%1$s</string>
     <string name="settings_restart_required">修改後需重新啟動 VPN 生效</string>
@@ -238,6 +239,8 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="action_select_all">全選</string>
     <string name="action_invert_selection">反選</string>
     <string name="action_clear_selection">清除選擇</string>
+    <string name="action_show_system_apps">顯示系統應用</string>
+    <string name="system_app_badge">系統</string>
     <string name="action_clear_search">清除搜尋</string>
     <string name="acc_app_select">選擇 %1$s</string>
     <string name="show_server_addr">在設定清單中顯示伺服器位址</string>

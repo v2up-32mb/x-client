@@ -36,6 +36,7 @@ public class EmptyStateView extends LinearLayoutCompat {
     private final MaterialButton btnScanQr;
     private final MaterialButton btnAddManual;
     private final MaterialButton actionButton;
+    private final android.view.View profileActionsGroup;
 
     private OnEmptyStateActionListener actionListener;
 
@@ -60,6 +61,7 @@ public class EmptyStateView extends LinearLayoutCompat {
         btnScanQr = findViewById(R.id.btn_empty_scan_qr);
         btnAddManual = findViewById(R.id.btn_empty_add_manual);
         actionButton = findViewById(R.id.empty_action);
+        profileActionsGroup = findViewById(R.id.empty_profile_actions);
 
         if (btnClipboard != null) {
             btnClipboard.setOnClickListener(v -> {
@@ -106,6 +108,18 @@ public class EmptyStateView extends LinearLayoutCompat {
                 actionButton.setVisibility(VISIBLE);
                 actionButton.setOnClickListener(listener);
             }
+        }
+    }
+
+    public void setProfileActionsVisible(boolean visible) {
+        if (profileActionsGroup != null) {
+            profileActionsGroup.setVisibility(visible ? VISIBLE : GONE);
+        }
+    }
+
+    public void setIconResource(int resId) {
+        if (iconView != null) {
+            iconView.setImageResource(resId);
         }
     }
 }
