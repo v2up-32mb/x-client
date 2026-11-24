@@ -46,12 +46,14 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/app_recycler_view"
+        <ListView
+            android:id="@+id/app_list"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:choiceMode="multipleChoice"
             android:clipToPadding="false"
-            android:scrollbars="vertical"
+            android:divider="@null"
+            android:dividerHeight="0dp"
             android:paddingStart="@dimen/screen_content_padding_horizontal"
             android:paddingEnd="@dimen/screen_content_padding_horizontal"
             android:paddingTop="@dimen/spacing_xs"

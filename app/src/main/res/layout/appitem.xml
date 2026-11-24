@@ -1,20 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    应用列表行（AppList 重构）：
-    - 整行可点击，minHeight 64dp（≥56dp 触控行高）
-    - 图标固定 48dp；应用名 TitleMedium(onSurface)，包名 BodySmall(onSurfaceVariant)
-    - 右侧 CheckBox 48dp 触控目标，contentDescription 由 Java 按应用名注入（选中态由系统朗读）
+    分应用代理列表条目（AppList 重构）：
+    - ≥48dp 触控热区（minHeight=64dp 保障文字居中与热区）
+    - 图标：40x40dp 保持原样，加 contentDescription=@null 规避 lint
+    - 文本区：TitleMedium（应用名）+ BodySmall（包名），两行紧凑布局
+    - CheckBox：无文字占位，原生 checkbox，居右
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:minHeight="64dp"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:clickable="true"
-    android:focusable="true"
-    android:background="@drawable/bg_interactive_item"
+    android:background="?android:attr/selectableItemBackground"
     android:paddingStart="@dimen/spacing_lg"
     android:paddingEnd="@dimen/spacing_lg"
     android:paddingTop="@dimen/spacing_sm"
@@ -22,50 +20,26 @@
 
     <ImageView
         android:id="@+id/icon"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:importantForAccessibility="no"
-        tools:ignore="UseAppTint" />
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="@dimen/spacing_md"
+        android:contentDescription="@null" />
 
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:layout_marginStart="@dimen/spacing_lg"
         android:layout_marginEnd="@dimen/spacing_md"
         android:orientation="vertical">
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/name"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/name"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:textAppearance="?attr/textAppearanceTitleMedium"
-                android:textColor="?attr/colorOnSurface"
-                android:maxLines="1"
-                android:ellipsize="end" />
-
-            <TextView
-                android:id="@+id/badge_system"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/spacing_xs"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
-                android:paddingTop="1dp"
-                android:paddingBottom="1dp"
-                android:background="@drawable/bg_pill_badge"
-                android:text="@string/system_app_badge"
-                android:textAppearance="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:visibility="gone" />
-        </LinearLayout>
+            android:textAppearance="?attr/textAppearanceTitleMedium"
+            android:textColor="?attr/colorOnSurface"
+            android:maxLines="1"
+            android:ellipsize="end" />
 
         <TextView
             android:id="@+id/package_name"
@@ -78,11 +52,11 @@
             android:ellipsize="end" />
     </LinearLayout>
 
-    <com.google.android.material.checkbox.MaterialCheckBox
+    <CheckBox
         android:id="@+id/checked"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:layout_marginStart="@dimen/spacing_sm"
+        android:clickable="false"
         android:focusable="false"
-        android:clickable="false" />
+        android:gravity="center" />
 </LinearLayout>
