@@ -262,6 +262,8 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="empty_profiles_message">點擊右下角按鈕，掃碼匯入或手動建立第一個設定</string>
     <string name="empty_search_title">未找到相符應用程式</string>
     <string name="empty_search_message">試試其他關鍵字，或清除搜尋條件</string>
+    <string name="empty_apps_title">未找到可用應用程式</string>
+    <string name="empty_apps_message">未能獲取已安裝應用程式清單，請點擊重試</string>
     <string name="empty_logs_title">暫無記錄</string>
     <string name="empty_logs_message">連線後執行記錄將顯示在此處</string>
     <string name="home_subtitle_no_profile">未選擇設定</string>

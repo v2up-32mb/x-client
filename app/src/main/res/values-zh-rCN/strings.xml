@@ -258,6 +258,8 @@
     <string name="empty_profiles_message">点击右下角按钮，扫码导入或手动创建第一个配置</string>
     <string name="empty_search_title">未找到匹配应用</string>
     <string name="empty_search_message">试试其他关键词，或清除搜索条件</string>
+    <string name="empty_apps_title">未找到可用应用</string>
+    <string name="empty_apps_message">未能获取已安装应用列表，请点击重试</string>
     <string name="empty_logs_title">暂无日志</string>
     <string name="empty_logs_message">连接后运行记录将显示在这里</string>
     <string name="home_subtitle_no_profile">未选择配置</string>

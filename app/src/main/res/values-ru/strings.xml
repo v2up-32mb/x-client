@@ -262,6 +262,8 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="empty_profiles_message">Нажмите кнопку справа внизу для импорта или создания профиля</string>
     <string name="empty_search_title">Приложения не найдены</string>
     <string name="empty_search_message">Попробуйте другие ключевые слова или сбросьте фильтр</string>
+    <string name="empty_apps_title">Приложения не найдены</string>
+    <string name="empty_apps_message">Не удалось загрузить список установленных приложений</string>
     <string name="empty_logs_title">Журнал пуст</string>
     <string name="empty_logs_message">Записи сеанса появятся здесь после подключения</string>
     <string name="home_subtitle_no_profile">Профиль не выбран</string>

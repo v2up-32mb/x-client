@@ -17,10 +17,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import android.Manifest;
+import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.Editable;
@@ -170,6 +171,7 @@ public class AppListActivity extends BaseActivity {
 		emptyState = findViewById(R.id.empty_state);
 		MaterialButton saveButton = findViewById(R.id.btn_save);
 
+		emptyState.setProfileActionsVisible(false);
 		setupToolbar();
 
 		prefs = new Preferences(this);
@@ -239,51 +241,79 @@ public class AppListActivity extends BaseActivity {
 	}
 
 	private void loadApps() {
+		loadingContainer.setVisibility(View.VISIBLE);
+		recyclerView.setVisibility(View.GONE);
+		bottomBar.setVisibility(View.GONE);
+		emptyState.setVisibility(View.GONE);
+		loaded = false;
+
 		new Thread(() -> {
 			PackageManager pm = getPackageManager();
 			Set<String> selectedSet = prefs.getApps();
 			List<AppItem> list = new ArrayList<>();
 
-			List<PackageInfo> installedPackages;
+			List<PackageInfo> installedPackages = null;
 			try {
-				installedPackages = pm.getInstalledPackages(PackageManager.GET_PERMISSIONS);
+				// 使用 flag 0 规避 GET_PERMISSIONS 导致的超大 Binder 事务与权限拦截
+				installedPackages = pm.getInstalledPackages(0);
 			} catch (Exception e) {
-				installedPackages = Collections.emptyList();
+				installedPackages = null;
+			}
+
+			// 兜底方案：部分定制 ROM 下 getInstalledPackages(0) 返回空，回退为检索 Launcher 启动项应用
+			if (installedPackages == null || installedPackages.isEmpty()) {
+				try {
+					Intent mainIntent = new Intent(Intent.ACTION_MAIN, null);
+					mainIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+					List<ResolveInfo> resolveInfos = pm.queryIntentActivities(mainIntent, 0);
+					if (resolveInfos != null && !resolveInfos.isEmpty()) {
+						Set<String> addedPkgs = new HashSet<>();
+						installedPackages = new ArrayList<>();
+						for (ResolveInfo ri : resolveInfos) {
+							if (ri.activityInfo != null && ri.activityInfo.packageName != null) {
+								String pkgName = ri.activityInfo.packageName;
+								if (addedPkgs.add(pkgName)) {
+									try {
+										PackageInfo pi = pm.getPackageInfo(pkgName, 0);
+										if (pi != null) {
+											installedPackages.add(pi);
+										}
+									} catch (Exception ignored) {
+									}
+								}
+							}
+						}
+					}
+				} catch (Exception ignored) {
+				}
 			}
 
 			String myPackage = getPackageName();
-			for (PackageInfo info : installedPackages) {
-				if (info == null || info.packageName == null || info.packageName.equals(myPackage)) {
-					continue;
-				}
-				if (info.applicationInfo == null) {
-					continue;
-				}
-				if (info.requestedPermissions == null) {
-					continue;
-				}
-				boolean hasInternet = false;
-				for (String perm : info.requestedPermissions) {
-					if (Manifest.permission.INTERNET.equals(perm)) {
-						hasInternet = true;
-						break;
+			if (installedPackages != null) {
+				for (PackageInfo info : installedPackages) {
+					if (info == null || info.packageName == null || info.packageName.equals(myPackage)) {
+						continue;
 					}
-				}
-				if (!hasInternet) {
-					continue;
-				}
+					if (info.applicationInfo == null) {
+						continue;
+					}
 
-				boolean isSystem = (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
-				boolean selected = selectedSet.contains(info.packageName);
-				String label;
-				try {
-					CharSequence cs = info.applicationInfo.loadLabel(pm);
-					label = cs != null ? cs.toString().trim() : info.packageName;
-				} catch (Exception e) {
-					label = info.packageName;
-				}
+					boolean isSystem = (info.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0;
+					boolean isUpdatedSystem = (info.applicationInfo.flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0;
+					// 判定是否属于纯系统组件（未更新过的系统组件）
+					boolean isPureSystem = isSystem && !isUpdatedSystem;
 
-				list.add(new AppItem(info, selected, label, isSystem));
+					boolean selected = selectedSet.contains(info.packageName);
+					String label;
+					try {
+						CharSequence cs = info.applicationInfo.loadLabel(pm);
+						label = cs != null ? cs.toString().trim() : info.packageName;
+					} catch (Exception e) {
+						label = info.packageName;
+					}
+
+					list.add(new AppItem(info, selected, label, isPureSystem));
+				}
 			}
 
 			sortAppList(list);
@@ -372,15 +402,28 @@ public class AppListActivity extends BaseActivity {
 			emptyState.setVisibility(View.GONE);
 			return;
 		}
-		boolean empty = filteredApps.isEmpty();
-		emptyState.setVisibility(empty ? View.VISIBLE : View.GONE);
-		if (empty) {
-			emptyState.setProfileActionsVisible(false);
+
+		boolean hasInstalledApps = !allApps.isEmpty();
+		boolean hasFilteredApps = !filteredApps.isEmpty();
+
+		if (hasFilteredApps) {
+			emptyState.setVisibility(View.GONE);
+			return;
+		}
+
+		emptyState.setVisibility(View.VISIBLE);
+		emptyState.setProfileActionsVisible(false);
+
+		if (!hasInstalledApps) {
+			emptyState.setIconResource(android.R.drawable.ic_dialog_alert);
+			emptyState.setTitle(getString(R.string.empty_apps_title));
+			emptyState.setMessage(getString(R.string.empty_apps_message));
+			emptyState.setAction(getString(R.string.common_retry), v -> loadApps());
+		} else {
 			emptyState.setIconResource(android.R.drawable.ic_menu_search);
 			emptyState.setTitle(getString(R.string.empty_search_title));
 			emptyState.setMessage(getString(R.string.empty_search_message));
-			emptyState.setAction(getString(R.string.action_clear_search),
-					v -> searchBox.setText(""));
+			emptyState.setAction(getString(R.string.action_clear_search), v -> searchBox.setText(""));
 		}
 	}
 

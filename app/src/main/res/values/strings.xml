@@ -262,6 +262,8 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="empty_profiles_message">Tap the button below to scan QR code or create a profile</string>
     <string name="empty_search_title">No Matching Apps</string>
     <string name="empty_search_message">Try other keywords or clear search filters</string>
+    <string name="empty_apps_title">No Apps Found</string>
+    <string name="empty_apps_message">Unable to load installed applications list</string>
     <string name="empty_logs_title">No Logs Yet</string>
     <string name="empty_logs_message">Connection logs will appear here once connected</string>
     <string name="home_subtitle_no_profile">No profile selected</string>
