@@ -227,7 +227,6 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_about_desc">客戶端架構與開源授權</string>
     <string name="settings_about_app_desc">Android 多協議加密網路代理客戶端</string>
     <string name="settings_about_core_engine">核心引擎架構</string>
-    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
     <string name="settings_about_engine_ready">引擎就緒</string>
     <string name="settings_about_github">GitHub 開源倉庫</string>
     <string name="settings_about_github_copied">專案倉庫連結已複製到剪貼簿</string>

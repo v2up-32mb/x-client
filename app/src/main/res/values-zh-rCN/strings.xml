@@ -223,7 +223,6 @@
     <string name="settings_about_desc">客户端架构与开源许可</string>
     <string name="settings_about_app_desc">Android 多协议加密网络代理客户端</string>
     <string name="settings_about_core_engine">核心引擎架构</string>
-    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
     <string name="settings_about_engine_ready">引擎就绪</string>
     <string name="settings_about_github">GitHub 开源仓库</string>
     <string name="settings_about_github_copied">项目仓库链接已复制到剪贴板</string>

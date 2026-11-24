@@ -227,7 +227,6 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="settings_about_desc">Архитектура клиента и открытая лицензия</string>
     <string name="settings_about_app_desc">Многопротокольный прокси-клиент для Android</string>
     <string name="settings_about_core_engine">Архитектура ядра</string>
-    <string name="settings_about_core_info">Go 1.25.5 (xclient) · hev-socks5-tunnel</string>
     <string name="settings_about_engine_ready">Ядро готово</string>
     <string name="settings_about_github">Репозиторий GitHub</string>
     <string name="settings_about_github_copied">Ссылка на репозиторий скопирована</string>

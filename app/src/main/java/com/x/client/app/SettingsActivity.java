@@ -619,6 +619,11 @@ public class SettingsActivity extends BaseActivity {
             textCheckUpdateSubtitle.setText(getString(R.string.settings_check_update_desc) + " (v" + currentVersionStr + ")");
         }
 
+        TextView textAboutCoreInfo = findViewById(R.id.text_about_core_info);
+        if (textAboutCoreInfo != null) {
+            textAboutCoreInfo.setText(getString(R.string.settings_about_core_info));
+        }
+
         rowAboutGithub.setOnClickListener(v -> {
             try {
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_REPO_URL));

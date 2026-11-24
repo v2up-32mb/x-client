@@ -1,5 +1,35 @@
 apply plugin: 'com.android.application'
 
+// 动态获取 Go 核心版本（优先读取 GO_VERSION 环境变量，其次执行 go version，最后解析 golib/go.mod）
+def getGoVersion() {
+    if (System.getenv("GO_VERSION") && !System.getenv("GO_VERSION").trim().isEmpty()) {
+        return System.getenv("GO_VERSION").trim()
+    }
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'go', 'version'
+            standardOutput = stdout
+        }
+        def output = stdout.toString().trim()
+        def match = output =~ /go([0-9\.]+)/
+        if (match) {
+            return match[0][1]
+        }
+    } catch (Exception ignored) {
+    }
+    def goModFile = new File(rootDir, "golib/go.mod")
+    if (goModFile.exists()) {
+        def match = goModFile.text =~ /go\s+([0-9\.]+)/
+        if (match) {
+            return match[0][1]
+        }
+    }
+    return "1.27"
+}
+
+def goVersion = getGoVersion()
+
 // 仅显式 -PTRIAL_BUILD=true 的 debug 构建使用独立安装包；namespace/JNI 类名不变。
 def trialBuild = providers.gradleProperty('TRIAL_BUILD').orElse('false').get() == 'true'
 
@@ -16,6 +46,9 @@ android {
         versionCode project.hasProperty('VERSION_CODE') ? VERSION_CODE.toInteger() : 1
         versionName project.hasProperty('VERSION_NAME') ? VERSION_NAME : "1.0"
 
+        resValue "string", "settings_about_core_info", "Go " + goVersion + " (xclient) · hev-socks5-tunnel"
+        buildConfigField "String", "GO_VERSION", "\"${goVersion}\""
+
         ndk {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
@@ -25,6 +58,10 @@ android {
                                 arguments "APP_LDFLAGS+=-Wl,--build-id=none"
                         }
                 }
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     signingConfigs {
