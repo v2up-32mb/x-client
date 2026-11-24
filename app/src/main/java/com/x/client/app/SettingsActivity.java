@@ -182,6 +182,8 @@ public class SettingsActivity extends BaseActivity {
     private MaterialCardView cardAbout;
     private TextView textAboutVersion;
     private LinearLayout rowAboutGithub;
+    private LinearLayout rowCheckUpdate;
+    private TextView textCheckUpdateSubtitle;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -334,6 +336,8 @@ public class SettingsActivity extends BaseActivity {
         cardAbout = findViewById(R.id.card_about);
         textAboutVersion = findViewById(R.id.text_about_version);
         rowAboutGithub = findViewById(R.id.row_about_github);
+        rowCheckUpdate = findViewById(R.id.row_check_update);
+        textCheckUpdateSubtitle = findViewById(R.id.text_check_update_subtitle);
     }
 
     private void setupToolbar() {
@@ -595,14 +599,20 @@ public class SettingsActivity extends BaseActivity {
     }
 
     private void setupAboutCard() {
+        String currentVersionStr = "1.0";
         try {
             PackageInfo pInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
             long versionCode = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
                     ? pInfo.getLongVersionCode()
                     : pInfo.versionCode;
-            textAboutVersion.setText("v" + pInfo.versionName + " (" + versionCode + ")");
+            currentVersionStr = pInfo.versionName;
+            textAboutVersion.setText("v" + currentVersionStr + " (" + versionCode + ")");
         } catch (Exception e) {
             textAboutVersion.setText("v1.5.0");
+        }
+
+        if (textCheckUpdateSubtitle != null) {
+            textCheckUpdateSubtitle.setText(getString(R.string.settings_check_update_desc) + " (v" + currentVersionStr + ")");
         }
 
         rowAboutGithub.setOnClickListener(v -> {
@@ -618,6 +628,13 @@ public class SettingsActivity extends BaseActivity {
                 Toast.makeText(this, getString(R.string.settings_about_github_copied), Toast.LENGTH_SHORT).show();
             }
         });
+
+        if (rowCheckUpdate != null) {
+            rowCheckUpdate.setOnClickListener(v -> {
+                UpdateManager updateManager = new UpdateManager(this);
+                updateManager.checkUpdate(true);
+            });
+        }
     }
 
     private void setupTvFocus() {
@@ -631,6 +648,7 @@ public class SettingsActivity extends BaseActivity {
                 checkboxEnableDnsWarmup,
                 checkboxLatencyForceProxy,
                 rowAboutGithub,
+                rowCheckUpdate,
                 btnSave
         );
 

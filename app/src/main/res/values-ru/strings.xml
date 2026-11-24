@@ -426,4 +426,25 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="no_share_app_hint">Приложение для отправки не найдено</string>
     <string name="profile_name">Имя профиля</string>
     <string name="unnamed_profile">Безымянный профиль</string>
+
+    <!-- ===== Обновление приложения ===== -->
+    <string name="settings_check_update">Проверить обновления</string>
+    <string name="settings_check_update_desc">Проверить новые версии на GitHub</string>
+    <string name="update_checking">Проверка обновлений...</string>
+    <string name="update_latest_already">У вас уже установлена последняя версия</string>
+    <string name="update_dialog_title">Доступна новая версия</string>
+    <string name="update_dialog_version_label">Новая версия: %1$s\nРазмер файла: %2$s</string>
+    <string name="update_no_release_notes">Примечания к выпуску отсутствуют.</string>
+    <string name="update_btn_update_now">Обновить сейчас</string>
+    <string name="update_btn_later">Позже</string>
+    <string name="update_downloading_title">Загрузка обновления</string>
+    <string name="update_download_failed">Ошибка загрузки обновления</string>
+    <string name="update_download_cancelled">Загрузка отменена</string>
+    <string name="update_install_failed">Ошибка установки</string>
+    <string name="update_install_permission_title">Требуется разрешение на установку</string>
+    <string name="update_install_permission_desc">Для завершения обновления разрешите установку приложений из неизвестных источников в настройках системы.</string>
+    <string name="update_install_permission_settings">Перейти в настройки</string>
+    <string name="update_no_matched_asset">Не найден подходящий пакет установки для архитектуры вашего устройства.</string>
+    <string name="update_rate_limit">Превышен лимит запросов к GitHub API. Пожалуйста, повторите попытку позже.</string>
+    <string name="update_check_failed">Не удалось проверить обновления. Проверьте сетевое подключение.</string>
 </resources>

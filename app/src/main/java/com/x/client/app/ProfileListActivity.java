@@ -157,6 +157,9 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
         prefs = new Preferences(this);
         setContentView(R.layout.activity_profile_list);
 
+        // 存储空间卫生管理：冷启动异步清理历史残留及已安装版本的更新安装包
+        UpdateManager.cleanupStaleApksAsync(this);
+
         // 初始化 Toolbar
         toolbar = findViewById(R.id.toolbar);
         setupToolbar();

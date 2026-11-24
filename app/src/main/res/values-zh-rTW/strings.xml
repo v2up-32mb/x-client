@@ -426,4 +426,25 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="no_share_app_hint">未找到可用分享應用</string>
     <string name="profile_name">設定名稱</string>
     <string name="unnamed_profile">未命名設定</string>
+
+    <!-- ===== 應用程式版本更新 ===== -->
+    <string name="settings_check_update">檢查更新</string>
+    <string name="settings_check_update_desc">檢查 GitHub 倉庫最新發布版本</string>
+    <string name="update_checking">正在檢查更新...</string>
+    <string name="update_latest_already">目前已是最新版本</string>
+    <string name="update_dialog_title">發現新版本</string>
+    <string name="update_dialog_version_label">最新版本：%1$s\n檔案大小：%2$s</string>
+    <string name="update_no_release_notes">暫無版本更新日誌。</string>
+    <string name="update_btn_update_now">立即更新</string>
+    <string name="update_btn_later">稍後</string>
+    <string name="update_downloading_title">正在下載更新</string>
+    <string name="update_download_failed">下載更新失敗</string>
+    <string name="update_download_cancelled">已取消下載更新</string>
+    <string name="update_install_failed">安裝更新失敗</string>
+    <string name="update_install_permission_title">需要安裝權限</string>
+    <string name="update_install_permission_desc">為完成更新，請在系統設定中允許本應用程式安裝來自未知來源的應用程式。</string>
+    <string name="update_install_permission_settings">前往設定</string>
+    <string name="update_no_matched_asset">未找到適用於當前裝置架構的安裝包。</string>
+    <string name="update_rate_limit">GitHub API 請求過於頻繁，請稍後再試。</string>
+    <string name="update_check_failed">檢查更新失敗，請檢查網路連線。</string>
 </resources>

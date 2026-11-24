@@ -426,4 +426,25 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="no_share_app_hint">No sharing application found</string>
     <string name="profile_name">Profile Name</string>
     <string name="unnamed_profile">Unnamed Profile</string>
+
+    <!-- ===== In-App Update ===== -->
+    <string name="settings_check_update">Check for Updates</string>
+    <string name="settings_check_update_desc">Check for new versions from GitHub</string>
+    <string name="update_checking">Checking for updates...</string>
+    <string name="update_latest_already">You are already using the latest version</string>
+    <string name="update_dialog_title">New Version Available</string>
+    <string name="update_dialog_version_label">New version: %1$s\nFile size: %2$s</string>
+    <string name="update_no_release_notes">No release notes provided.</string>
+    <string name="update_btn_update_now">Update Now</string>
+    <string name="update_btn_later">Later</string>
+    <string name="update_downloading_title">Downloading Update</string>
+    <string name="update_download_failed">Download failed</string>
+    <string name="update_download_cancelled">Download cancelled</string>
+    <string name="update_install_failed">Installation failed</string>
+    <string name="update_install_permission_title">Install Permission Required</string>
+    <string name="update_install_permission_desc">To install the update, please grant permission to install unknown apps in system settings.</string>
+    <string name="update_install_permission_settings">Go to Settings</string>
+    <string name="update_no_matched_asset">No compatible installation package found for your device.</string>
+    <string name="update_rate_limit">GitHub API rate limit exceeded. Please try again later.</string>
+    <string name="update_check_failed">Failed to check for updates. Please check network connection.</string>
 </resources>
