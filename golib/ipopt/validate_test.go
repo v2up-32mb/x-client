@@ -40,7 +40,7 @@ func TestDefaultsAndExplicitDisable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Options.SampleLimit != 256 || r.Options.ProbeConcurrency != 8 || r.Options.DownloadTop != 0 || r.Options.RecommendCount != 0 || r.Options.DownloadBytesPerIP != 20<<20 {
+	if r.Options.SampleLimit != 256 || r.Options.ProbeConcurrency != 16 || r.Options.DownloadTop != 0 || r.Options.RecommendCount != 0 || r.Options.DownloadBytesPerIP != 20<<20 {
 		t.Fatal(r.Options)
 	}
 	text = strings.ReplaceAll(text, `,"download_top":0,"recommend_count":0`, "")
@@ -80,7 +80,7 @@ func TestUnsafeOptionsAndCandidateBoundsRejected(t *testing.T) {
 		func(r *Request) { r.Options.TargetPort = 65536 },
 		func(r *Request) { r.Options.SampleLimit = 0 },
 		func(r *Request) { r.Options.SampleLimit = 4097 },
-		func(r *Request) { r.Options.ProbeConcurrency = 33 },
+		func(r *Request) { r.Options.ProbeConcurrency = 65 },
 		func(r *Request) { r.Options.DownloadTop = 6 },
 		func(r *Request) { r.Options.DownloadTop = -1 },
 		func(r *Request) { r.Options.RecommendCount = -1 },

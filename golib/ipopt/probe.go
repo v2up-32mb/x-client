@@ -56,10 +56,14 @@ func (s *pinnedSession) echStatus() string {
 func (s *pinnedSession) close() { s.cancel(); s.client.CloseIdleConnections() }
 
 func (p *networkProbe) session(parent context.Context, c Candidate, u *url.URL, o Options, ech []byte) *pinnedSession {
+	return p.sessionWithTimeouts(parent, c, u, o, ech, tcpDialTimeout, httpProbeTimeout)
+}
+
+func (p *networkProbe) sessionWithTimeouts(parent context.Context, c Candidate, u *url.URL, o Options, ech []byte, dialTimeout, httpTimeout time.Duration) *pinnedSession {
 	owner, cancel := context.WithCancel(parent)
 	s := &pinnedSession{cancel: cancel, enabled: o.EnableECH, fallback: o.EnableECH && len(ech) == 0}
 	tr := &http.Transport{Proxy: nil, DisableCompression: true, MaxIdleConns: 1, MaxIdleConnsPerHost: 1, MaxConnsPerHost: 1,
-		IdleConnTimeout: time.Second, ResponseHeaderTimeout: probeTimeout, MaxResponseHeaderBytes: 32 << 10,
+		IdleConnTimeout: time.Second, ResponseHeaderTimeout: httpTimeout, MaxResponseHeaderBytes: 32 << 10,
 		// Keep HTTP/1.1 explicit so request timing and connection reuse have a
 		// consistent interpretation, rather than implicitly multiplexing h2.
 		ForceAttemptHTTP2: false, TLSNextProto: map[string]func(string, *tls.Conn) http.RoundTripper{},
@@ -77,12 +81,12 @@ func (p *networkProbe) session(parent context.Context, c Candidate, u *url.URL, 
 			}
 			defer scope.dials.Done()
 		}
-		ctx, done := context.WithTimeout(ctx, probeTimeout)
+		ctx, done := context.WithTimeout(ctx, httpTimeout)
 		stop := context.AfterFunc(owner, done)
 		defer stop()
 		defer done()
 		dialTLS := func(config []byte) (*tls.Conn, error) {
-			raw, err := bindDial(owner, p.dial, ctx, network, c.Address)
+			raw, err := bindDialTimeout(owner, p.dial, ctx, network, c.Address, dialTimeout)
 			if err != nil {
 				return nil, err
 			}
@@ -107,6 +111,12 @@ func (p *networkProbe) session(parent context.Context, c Candidate, u *url.URL, 
 			}
 			s.mu.Unlock()
 			return conn, nil
+		}
+		s.mu.Lock()
+		fallback := s.fallback
+		s.mu.Unlock()
+		if fallback {
+			return dialTLS(nil)
 		}
 		conn, err := dialTLS(ech)
 		if err != nil && len(ech) > 0 && ctx.Err() == nil {
@@ -141,7 +151,7 @@ func targetURL(o Options) *url.URL {
 func milliseconds(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
 
 func requestTrace(ctx context.Context, s *pinnedSession, u *url.URL, now func() time.Time) (string, float64, bool, error) {
-	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, httpProbeTimeout)
 	defer cancel()
 	var reused atomic.Bool
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
@@ -213,10 +223,8 @@ func parseTrace(header http.Header, body []byte) (string, error) {
 	return colo, nil
 }
 
-func (p *networkProbe) connectivity(ctx context.Context, r Result, o Options, ech []byte) (Result, []string) {
+func (p *networkProbe) connectivityWithSession(ctx context.Context, r Result, o Options, s *pinnedSession) (Result, []string) {
 	u := targetURL(o)
-	s := p.session(ctx, r.Candidate, u, o, ech)
-	defer s.close()
 	colo, _, _, err := requestTrace(ctx, s, u, p.now)
 	r.TestedAt = p.now().UnixMilli()
 	r.ECHStatus = s.echStatus()
@@ -238,56 +246,92 @@ func (p *networkProbe) connectivity(ctx context.Context, r Result, o Options, ec
 	return r, warnings
 }
 
+func (p *networkProbe) connectivity(ctx context.Context, r Result, o Options, ech []byte) (Result, []string) {
+	u := targetURL(o)
+	s := p.session(ctx, r.Candidate, u, o, ech)
+	defer s.close()
+	return p.connectivityWithSession(ctx, r, o, s)
+}
+
 func (p *networkProbe) stability(ctx context.Context, r Result) (Result, []string) {
-	times := []float64{}
-	for i := 0; i < 10; i++ {
+	type dialResult struct {
+		attempted bool
+		ms        float64
+		ok        bool
+	}
+	ch := make(chan dialResult, tcpProbeCount)
+	var wg sync.WaitGroup
+	for i := 0; i < tcpProbeCount; i++ {
 		if ctx.Err() != nil {
 			break
 		}
-		attempt, cancel := context.WithTimeout(ctx, probeTimeout)
-		start := p.now()
-		r.TCPAttempts++
-		conn, err := p.dial(attempt, "tcp", r.Address)
-		if err == nil {
-			times = append(times, milliseconds(p.now().Sub(start)))
-			r.TCPSuccess++
-			_ = conn.Close()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if ctx.Err() != nil {
+				return
+			}
+			attempt, cancel := context.WithTimeout(ctx, tcpDialTimeout)
+			defer cancel()
+			start := p.now()
+			conn, err := p.dial(attempt, "tcp", r.Address)
+			if err == nil {
+				ms := milliseconds(p.now().Sub(start))
+				_ = conn.Close()
+				ch <- dialResult{attempted: true, ms: ms, ok: true}
+				return
+			}
+			ch <- dialResult{attempted: true}
+		}()
+	}
+	wg.Wait()
+	close(ch)
+
+	times := make([]float64, 0, tcpProbeCount)
+	for res := range ch {
+		if res.attempted {
+			r.TCPAttempts++
 		}
-		cancel()
+		if res.ok {
+			r.TCPSuccess++
+			times = append(times, res.ms)
+		}
 	}
 	if len(times) > 0 {
 		r.TCPMeasured = true
 		sort.Float64s(times)
 		r.TCPMinMS, r.TCPMaxMS = times[0], times[len(times)-1]
+		var sum float64
 		for _, v := range times {
-			r.TCPAvgMS += v
+			sum += v
 		}
-		r.TCPAvgMS /= float64(len(times))
+		r.TCPAvgMS = sum / float64(len(times))
 	} else if ctx.Err() == nil {
 		r.Status = "failed"
-		r.Error = "10次独立TCP连接全部失败"
+		r.Error = "4次TCP连接全部失败"
 	}
 	return r, []string{}
 }
 
-func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []byte) (Result, []string) {
+func (p *networkProbe) latencyWithSession(ctx context.Context, r Result, o Options, s *pinnedSession, warmup bool) (Result, []string) {
 	u := targetURL(o)
-	s := p.session(ctx, r.Candidate, u, o, ech)
-	defer s.close()
 	warnings := []string{}
-	// Warm the connection with a validated trace; the following five requests
-	// are measured independently. If reuse fails we explicitly report total
-	// request latency instead of pretending it is pure established-stream RTT.
-	if _, _, _, err := requestTrace(ctx, s, u, p.now); err != nil {
-		r.Status = "failed"
-		r.Error = "HTTPS复查预热失败: " + err.Error()
-		r.TestedAt = p.now().UnixMilli()
-		r.ECHStatus = s.echStatus()
-		return r, warnings
+	if warmup {
+		// Warm the connection with a validated trace; the following requests
+		// are measured independently. If reuse fails we explicitly report total
+		// request latency instead of pretending it is pure established-stream RTT.
+		if _, _, _, err := requestTrace(ctx, s, u, p.now); err != nil {
+			r.Status = "failed"
+			r.Error = "HTTPS复查预热失败: " + err.Error()
+			r.TestedAt = p.now().UnixMilli()
+			r.ECHStatus = s.echStatus()
+			return r, warnings
+		}
 	}
 	times := []float64{}
 	reuseAll := true
-	for i := 0; i < 5; i++ {
+	var lastErr error
+	for i := 0; i < httpProbeCount; i++ {
 		if ctx.Err() != nil {
 			break
 		}
@@ -297,8 +341,7 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 			reuseAll = false
 		}
 		if err != nil {
-			r.Status = "failed"
-			r.Error = "HTTPS复查失败: " + err.Error()
+			lastErr = err
 			continue
 		}
 		r.Colo = colo
@@ -310,6 +353,11 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 	}
 	if r.HTTPSuccess == 0 && ctx.Err() == nil {
 		r.Status = "failed"
+		if lastErr != nil {
+			r.Error = "HTTPS复查失败: " + lastErr.Error()
+		}
+	} else if r.HTTPSuccess > 0 {
+		r.Error = ""
 	}
 	if len(times) > 0 {
 		r.HTTPMeasured = true
@@ -331,5 +379,65 @@ func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []b
 		warnings = append(warnings, r.Address+": HTTPS复查未全程使用ECH，已记录fallback")
 	}
 	r.TestedAt = p.now().UnixMilli()
+	return r, warnings
+}
+
+func (p *networkProbe) latency(ctx context.Context, r Result, o Options, ech []byte) (Result, []string) {
+	u := targetURL(o)
+	s := p.session(ctx, r.Candidate, u, o, ech)
+	defer s.close()
+	return p.latencyWithSession(ctx, r, o, s, true)
+}
+
+func (p *networkProbe) probeOne(ctx context.Context, r Result, o Options, ech []byte, onPhase func(string)) (Result, []string) {
+	notify := func(phase string) {
+		if onPhase != nil {
+			onPhase(phase)
+		}
+	}
+	warnings := []string{}
+	notify("connectivity")
+	if ctx.Err() != nil {
+		return r, warnings
+	}
+	u := targetURL(o)
+	s := p.session(ctx, r.Candidate, u, o, ech)
+	var w []string
+	r, w = p.connectivityWithSession(ctx, r, o, s)
+	warnings = appendUnique(warnings, w...)
+	if ctx.Err() != nil || r.Status == "failed" {
+		s.close()
+		if r.Status == "failed" {
+			r.NAReason = "connectivity失败，后续未测项跳过"
+		}
+		return r, warnings
+	}
+
+	notify("latency")
+	if ctx.Err() != nil {
+		s.close()
+		return r, warnings
+	}
+	r, w = p.latencyWithSession(ctx, r, o, s, false)
+	s.close()
+	warnings = appendUnique(warnings, w...)
+	if ctx.Err() != nil || r.Status == "failed" {
+		if r.Status == "failed" {
+			r.NAReason = "latency失败，后续未测项跳过"
+		}
+		return r, warnings
+	}
+
+	notify("stability")
+	if ctx.Err() != nil {
+		return r, warnings
+	}
+	r, w = p.stability(ctx, r)
+	warnings = appendUnique(warnings, w...)
+	if r.Status == "failed" {
+		r.NAReason = "stability失败"
+	} else if r.Status == "valid" {
+		r.NAReason = ""
+	}
 	return r, warnings
 }

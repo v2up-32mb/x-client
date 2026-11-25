@@ -6,7 +6,7 @@ import (
 )
 
 func fullStable(r Result) bool {
-	return r.Status == "valid" && r.TCPAttempts == 10 && r.TCPSuccess == 10 && r.HTTPAttempts == 5 && r.HTTPSuccess == 5
+	return r.Status == "valid" && r.TCPAttempts == tcpProbeCount && r.TCPSuccess == tcpProbeCount && r.HTTPAttempts == httpProbeCount && r.HTTPSuccess == httpProbeCount
 }
 
 func official(r Result) bool {

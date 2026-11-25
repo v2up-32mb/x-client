@@ -49,7 +49,7 @@ public class PreferredIpTestsBinder {
     private PreferredIpController.State lastState;
     private boolean settingsReady;
     private int initialSample = 256;
-    private int initialConcurrency = 8;
+    private int initialConcurrency = 16;
     private int initialReference = 0;
 
     public PreferredIpTestsBinder(int initialSample, int initialConcurrency, int initialReference) {

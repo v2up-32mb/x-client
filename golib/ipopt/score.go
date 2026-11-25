@@ -18,8 +18,8 @@ func scoreResult(r *Result) {
 	clamp := func(v float64) float64 { return math.Max(0, math.Min(1, v)) }
 	validMS := func(v float64) bool { return v >= 0 && !math.IsNaN(v) && !math.IsInf(v, 0) }
 	parts := r.ScoreBreakdown
-	parts[0].Points = 30 * clamp(float64(r.TCPSuccess)/10)
-	parts[1].Points = 30 * clamp(float64(r.HTTPSuccess)/5)
+	parts[0].Points = 30 * clamp(float64(r.TCPSuccess)/float64(tcpProbeCount))
+	parts[1].Points = 30 * clamp(float64(r.HTTPSuccess)/float64(httpProbeCount))
 	// A missing measurement is not a zero-latency bonus. Success counters are
 	// only set by Go measurements, never by request JSON.
 	if r.TCPMeasured && r.TCPSuccess > 0 && validMS(r.TCPAvgMS) {
@@ -34,7 +34,7 @@ func scoreResult(r *Result) {
 	if r.Status != "valid" {
 		return
 	}
-	if !r.TCPMeasured || !r.HTTPMeasured || r.TCPAttempts != 10 || r.HTTPAttempts != 5 || r.TCPSuccess < 1 || r.TCPSuccess > 10 || r.HTTPSuccess < 1 || r.HTTPSuccess > 5 || !validMS(r.TCPAvgMS) || !validMS(r.HTTPMedianMS) || !validMS(r.HTTPJitterMS) {
+	if !r.TCPMeasured || !r.HTTPMeasured || r.TCPAttempts != tcpProbeCount || r.HTTPAttempts != httpProbeCount || r.TCPSuccess < 1 || r.TCPSuccess > tcpProbeCount || r.HTTPSuccess < 1 || r.HTTPSuccess > httpProbeCount || !validMS(r.TCPAvgMS) || !validMS(r.HTTPMedianMS) || !validMS(r.HTTPJitterMS) {
 		r.Status, r.Error, r.NAReason = "failed", "完整指标缺失，不能评分为合格", "完整指标缺失"
 		return
 	}

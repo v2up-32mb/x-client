@@ -12,13 +12,14 @@ import (
 )
 
 type operations struct {
-	fetch        func(context.Context, Source) (fetchOutput, error)
-	prepare      func(context.Context, Options) ([]byte, []string, error)
-	prepareTTL   func(context.Context, Options) ([]byte, time.Duration, []string, error)
-	connectivity func(context.Context, Result, Options, []byte) (Result, []string)
-	stability    func(context.Context, Result) (Result, []string)
-	latency      func(context.Context, Result, Options, []byte) (Result, []string)
-	download     func(context.Context, Result, Options, []byte, int64, func(int64, float64)) (Result, []string)
+	fetch          func(context.Context, Source) (fetchOutput, error)
+	prepare        func(context.Context, Options) ([]byte, []string, error)
+	prepareTTL     func(context.Context, Options) ([]byte, time.Duration, []string, error)
+	connectivity   func(context.Context, Result, Options, []byte) (Result, []string)
+	stability      func(context.Context, Result) (Result, []string)
+	latency        func(context.Context, Result, Options, []byte) (Result, []string)
+	probeCandidate func(context.Context, Result, Options, []byte, func(string)) (Result, []string)
+	download       func(context.Context, Result, Options, []byte, int64, func(int64, float64)) (Result, []string)
 }
 
 func productionOperations() operations {
@@ -33,7 +34,11 @@ func productionOperations() operations {
 		prepareTTL: func(ctx context.Context, o Options) ([]byte, time.Duration, []string, error) {
 			return prepareECHTTL(ctx, o, nil, guardedDial)
 		},
-		connectivity: p.connectivity, stability: p.stability, latency: p.latency, download: p.download,
+		connectivity:   p.connectivity,
+		stability:      p.stability,
+		latency:        p.latency,
+		probeCandidate: p.probeOne,
+		download:       p.download,
 	}
 }
 

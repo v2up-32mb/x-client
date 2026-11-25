@@ -20,66 +20,100 @@ func (m *Manager) runProbe(t *task) error {
 	if t.ctx.Err() != nil {
 		return t.ctx.Err()
 	}
-	// Admission already limits this batch to N. Each goroutine owns one IP
-	// end-to-end; no all-IP connectivity/stability/latency barrier exists.
+	// Bound candidate workers to ProbeConcurrency; each worker owns one IP
+	// end-to-end with no all-IP connectivity/latency/stability barrier.
+	jobs := make(chan int)
 	var wg sync.WaitGroup
-	for i := range r.Candidates {
+	n := min(r.Options.ProbeConcurrency, len(r.Candidates))
+	for w := 0; w < n; w++ {
 		wg.Add(1)
-		go func(i int) {
+		go func() {
 			defer wg.Done()
-			v := t.result(i)
-			stages := []struct {
-				phase string
-				fn    func(context.Context, Result) (Result, []string)
-			}{
-				{"connectivity", func(ctx context.Context, v Result) (Result, []string) {
-					return m.ops.connectivity(ctx, v, r.Options, t.ech)
-				}},
-				{"stability", m.ops.stability},
-				{"latency", func(ctx context.Context, v Result) (Result, []string) { return m.ops.latency(ctx, v, r.Options, t.ech) }},
-			}
-			for _, stage := range stages {
+			for i := range jobs {
 				if t.ctx.Err() != nil {
 					return
 				}
-				v.ProbePhase, v.NAReason = stage.phase, "尚未执行后续阶段"
+				v := t.result(i)
+				if m.ops.probeCandidate != nil {
+					var warnings []string
+					v, warnings = m.ops.probeCandidate(t.ctx, v, r.Options, t.ech, func(phase string) {
+						t.update(func(s *Snapshot) {
+							s.Results[i].ProbePhase = phase
+							s.Results[i].NAReason = "尚未执行后续阶段"
+							// Even the legacy status cannot expose early valid in v2.
+							s.Results[i].Status = "untested"
+						})
+					})
+					if t.ctx.Err() != nil {
+						return
+					}
+					t.update(func(s *Snapshot) { s.Warnings = appendUnique(s.Warnings, warnings...) })
+				} else {
+					stages := []struct {
+						phase string
+						fn    func(context.Context, Result) (Result, []string)
+					}{
+						{"connectivity", func(ctx context.Context, v Result) (Result, []string) {
+							return m.ops.connectivity(ctx, v, r.Options, t.ech)
+						}},
+						{"latency", func(ctx context.Context, v Result) (Result, []string) {
+							return m.ops.latency(ctx, v, r.Options, t.ech)
+						}},
+						{"stability", m.ops.stability},
+					}
+					for _, stage := range stages {
+						if t.ctx.Err() != nil {
+							return
+						}
+						v.ProbePhase, v.NAReason = stage.phase, "尚未执行后续阶段"
+						t.update(func(s *Snapshot) {
+							partial := v
+							// Even the legacy status cannot expose early valid in v2.
+							partial.Status = "untested"
+							s.Results[i] = partial
+						})
+						var warnings []string
+						v, warnings = stage.fn(t.ctx, v)
+						if t.ctx.Err() != nil {
+							return
+						}
+						t.update(func(s *Snapshot) { s.Warnings = appendUnique(s.Warnings, warnings...) })
+						if v.Status == "failed" {
+							v.NAReason = stage.phase + "失败，后续未测项跳过"
+							break
+						}
+					}
+				}
+				if t.ctx.Err() != nil {
+					return
+				}
+				v.ProbePhase, v.ProbeComplete, v.TestedAt = "done", true, t.now().UnixMilli()
+				if v.Status == "valid" {
+					v.NAReason = ""
+				}
+				scoreResult(&v)
+				// Completion and Go's reference proof become visible together; the
+				// cancellation guard prevents a late worker reviving eligibility.
 				t.update(func(s *Snapshot) {
-					partial := v
-					// Even the legacy status cannot expose early valid in v2.
-					partial.Status = "untested"
-					s.Results[i] = partial
+					s.Results[i] = v
+					s.Completed++
+					if r.ProbeRole == "reference" {
+						t.session.completed[v.Address] = true
+						t.session.eligible[v.Address] = v.Status == "valid" && v.ScoreReady
+					}
 				})
-				var warnings []string
-				v, warnings = stage.fn(t.ctx, v)
-				if t.ctx.Err() != nil {
-					return
-				}
-				t.update(func(s *Snapshot) { s.Warnings = appendUnique(s.Warnings, warnings...) })
-				if v.Status == "failed" {
-					v.NAReason = stage.phase + "失败，后续未测项跳过"
-					break
-				}
 			}
-			if t.ctx.Err() != nil {
-				return
-			}
-			v.ProbePhase, v.ProbeComplete, v.TestedAt = "done", true, t.now().UnixMilli()
-			if v.Status == "valid" {
-				v.NAReason = ""
-			}
-			scoreResult(&v)
-			// Completion and Go's reference proof become visible together; the
-			// cancellation guard prevents a late worker reviving eligibility.
-			t.update(func(s *Snapshot) {
-				s.Results[i] = v
-				s.Completed++
-				if r.ProbeRole == "reference" {
-					t.session.completed[v.Address] = true
-					t.session.eligible[v.Address] = v.Status == "valid" && v.ScoreReady
-				}
-			})
-		}(i)
+		}()
 	}
+dispatch:
+	for i := range r.Candidates {
+		select {
+		case jobs <- i:
+		case <-t.ctx.Done():
+			break dispatch
+		}
+	}
+	close(jobs)
 	wg.Wait()
 	return t.ctx.Err()
 }

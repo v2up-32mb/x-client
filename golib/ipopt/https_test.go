@@ -65,7 +65,7 @@ func TestMeasuredHTTPSRequestsRejectRedirects(t *testing.T) {
 				if r.TLS == nil || r.TLS.ServerName != "node.example.com" || r.Host != "node.example.com" || r.URL.RequestURI() != "/cdn-cgi/trace" {
 					t.Errorf("lost HTTPS/SNI/Host/path: %+v", r)
 				}
-				if requests.Add(1) == 1 { // Valid warmup; reject redirects in all five measured requests.
+				if requests.Add(1) == 1 { // Valid warmup; reject redirects in all three measured requests.
 					_, _ = io.WriteString(w, traceBody(r.Host))
 					return
 				}
@@ -75,9 +75,9 @@ func TestMeasuredHTTPSRequestsRejectRedirects(t *testing.T) {
 			o := defaultOptions()
 			o.TargetHost = "node.example.com"
 			r := newResult(testCandidate(1), false)
-			r.Status, r.TCPAttempts, r.TCPSuccess = "valid", 10, 10
+			r.Status, r.TCPAttempts, r.TCPSuccess = "valid", 4, 4
 			r, _ = p.latency(context.Background(), r, o, nil)
-			if r.Status != "failed" || r.HTTPAttempts != 5 || r.HTTPSuccess != 0 || requests.Load() != 6 || !strings.Contains(r.Error, "测速禁止重定向") || fullStable(r) {
+			if r.Status != "failed" || r.HTTPAttempts != 3 || r.HTTPSuccess != 0 || requests.Load() != 4 || !strings.Contains(r.Error, "测速禁止重定向") || fullStable(r) {
 				t.Fatalf("redirect followed or accepted: %+v requests=%d", r, requests.Load())
 			}
 		})

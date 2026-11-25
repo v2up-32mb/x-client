@@ -70,6 +70,21 @@ func TestV2ScoreFormulaMissingFailedPartialAndDownloadIndependent(t *testing.T) 
 	if r.Score != 60 {
 		t.Fatal("clamp", r)
 	}
+	r = scoredFixture(t)
+	r.HTTPSuccess = 2
+	scoreResult(&r)
+	want2 := 30.0 + 20.0 + 15*(1-25.0/500) + 15*(1-30.0/1000) + 10*(1-5.0/500)
+	if !r.ScoreReady || r.Status != "valid" || math.Abs(r.ScoreBreakdown[1].Points-20) > 1e-9 || math.Abs(r.Score-want2) > 1e-9 || fullStable(r) {
+		t.Fatal("partial 2/3 HTTPS", r)
+	}
+	r = scoredFixture(t)
+	r.HTTPSuccess = 1
+	r.HTTPJitterMS = 0
+	scoreResult(&r)
+	want1 := 30.0 + 10.0 + 15*(1-25.0/500) + 15*(1-30.0/1000)
+	if !r.ScoreReady || r.Status != "valid" || math.Abs(r.ScoreBreakdown[1].Points-10) > 1e-9 || r.ScoreBreakdown[4].Points != 0 || math.Abs(r.Score-want1) > 1e-9 || fullStable(r) {
+		t.Fatal("partial 1/3 HTTPS", r)
+	}
 }
 
 func TestV2ScoreSortStablePriorityAndNoDownload(t *testing.T) {

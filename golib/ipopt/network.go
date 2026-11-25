@@ -97,10 +97,14 @@ func guardedDialUsing(ctx context.Context, network, address string, lookup func(
 // bindDial also binds Transport's potentially detached dial context to the
 // actual task. The returned socket remains task-owned through TLS/body reads.
 func bindDial(parent context.Context, dial dialFunc, ctx context.Context, network, address string) (net.Conn, error) {
+	return bindDialTimeout(parent, dial, ctx, network, address, probeTimeout)
+}
+
+func bindDialTimeout(parent context.Context, dial dialFunc, ctx context.Context, network, address string, timeout time.Duration) (net.Conn, error) {
 	if scope, ok := parent.Value(ioScopeKey{}).(*ioScope); ok {
 		ctx = context.WithValue(ctx, ioScopeKey{}, scope)
 	}
-	ctx, cancel := context.WithTimeout(ctx, probeTimeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	stop := context.AfterFunc(parent, cancel)
 	defer stop()
 	defer cancel()

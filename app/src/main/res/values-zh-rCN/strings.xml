@@ -330,7 +330,7 @@
     <string name="preferred_empty_sources">尚无候选。先更新官网 IPv4 或导入列表，再开始测试。</string>
     <string name="preferred_target">选择实际参考节点（不会切换当前连接节点）</string>
     <string name="preferred_sample">CIDR 抽样数量（默认 256，上限 4096）</string>
-    <string name="preferred_concurrency">探测并发（默认 8，上限 32）</string>
+    <string name="preferred_concurrency">探测并发（默认 16，上限 64）</string>
     <string name="preferred_no_profiles">请先创建一个节点；必须按真实节点目标验证。</string>
     <string name="preferred_not_tested">尚未测试。HTTPS 可达不等于 WebSocket 升级或认证成功。</string>
     <string name="preferred_disable">恢复原配置 / 禁用全局</string>
@@ -356,7 +356,7 @@
     <string name="preferred_manual_title">手动录入</string>
     <string name="preferred_reference_title">参考目标节点</string>
     <string name="preferred_sample_hint">抽样数量 (1-4096)</string>
-    <string name="preferred_concurrency_hint">并发线程 (1-32)</string>
+    <string name="preferred_concurrency_hint">并发线程 (1-64)</string>
     <string name="preferred_ready">准备就绪</string>
     <string name="preferred_direct_net">直连网络</string>
     <string name="preferred_metric_completed_total">完成 / 总量</string>
@@ -389,7 +389,7 @@
     <string name="preferred_err_url_format_msg">第三方列表必须使用 https:// 开头的有效链接</string>
     <string name="preferred_err_input_empty">请输入或粘贴 IP 内容</string>
     <string name="preferred_err_sample_range">请输入1–4096</string>
-    <string name="preferred_err_concurrency_range">请输入1–32</string>
+    <string name="preferred_err_concurrency_range">请输入1–64</string>
     <string name="preferred_dialog_list_parse_title">第三方列表解析结果</string>
     <string name="preferred_btn_discard">放弃</string>
     <string name="preferred_btn_import_valid">立即导入有效候选</string>

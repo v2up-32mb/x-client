@@ -82,9 +82,13 @@ func TestV2WireDefaultsAndStrictAdmission(t *testing.T) {
 	r.Operation = "probe"
 	r.Options = defaultOptions()
 	r.Options.TargetHost = "node.example.com"
-	r.Candidates = testRequest(9).Candidates
+	r.Candidates = testRequest(20).Candidates
+	if _, err := decodeRequest(requestJSON(t, r)); err != nil {
+		t.Fatalf("probe batch > probe_concurrency rejected: %v", err)
+	}
+	r.Candidates = testRequest(maxCandidates + 1).Candidates
 	if _, err := decodeRequest(requestJSON(t, r)); err == nil {
-		t.Fatal("batch exceeds N")
+		t.Fatal("probe batch > maxCandidates accepted")
 	}
 }
 
@@ -179,7 +183,7 @@ func TestV2PipelineIncrementalPauseAndReferenceProof(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	if s.Completed != 1 || s.WorkerDone || !s.Results[0].ProbeComplete || !s.Results[0].ScoreReady || s.Results[0].TCPAttempts != 10 || s.Results[0].HTTPAttempts != 5 {
+	if s.Completed != 1 || s.WorkerDone || !s.Results[0].ProbeComplete || !s.Results[0].ScoreReady || s.Results[0].TCPAttempts != 4 || s.Results[0].HTTPAttempts != 3 {
 		t.Fatal(s)
 	}
 	m.Cancel(id)
@@ -597,5 +601,88 @@ func TestV2PortAndNetworkMembershipCannotBeSpoofed(t *testing.T) {
 	bad.Candidates = []Candidate{{Address: "127.0.0.1:443", SourceID: "test", SourceKind: "manual"}}
 	if _, err := m.Start(requestJSON(t, bad)); err == nil {
 		t.Fatal("private-address public API bypass")
+	}
+}
+
+func TestV2ProbeWorkerPoolConcurrencyBound(t *testing.T) {
+	for _, useProbeCandidate := range []bool{false, true} {
+		name := "stages"
+		if useProbeCandidate {
+			name = "probeCandidate"
+		}
+		t.Run(name, func(t *testing.T) {
+			ops := fakeOperations()
+			entered := make(chan struct{}, 3)
+			release := make(chan struct{})
+			var active, peak, calls atomic.Int32
+			gate := func(ctx context.Context) {
+				n := active.Add(1)
+				for old := peak.Load(); n > old && !peak.CompareAndSwap(old, n); old = peak.Load() {
+				}
+				select {
+				case entered <- struct{}{}:
+				default:
+				}
+				select {
+				case <-release:
+				case <-ctx.Done():
+				}
+				active.Add(-1)
+				calls.Add(1)
+			}
+			if useProbeCandidate {
+				baseConn := ops.connectivity
+				baseLat := ops.latency
+				baseStab := ops.stability
+				ops.probeCandidate = func(ctx context.Context, r Result, o Options, ech []byte, onPhase func(string)) (Result, []string) {
+					if onPhase != nil {
+						onPhase("connectivity")
+					}
+					gate(ctx)
+					r, _ = baseConn(ctx, r, o, ech)
+					r, _ = baseLat(ctx, r, o, ech)
+					r, _ = baseStab(ctx, r)
+					return r, nil
+				}
+			} else {
+				baseConn := ops.connectivity
+				ops.connectivity = func(ctx context.Context, r Result, o Options, ech []byte) (Result, []string) {
+					gate(ctx)
+					return baseConn(ctx, r, o, ech)
+				}
+			}
+			m := newManager(ops, time.Now)
+			r := testRequest(10)
+			r.Operation = "prepare"
+			r.Options.ProbeConcurrency = 3
+			s := startV2(t, m, r)
+			r.Operation, r.SessionID, r.DownloadRoundID = "probe", s.SessionID, s.DownloadRoundID
+			r.Options.DownloadTop, r.Options.RecommendCount = 0, 0
+			id, err := m.Start(requestJSON(t, r))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 3; i++ {
+				select {
+				case <-entered:
+				case <-time.After(time.Second):
+					t.Fatal("workers not dispatched")
+				}
+			}
+			live := getSnapshot(t, m, id)
+			if live.Completed != 0 || live.Total != 10 {
+				t.Fatal(live)
+			}
+			close(release)
+			s = waitDone(t, m, id)
+			if s.State != "completed" || s.Completed != 10 || calls.Load() != 10 || peak.Load() != 3 {
+				t.Fatalf("state=%s completed=%d calls=%d peak=%d", s.State, s.Completed, calls.Load(), peak.Load())
+			}
+			for _, res := range s.Results {
+				if !res.ProbeComplete || !res.ScoreReady || res.Status != "valid" || res.TCPAttempts != 4 || res.HTTPAttempts != 3 {
+					t.Fatal(res)
+				}
+			}
+		})
 	}
 }

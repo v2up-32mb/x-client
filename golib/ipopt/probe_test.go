@@ -10,6 +10,7 @@ import (
 	"crypto/x509/pkix"
 	"io"
 	"log"
+	"math"
 	"math/big"
 	"net"
 	"net/http"
@@ -89,17 +90,17 @@ func TestRealTLSNonstandardPortSNIHostTenSocketsAndFiveRequests(t *testing.T) {
 	}
 	before := dials.Load()
 	r, _ = p.stability(context.Background(), r)
-	if r.TCPAttempts != 10 || r.TCPSuccess != 10 || dials.Load()-before != 10 {
+	if r.TCPAttempts != 4 || r.TCPSuccess != 4 || dials.Load()-before != 4 {
 		t.Fatalf("%+v dials=%d", r, dials.Load()-before)
 	}
 	r, warnings = p.latency(context.Background(), r, o, nil)
-	if r.HTTPAttempts != 5 || r.HTTPSuccess != 5 || r.HTTPMedianMS <= 0 || len(warnings) != 0 {
+	if r.HTTPAttempts != 3 || r.HTTPSuccess != 3 || r.HTTPMedianMS <= 0 || len(warnings) != 0 {
 		t.Fatalf("%+v %v", r, warnings)
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	if len(hosts) != 7 {
-		t.Fatalf("one connectivity + warmup + five measured =7, got %d", len(hosts))
+	if len(hosts) != 5 {
+		t.Fatalf("one connectivity + warmup + three measured =5, got %d", len(hosts))
 	}
 	for i := range hosts {
 		if hosts[i] != "node.example.com:8443" || snis[i] != "node.example.com" || paths[i] != "/cdn-cgi/trace" {
@@ -175,7 +176,7 @@ func TestHTTPSNoReuseIsExplicitlyWarned(t *testing.T) {
 	r := newResult(testCandidate(1), false)
 	r.Status = "valid"
 	r, warnings := p.latency(context.Background(), r, o, nil)
-	if r.HTTPSuccess != 5 || !strings.Contains(strings.Join(warnings, " "), "总请求延迟") {
+	if r.HTTPSuccess != 3 || !strings.Contains(strings.Join(warnings, " "), "总请求延迟") {
 		t.Fatalf("%+v %v", r, warnings)
 	}
 }
@@ -227,9 +228,178 @@ func TestFailedHTTPSRecheckIsRetainedAndCannotBeRecommended(t *testing.T) {
 	o.TargetHost = "node.example.com"
 	r := newResult(testCandidate(1), false)
 	r.Status = "valid"
-	r.TCPAttempts, r.TCPSuccess = 10, 10
+	r.TCPAttempts, r.TCPSuccess = 4, 4
 	r, _ = p.latency(context.Background(), r, o, nil)
-	if r.Status != "failed" || r.HTTPAttempts != 5 || r.HTTPSuccess != 4 || r.Error == "" || fullStable(r) {
-		t.Fatal(r)
+	if r.Status != "valid" || r.Error != "" || r.HTTPAttempts != 3 || r.HTTPSuccess != 2 || !r.HTTPMeasured || fullStable(r) {
+		t.Fatalf("partial 2/3 HTTPS mismatch: %+v", r)
+	}
+
+	var failReqs atomic.Int32
+	_, p2, _ := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if failReqs.Add(1) > 1 { // warmup succeeds, all 3 measured requests fail
+			w.WriteHeader(403)
+			return
+		}
+		_, _ = io.WriteString(w, traceBody(r.Host))
+	}))
+	r2 := newResult(testCandidate(1), false)
+	r2.Status = "valid"
+	r2.TCPAttempts, r2.TCPSuccess = 4, 4
+	r2, _ = p2.latency(context.Background(), r2, o, nil)
+	if r2.Status != "failed" || r2.HTTPAttempts != 3 || r2.HTTPSuccess != 0 || r2.Error == "" || fullStable(r2) {
+		t.Fatalf("total 0/3 HTTPS failure mismatch: %+v", r2)
+	}
+}
+
+func TestProbeOneReusesSessionAndSkipsSecondHandshakeAndWarmup(t *testing.T) {
+	var mu sync.Mutex
+	var remotes, phases []string
+	var preStabilityDials int32
+	_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		remotes = append(remotes, r.RemoteAddr)
+		mu.Unlock()
+		_, _ = io.WriteString(w, traceBody(r.Host))
+	}))
+	o := defaultOptions()
+	o.TargetHost = "node.example.com"
+	r, warnings := p.probeOne(context.Background(), newResult(testCandidate(1), false), o, nil, func(phase string) {
+		phases = append(phases, phase)
+		if phase == "stability" {
+			preStabilityDials = dials.Load()
+		}
+	})
+	if len(warnings) != 0 || r.Status != "valid" || r.Error != "" || r.NAReason != "" || r.Colo != "HKG" || r.TLSMS <= 0 {
+		t.Fatalf("%+v warnings=%v", r, warnings)
+	}
+	if r.HTTPAttempts != httpProbeCount || r.HTTPSuccess != httpProbeCount || r.TCPAttempts != tcpProbeCount || r.TCPSuccess != tcpProbeCount || !r.HTTPMeasured || !r.TCPMeasured {
+		t.Fatalf("counts mismatch: %+v", r)
+	}
+	if strings.Join(phases, ",") != "connectivity,latency,stability" {
+		t.Fatalf("phases=%v", phases)
+	}
+	if preStabilityDials != 1 || dials.Load() != 1+tcpProbeCount {
+		t.Fatalf("dials mismatch: preStability=%d total=%d", preStabilityDials, dials.Load())
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if len(remotes) != 1+httpProbeCount {
+		t.Fatalf("expected 1 connectivity + %d latency requests (no warmup), got %d", httpProbeCount, len(remotes))
+	}
+	for i := 1; i < len(remotes); i++ {
+		if remotes[i] != remotes[0] {
+			t.Fatalf("connectivity and latency did not reuse connection: %v", remotes)
+		}
+	}
+	r.ProbeComplete = true
+	scoreResult(&r)
+	if !r.ScoreReady || r.Score <= 0 || !fullStable(r) {
+		t.Fatalf("score mismatch: %+v", r)
+	}
+}
+
+func TestProbeOnePartialHTTPSAndTotalFailureShortCircuit(t *testing.T) {
+	t.Run("partial-2-of-3-remains-valid", func(t *testing.T) {
+		var requests atomic.Int32
+		var phases []string
+		_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if requests.Add(1) == 2 { // #1 connectivity succeeds, #2 first latency fails, #3/#4 succeed
+				w.WriteHeader(403)
+				return
+			}
+			_, _ = io.WriteString(w, traceBody(r.Host))
+		}))
+		o := defaultOptions()
+		o.TargetHost = "node.example.com"
+		r, _ := p.probeOne(context.Background(), newResult(testCandidate(1), false), o, nil, func(phase string) {
+			phases = append(phases, phase)
+		})
+		if strings.Join(phases, ",") != "connectivity,latency,stability" {
+			t.Fatalf("phases=%v", phases)
+		}
+		if r.Status != "valid" || r.Error != "" || r.NAReason != "" || r.HTTPAttempts != httpProbeCount || r.HTTPSuccess != 2 || r.TCPAttempts != tcpProbeCount || r.TCPSuccess != tcpProbeCount || dials.Load() != 1+tcpProbeCount {
+			t.Fatalf("%+v dials=%d", r, dials.Load())
+		}
+		r.ProbeComplete = true
+		scoreResult(&r)
+		if !r.ScoreReady || r.Status != "valid" || math.Abs(r.ScoreBreakdown[1].Points-20) > 1e-9 || r.Score <= 0 || fullStable(r) {
+			t.Fatalf("partial HTTPS score mismatch: %+v", r)
+		}
+	})
+
+	t.Run("total-0-of-3-short-circuits-stability", func(t *testing.T) {
+		var requests atomic.Int32
+		var phases []string
+		_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if requests.Add(1) > 1 { // #1 connectivity succeeds, all 3 latency requests fail
+				w.WriteHeader(403)
+				return
+			}
+			_, _ = io.WriteString(w, traceBody(r.Host))
+		}))
+		o := defaultOptions()
+		o.TargetHost = "node.example.com"
+		r, _ := p.probeOne(context.Background(), newResult(testCandidate(1), false), o, nil, func(phase string) {
+			phases = append(phases, phase)
+		})
+		if strings.Join(phases, ",") != "connectivity,latency" {
+			t.Fatalf("stability not skipped: phases=%v", phases)
+		}
+		if r.Status != "failed" || !strings.Contains(r.Error, "HTTPS复查失败") || r.NAReason != "latency失败，后续未测项跳过" || r.HTTPAttempts != httpProbeCount || r.HTTPSuccess != 0 || r.TCPAttempts != 0 || r.TCPSuccess != 0 || r.TCPMeasured || dials.Load() != 1 || fullStable(r) {
+			t.Fatalf("%+v dials=%d", r, dials.Load())
+		}
+	})
+}
+
+func TestStabilityConcurrentDialsNoRace(t *testing.T) {
+	entered := make(chan struct{}, tcpProbeCount)
+	release := make(chan struct{})
+	var active, peak atomic.Int32
+	p := &networkProbe{
+		now: time.Now,
+		dial: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			n := active.Add(1)
+			for old := peak.Load(); n > old && !peak.CompareAndSwap(old, n); old = peak.Load() {
+			}
+			entered <- struct{}{}
+			select {
+			case <-release:
+			case <-ctx.Done():
+				active.Add(-1)
+				return nil, ctx.Err()
+			}
+			active.Add(-1)
+			a, b := net.Pipe()
+			_ = b.Close()
+			return a, nil
+		},
+	}
+	done := make(chan Result, 1)
+	go func() {
+		r, _ := p.stability(context.Background(), newResult(testCandidate(1), false))
+		done <- r
+	}()
+	for i := 0; i < tcpProbeCount; i++ {
+		select {
+		case <-entered:
+		case <-time.After(time.Second):
+			t.Fatalf("stability dials not concurrent: only %d entered", i)
+		}
+	}
+	close(release)
+	r := <-done
+	if peak.Load() != tcpProbeCount || r.TCPAttempts != tcpProbeCount || r.TCPSuccess != tcpProbeCount || !r.TCPMeasured || r.Status == "failed" {
+		t.Fatalf("concurrent stability mismatch: peak=%d %+v", peak.Load(), r)
+	}
+
+	failProbe := &networkProbe{
+		now: time.Now,
+		dial: func(context.Context, string, string) (net.Conn, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+	failed, _ := failProbe.stability(context.Background(), newResult(testCandidate(1), false))
+	if failed.Status != "failed" || failed.Error != "4次TCP连接全部失败" || failed.TCPAttempts != tcpProbeCount || failed.TCPSuccess != 0 || failed.TCPMeasured {
+		t.Fatalf("stability all-failed mismatch: %+v", failed)
 	}
 }

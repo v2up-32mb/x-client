@@ -27,8 +27,8 @@ func fakeOperations() operations {
 		},
 		stability: func(_ context.Context, r Result) (Result, []string) {
 			r.TCPMeasured = true
-			r.TCPSuccess = 10
-			r.TCPAttempts = 10
+			r.TCPSuccess = 4
+			r.TCPAttempts = 4
 			r.TCPMinMS = 20
 			r.TCPMaxMS = 30
 			r.TCPAvgMS = 25
@@ -36,8 +36,8 @@ func fakeOperations() operations {
 		},
 		latency: func(_ context.Context, r Result, _ Options, _ []byte) (Result, []string) {
 			r.HTTPMeasured = true
-			r.HTTPSuccess = 5
-			r.HTTPAttempts = 5
+			r.HTTPSuccess = 3
+			r.HTTPAttempts = 3
 			r.HTTPMedianMS = 30
 			r.HTTPJitterMS = 5
 			return r, nil
@@ -159,7 +159,7 @@ func TestTaskExplicitZeroDownloadAndRecommend(t *testing.T) {
 		t.Fatal(s)
 	}
 	for _, result := range s.Results {
-		if result.Recommended || result.DownloadState != "untested" || result.HTTPAttempts != 5 || result.TCPAttempts != 10 {
+		if result.Recommended || result.DownloadState != "untested" || result.HTTPAttempts != 3 || result.TCPAttempts != 4 {
 			t.Fatal(result)
 		}
 	}

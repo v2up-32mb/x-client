@@ -27,7 +27,7 @@ func (p *networkProbe) download(ctx context.Context, r Result, o Options, ech []
 	if err != nil {
 		return r, []string{r.Address + ": 无效下载URL"}
 	}
-	s := p.session(ctx, r.Candidate, u, o, ech)
+	s := p.sessionWithTimeouts(ctx, r.Candidate, u, o, ech, probeTimeout, probeTimeout)
 	defer s.close()
 	defer func() { result.DownloadECHStatus = s.echStatus() }()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)

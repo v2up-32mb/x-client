@@ -46,7 +46,7 @@ public class PreferredIpActivity extends BaseActivity implements
 
     private List<Preferences.ProfileInfo> profiles = new ArrayList<>();
     private int initialSample = 256;
-    private int initialConcurrency = 8;
+    private int initialConcurrency = 16;
     private int initialReference = 0;
     private Parcelable pendingScroll;
 
@@ -72,7 +72,7 @@ public class PreferredIpActivity extends BaseActivity implements
                 controller.expanded.addAll(expanded);
             }
             initialSample = saved.getInt("sample", 256);
-            initialConcurrency = saved.getInt("concurrency", 8);
+            initialConcurrency = saved.getInt("concurrency", 16);
             initialReference = saved.getInt("reference", 0);
             controller.scroll = saved.getParcelable("scroll");
         }
@@ -352,7 +352,7 @@ public class PreferredIpActivity extends BaseActivity implements
             testsBinder.setSampleError(getString(R.string.preferred_err_sample_range));
             return;
         }
-        if (workers < 1 || workers > 32) {
+        if (workers < 1 || workers > 64) {
             testsBinder.setConcurrencyError(getString(R.string.preferred_err_concurrency_range));
             return;
         }

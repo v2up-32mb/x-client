@@ -334,7 +334,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_empty_sources">No candidates yet. Update official IPv4 or import a list before starting test.</string>
     <string name="preferred_target">Select reference profile (does not switch active connection)</string>
     <string name="preferred_sample">CIDR Sample Count (Default 256, max 4096)</string>
-    <string name="preferred_concurrency">Probe Concurrency (Default 8, max 32)</string>
+    <string name="preferred_concurrency">Probe Concurrency (Default 16, max 64)</string>
     <string name="preferred_no_profiles">Please create a profile first; testing requires an actual reference profile.</string>
     <string name="preferred_not_tested">Not tested yet. HTTPS reachability does not guarantee WebSocket upgrade or authentication.</string>
     <string name="preferred_disable">Restore Original / Disable Global</string>
@@ -360,7 +360,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_manual_title">Manual Input</string>
     <string name="preferred_reference_title">Reference Profile</string>
     <string name="preferred_sample_hint">Sample Count (1-4096)</string>
-    <string name="preferred_concurrency_hint">Concurrency (1-32)</string>
+    <string name="preferred_concurrency_hint">Concurrency (1-64)</string>
     <string name="preferred_ready">Ready</string>
     <string name="preferred_direct_net">Direct Network</string>
     <string name="preferred_metric_completed_total">Done / Total</string>
@@ -393,7 +393,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_err_url_format_msg">Third-party list must use a valid URL starting with https://</string>
     <string name="preferred_err_input_empty">Please enter or paste IP content</string>
     <string name="preferred_err_sample_range">Please enter 1–4096</string>
-    <string name="preferred_err_concurrency_range">Please enter 1–32</string>
+    <string name="preferred_err_concurrency_range">Please enter 1–64</string>
     <string name="preferred_dialog_list_parse_title">Third-Party List Parse Result</string>
     <string name="preferred_btn_discard">Discard</string>
     <string name="preferred_btn_import_valid">Import Valid Candidates</string>

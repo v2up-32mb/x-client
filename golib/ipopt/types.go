@@ -5,15 +5,21 @@ package ipopt
 import "time"
 
 const (
-	maxSourceBytes         = 2 << 20
-	maxListLines           = 10000
-	maxCandidates          = 4096
-	maxDownloadBytes       = 20 << 20
-	maxManualDownloadBytes = 50 << 20
-	manualDownloadURL      = "https://speed.cloudflare.com/__down?bytes=52428800"
-	maxTotalDownloadBytes  = 100 << 20
-	defaultDownloadURL     = "https://speed.cloudflare.com/__down?bytes=20971520"
-	probeTimeout           = 5 * time.Second
+	maxSourceBytes          = 2 << 20
+	maxListLines            = 10000
+	maxCandidates           = 4096
+	maxDownloadBytes        = 20 << 20
+	maxManualDownloadBytes  = 50 << 20
+	manualDownloadURL       = "https://speed.cloudflare.com/__down?bytes=52428800"
+	maxTotalDownloadBytes   = 100 << 20
+	defaultDownloadURL      = "https://speed.cloudflare.com/__down?bytes=20971520"
+	probeTimeout            = 5 * time.Second
+	tcpDialTimeout          = 2 * time.Second
+	httpProbeTimeout        = 3 * time.Second
+	tcpProbeCount           = 4
+	httpProbeCount          = 3
+	defaultProbeConcurrency = 16
+	maxProbeConcurrency     = 64
 )
 
 type Candidate struct {
@@ -69,7 +75,7 @@ type Options struct {
 
 func defaultOptions() Options {
 	return Options{TargetPort: 443, Protocol: "gcm", ECHDomain: "cloudflare-ech.com",
-		DNSServer: "https://doh.pub/dns-query", SampleLimit: 256, ProbeConcurrency: 8,
+		DNSServer: "https://doh.pub/dns-query", SampleLimit: 256, ProbeConcurrency: defaultProbeConcurrency,
 		RecommendCount: 3, DownloadTop: 5, DownloadBytesPerIP: maxDownloadBytes,
 		DownloadSeconds: 5, DownloadURL: defaultDownloadURL}
 }

@@ -22,7 +22,7 @@ type scanSession struct {
 	candidates             []Candidate
 	members                map[string]Candidate
 	// Only reference completion/eligibility is retained. Other-target proofs
-	// exist solely in the three bounded task snapshots (at most 32 IP each).
+	// exist solely in the three bounded task snapshots (at most 4096 IPs each).
 	completed map[string]bool
 	eligible  map[string]bool
 	ech       map[string]echEntry

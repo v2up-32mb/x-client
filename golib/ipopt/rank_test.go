@@ -7,10 +7,10 @@ func rankedResult(n int, median, speed float64, source string) Result {
 	r.SourceKind = source
 	r.SourceKinds = []string{source}
 	r.Status = "valid"
-	r.TCPAttempts = 10
-	r.TCPSuccess = 10
-	r.HTTPAttempts = 5
-	r.HTTPSuccess = 5
+	r.TCPAttempts = 4
+	r.TCPSuccess = 4
+	r.HTTPAttempts = 3
+	r.HTTPSuccess = 3
 	r.HTTPMedianMS = median
 	r.HTTPJitterMS = 3
 	r.DownloadState = "ok"
@@ -25,7 +25,7 @@ func TestRankStabilityThenRealHTTPNotFastTCP(t *testing.T) {
 	good := rankedResult(2, 30, 5, "official")
 	good.TCPAvgMS = 30
 	unstable := rankedResult(3, 10, 100, "official")
-	unstable.TCPSuccess = 9
+	unstable.TCPSuccess = 3
 	rs := []Result{fastTCP, unstable, good}
 	rank(rs)
 	if rs[0].Address != good.Address || rs[1].Address != fastTCP.Address || rs[2].Address != unstable.Address {
@@ -51,7 +51,15 @@ func TestRecommendationsExcludePartialFailedAndShortSamples(t *testing.T) {
 	rs[1].DownloadState = "short"
 	rs[2].Status = "failed"
 	rs[2].Error = "certificate"
-	rs[3].HTTPSuccess = 4
+	rs[3].HTTPSuccess = 2
+	if fullStable(rs[3]) {
+		t.Fatal("partial 2/3 HTTPS treated as fullStable")
+	}
+	partialOne := rankedResult(5, 10, 100, "manual")
+	partialOne.HTTPSuccess = 1
+	if fullStable(partialOne) {
+		t.Fatal("partial 1/3 HTTPS treated as fullStable")
+	}
 	o := defaultOptions()
 	if n := recommend(rs, o); n != 1 {
 		t.Fatalf("padded recommendations %d", n)

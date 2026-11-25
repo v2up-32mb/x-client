@@ -87,8 +87,8 @@ final class PreferredIpPresentation {
         switch (value) {
             case "fetch": return "抓取来源";
             case "connectivity": return "HTTPS 验证 / TLS 证书 / CF trace";
-            case "stability": return "10次 TCP 稳定性";
-            case "latency": return "5次 HTTPS 请求延迟";
+            case "stability": return "4次 TCP 稳定性";
+            case "latency": return "3次 HTTPS 请求延迟";
             case "download": return "HTTPS 顺序下载";
             case "done": return "结束";
             default: return value;

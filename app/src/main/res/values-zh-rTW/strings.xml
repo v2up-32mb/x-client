@@ -334,7 +334,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_empty_sources">尚無候選。先更新官方 IPv4 或匯入清單，再開始測試。</string>
     <string name="preferred_target">選擇實際參考節點（不會切換目前連線節點）</string>
     <string name="preferred_sample">CIDR 抽樣數量（預設 256，上限 4096）</string>
-    <string name="preferred_concurrency">探測並發數（預設 8，上限 32）</string>
+    <string name="preferred_concurrency">探測並發數（預設 16，上限 64）</string>
     <string name="preferred_no_profiles">請先建立一個節點；必須按真實節點目標驗證。</string>
     <string name="preferred_not_tested">尚未測試。HTTPS 可達不代表 WebSocket 升級或驗證成功。</string>
     <string name="preferred_disable">還原原設定 / 停用全域</string>
@@ -360,7 +360,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_manual_title">手動輸入</string>
     <string name="preferred_reference_title">參考目標節點</string>
     <string name="preferred_sample_hint">抽樣數量 (1-4096)</string>
-    <string name="preferred_concurrency_hint">並發執行緒 (1-32)</string>
+    <string name="preferred_concurrency_hint">並發執行緒 (1-64)</string>
     <string name="preferred_ready">準備就緒</string>
     <string name="preferred_direct_net">直連網路</string>
     <string name="preferred_metric_completed_total">完成 / 總量</string>
@@ -393,7 +393,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_err_url_format_msg">第三方清單必須使用 https:// 開頭的有效連結</string>
     <string name="preferred_err_input_empty">請輸入或貼上 IP 內容</string>
     <string name="preferred_err_sample_range">請輸入 1–4096</string>
-    <string name="preferred_err_concurrency_range">請輸入 1–32</string>
+    <string name="preferred_err_concurrency_range">請輸入 1–64</string>
     <string name="preferred_dialog_list_parse_title">第三方清單解析結果</string>
     <string name="preferred_btn_discard">放棄</string>
     <string name="preferred_btn_import_valid">立即匯入有效候選</string>

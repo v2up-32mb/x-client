@@ -102,9 +102,6 @@ func decodeRequest(text string) (Request, error) {
 		if r.Operation != "prepare" && len(r.Prefixes) != 0 {
 			return r, fmt.Errorf("probe/download不接受prefixes")
 		}
-		if r.Operation == "probe" && len(r.Candidates) > r.Options.ProbeConcurrency {
-			return r, fmt.Errorf("probe单批候选不能超过probe_concurrency")
-		}
 		if r.Operation == "download" && (len(r.Candidates) != 1 || r.ProbeRole != "reference") {
 			return r, fmt.Errorf("download仅接受一个reference候选")
 		}
@@ -152,8 +149,8 @@ func validateTaskOptions(o *Options, manual bool) error {
 	if o.Protocol != "gcm" && o.Protocol != "xtunnel" {
 		return fmt.Errorf("protocol必须为gcm或xtunnel")
 	}
-	if o.SampleLimit < 1 || o.SampleLimit > 4096 || o.ProbeConcurrency < 1 || o.ProbeConcurrency > 32 {
-		return fmt.Errorf("sample_limit为1..4096，probe_concurrency为1..32")
+	if o.SampleLimit < 1 || o.SampleLimit > 4096 || o.ProbeConcurrency < 1 || o.ProbeConcurrency > maxProbeConcurrency {
+		return fmt.Errorf("sample_limit为1..4096，probe_concurrency为1..64")
 	}
 	if o.RecommendCount < 0 || o.RecommendCount > 4096 || o.DownloadTop < 0 || o.DownloadTop > 5 {
 		return fmt.Errorf("recommend_count为0..4096，download_top为0..5（0表示关闭）")

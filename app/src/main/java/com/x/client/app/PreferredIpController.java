@@ -76,7 +76,7 @@ final class PreferredIpController {
     int tab;
     Parcelable scroll;
     String uiReference = "";
-    int uiSample = 256, uiConcurrency = 8;
+    int uiSample = 256, uiConcurrency = 16;
     String manualDraft = "", urlDraft = "https://776771.xyz/all.txt";
 
     private final Context context;
@@ -139,7 +139,7 @@ final class PreferredIpController {
         this.backend = backend; this.net = net; this.clock = clock;
         store = new PreferredIpStore(this.context); history = new PreferredIpHistory(this.context);
         ledger = new PreferredIpLedger(); network = net.id();
-        control.scheduleWithFixedDelay(() -> safe(() -> { checkContext(); schedule(); if (dirty) publish(); }), 0, 500, TimeUnit.MILLISECONDS);
+        control.scheduleWithFixedDelay(() -> safe(() -> { checkContext(); schedule(); if (dirty) publish(); }), 0, 250, TimeUnit.MILLISECONDS);
         storageIO.execute(() -> {
             try {
                 JSONObject loaded = store.read();
@@ -315,7 +315,7 @@ final class PreferredIpController {
     private void startScan(String profile, int sample, int concurrency, boolean confirmedRound) throws Exception {
         if (active != null || preparingDisk) throw new IllegalStateException("请先暂停并等待网络任务真正退出");
         if (data == null) throw new IllegalStateException("优选库尚未加载");
-        if (sample < 1 || sample > 4096 || concurrency < 1 || concurrency > 32) throw new IllegalArgumentException("抽样1–4096，并发1–32");
+        if (sample < 1 || sample > 4096 || concurrency < 1 || concurrency > 64) throw new IllegalArgumentException("抽样1–4096，并发1–64");
         requireForeground();
         Preferences p = new Preferences(context).forProfile(profile);
         JSONObject merged = PreferredIpResolver.baseParams(p);
@@ -418,6 +418,7 @@ final class PreferredIpController {
         final ScanContext proof;
         final long epoch;
         final String networkId, sessionId, kind;
+        final Set<String> addresses;
         Finished finished;
         boolean accountPrepare, newRound, retryUsed, reserved;
         String id = "";
@@ -426,6 +427,20 @@ final class PreferredIpController {
             // Only fetch has no scan proof. Every scan/retry inherits its original epoch, never the live one.
             epoch = proof == null ? scanEpoch.get() : proof.epoch;
             networkId = this.request.optString("network_id"); sessionId = this.request.optString("session_id");
+            JSONArray cs = this.request.optJSONArray("candidates");
+            if (cs == null || cs.length() == 0) {
+                this.addresses = Collections.emptySet();
+            } else {
+                Set<String> set = new HashSet<>(cs.length() * 2);
+                for (int i = 0; i < cs.length(); i++) {
+                    JSONObject c = cs.optJSONObject(i);
+                    if (c != null) {
+                        String addr = c.optString("address");
+                        if (!addr.isEmpty()) set.add(addr);
+                    }
+                }
+                this.addresses = Collections.unmodifiableSet(set);
+            }
         }
     }
     private boolean jobCurrent(Job job) {
@@ -456,7 +471,7 @@ final class PreferredIpController {
         try { backend.cancel(id); } catch (Exception e) { error(new IllegalStateException("取消请求失败，仍等待 worker_done")); }
     }
     private static void pollDelay() {
-        try { Thread.sleep(500); } catch (InterruptedException ignored) { /* Never abandon the worker_done drain. */ }
+        try { Thread.sleep(200); } catch (InterruptedException ignored) { /* Never abandon the worker_done drain. */ }
     }
     private void runJob(Job job) {
         JSONObject terminal = null;
@@ -536,7 +551,7 @@ final class PreferredIpController {
             JSONArray rows = snapshot.getJSONArray("results");
             for (int i = 0; i < rows.length(); i++) {
                 JSONObject row = rows.getJSONObject(i); String address = row.getString("address");
-                if (PreferredIpPresentation.find(job.request.optJSONArray("candidates"), address) == null || !candidates.containsKey(address) || !"reference".equals(row.optString("result_kind"))
+                if (!job.addresses.contains(address) || !candidates.containsKey(address) || !"reference".equals(row.optString("result_kind"))
                         || !job.proof.targetKey.equals(row.optString("target_key"))) continue;
                 JSONObject old = results.get(address);
                 if (old == null || !old.optBoolean("probe_complete")) {
@@ -607,7 +622,7 @@ final class PreferredIpController {
         if (!jobCurrent(original)) return;
         JSONObject frozenOptions = new JSONObject(proof.optionsJson);
         JSONObject maintenance = request(proof, "prepare", options(original.request.getJSONObject("options"), false,
-                frozenOptions.optInt("sample_limit", 256), frozenOptions.optInt("probe_concurrency", 8), PROBE_DOWNLOAD), new JSONArray());
+                frozenOptions.optInt("sample_limit", 256), frozenOptions.optInt("probe_concurrency", 16), PROBE_DOWNLOAD), new JSONArray());
         if (original.request.has("probe_role")) maintenance.put("probe_role", original.request.getString("probe_role"));
         Job job = new Job(proof, maintenance, "maintenance", response -> {
             if (!"completed".equals(response.optString("state")) || stopRequested || !foreground || !jobCurrent(original)) return;
@@ -615,6 +630,9 @@ final class PreferredIpController {
             launch(retry);
         });
         launch(job);
+    }
+    private static int probeBatchLimit(JSONObject frozenOptions) {
+        return Math.min(4096, Math.max(256, frozenOptions.optInt("probe_concurrency", 16) * 8));
     }
     private void schedule() throws Exception {
         if (!foreground || active != null || preparingDisk || data == null || session.isEmpty() || stale) return;
@@ -635,11 +653,12 @@ final class PreferredIpController {
         // Matching reference proof needs no network slot and may commit while a scan is running.
         validateSelections(!paused && scanning);
         if (active != null || paused || stopRequested || !scanning) return;
+        int batchLimit = probeBatchLimit(frozenOptions);
         JSONArray chunk = new JSONArray();
         for (Map.Entry<String, JSONObject> entry : candidates.entrySet()) {
             JSONObject r = results.get(entry.getKey());
             if (r == null || !r.optBoolean("probe_complete")) chunk.put(entry.getValue());
-            if (chunk.length() == frozenOptions.optInt("probe_concurrency", 8)) break;
+            if (chunk.length() == batchLimit) break;
         }
         if (chunk.length() == 0) {
             scanning = false; paused = true; phase = "测试完成"; message = "全部候选处理完成；勾选即保存，下载须手动";
@@ -774,6 +793,7 @@ final class PreferredIpController {
                 group.ids.add(info.id);
             } catch (Exception ignored) { /* Resolver's actual non-adoption reason is rendered in each row. */ }
         }
+        int batchLimit = probeBatchLimit(frozenOptions);
         for (ValidationGroup group : groups.values()) {
             boolean same = group.key.equals(PreferredIpResolver.fingerprint(new JSONObject(proofContext.targetJson)));
             JSONArray chunk = new JSONArray();
@@ -785,7 +805,7 @@ final class PreferredIpController {
                 String key = version + "|" + profileSignature + "|" + group.key + "|" + address;
                 if (validationSeen.contains(key)) continue;
                 chunk.put(candidates.get(address)); seen.add(key);
-                if (chunk.length() == frozenOptions.optInt("probe_concurrency", 8)) break;
+                if (chunk.length() == batchLimit) break;
             }
             if (chunk.length() == 0 || (!same && (referenceOnly || active != null))) continue;
             if (validationSeen.size() + seen.size() > 8192) { validationAllowed = false; message = "兼容证明缓存达到8192项上限；请减少参与节点或选择后明确继续"; dirty = true; return; }
@@ -1081,7 +1101,7 @@ final class PreferredIpController {
     }
     private void checkpoint() throws Exception {
         JSONObject snapshot = historySnapshot(); if (snapshot.length() == 0) return;
-        // Called at batch completion / pause only, never at the 500ms render cadence.
+        // Called at batch completion / pause only, never at the 250ms render cadence.
         JSONObject frozen = new JSONObject(snapshot.toString());
         storageIO.execute(() -> {
             try {

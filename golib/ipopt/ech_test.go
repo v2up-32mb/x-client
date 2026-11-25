@@ -498,7 +498,7 @@ func TestECHRejectionFallsBackToVerifiedTLSAndIsNotCalledUsed(t *testing.T) {
 		t.Fatalf("%+v %v dials=%d", r, warnings, dials.Load())
 	}
 	r, warnings = p.latency(context.Background(), r, o, config)
-	if r.Status != "valid" || r.Colo != "HKG" || r.HTTPAttempts != 5 || r.HTTPSuccess != 5 || r.ECHStatus != "fallback" || dials.Load() != 4 || requests.Load() != 7 || len(warnings) == 0 {
+	if r.Status != "valid" || r.Colo != "HKG" || r.HTTPAttempts != 3 || r.HTTPSuccess != 3 || r.ECHStatus != "fallback" || dials.Load() != 4 || requests.Load() != 5 || len(warnings) == 0 {
 		t.Fatalf("HTTPS latency after ECH rejection: %+v %v dials=%d requests=%d", r, warnings, dials.Load(), requests.Load())
 	}
 	// Missing config must never silently report a successful ECH verification.
@@ -512,7 +512,30 @@ func TestECHRejectionFallsBackToVerifiedTLSAndIsNotCalledUsed(t *testing.T) {
 	p.baseTLS.InsecureSkipVerify = true
 	before := dials.Load()
 	r, _ = p.connectivity(context.Background(), newResult(c, true), o, config)
-	if r.Status != "failed" || r.Error == "" || r.ECHStatus != "fallback" || dials.Load()-before != 2 || requests.Load() != 8 {
+	if r.Status != "failed" || r.Error == "" || r.ECHStatus != "fallback" || dials.Load()-before != 2 || requests.Load() != 6 {
 		t.Fatalf("unverified ECH fallback accepted: %+v dials=%d requests=%d", r, dials.Load()-before, requests.Load())
+	}
+}
+
+func TestProbeOneECHFallbackSkipsRetryOnReconnect(t *testing.T) {
+	var requests atomic.Int32
+	_, p, dials := offlineTLS(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Connection", "close")
+		_, _ = io.WriteString(w, traceBody(r.Host))
+	}))
+	o := defaultOptions()
+	o.TargetHost = "node.example.com"
+	o.EnableECH = true
+	config := rejectionConfig(t, "node.example.com")
+	var preStabilityDials int32
+	r, _ := p.probeOne(context.Background(), newResult(testCandidate(1), true), o, config, func(phase string) {
+		if phase == "stability" {
+			preStabilityDials = dials.Load()
+		}
+	})
+	// connectivity: 2 dials (ECH rejection + fallback); 3 latency reconnects: 1 dial each (no ECH retry) = 5 dials before stability.
+	if r.Status != "valid" || r.ECHStatus != "fallback" || r.HTTPSuccess != httpProbeCount || r.TCPSuccess != tcpProbeCount || requests.Load() != 1+httpProbeCount || preStabilityDials != 2+httpProbeCount || dials.Load() != 2+httpProbeCount+tcpProbeCount {
+		t.Fatalf("%+v preStability=%d dials=%d requests=%d", r, preStabilityDials, dials.Load(), requests.Load())
 	}
 }

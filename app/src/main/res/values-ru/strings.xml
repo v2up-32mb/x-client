@@ -334,7 +334,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_empty_sources">Нет кандидатов. Обновите IPv4 или добавьте список перед началом теста.</string>
     <string name="preferred_target">Выберите целевой узел (не переключает текущее соединение)</string>
     <string name="preferred_sample">Выборка CIDR (по умолч. 256, макс. 4096)</string>
-    <string name="preferred_concurrency">Параллельность (по умолч. 8, макс. 32)</string>
+    <string name="preferred_concurrency">Параллельность (по умолч. 16, макс. 64)</string>
     <string name="preferred_no_profiles">Сначала создайте профиль узла; проверка выполняется по реальной цели.</string>
     <string name="preferred_not_tested">Не проверено. Доступность по HTTPS не гарантирует успешный WebSocket или авторизацию.</string>
     <string name="preferred_disable">Восстановить настройки / отключить глобальный пул</string>
@@ -360,7 +360,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_manual_title">Ручной ввод</string>
     <string name="preferred_reference_title">Целевой узел</string>
     <string name="preferred_sample_hint">Размер выборки (1-4096)</string>
-    <string name="preferred_concurrency_hint">Потоков (1-32)</string>
+    <string name="preferred_concurrency_hint">Потоков (1-64)</string>
     <string name="preferred_ready">Готово</string>
     <string name="preferred_direct_net">Прямая сеть</string>
     <string name="preferred_metric_completed_total">Выполнено / Всего</string>
@@ -393,7 +393,7 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="preferred_err_url_format_msg">Сторонний список должен начинаться с https://</string>
     <string name="preferred_err_input_empty">Введите или вставьте список IP</string>
     <string name="preferred_err_sample_range">Введите от 1 до 4096</string>
-    <string name="preferred_err_concurrency_range">Введите от 1 до 32</string>
+    <string name="preferred_err_concurrency_range">Введите от 1 до 64</string>
     <string name="preferred_dialog_list_parse_title">Результат анализа списка</string>
     <string name="preferred_btn_discard">Отклонить</string>
     <string name="preferred_btn_import_valid">Импортировать подходящие</string>
