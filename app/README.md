@@ -91,7 +91,7 @@ app/src/main/res/values[-night]/
 | 工作流 | 触发 | 说明 |
 |---|---|---|
 | `build-aar.yml` | main 推送（`golib/**`）/ 手动 | gomobile AAR 构建，预热默认分支缓存 |
-| `release.yml` | `v*` tag / 手动 | tag=构建+签名+发版；手动=unsigned CI/试用 APK 构建，试用还执行 Go race 与 gomobile/API 检查；不运行 App 测试 |
+| `release.yml` | `v*` tag / 手动 | tag=构建+签名+发版；手动=Go `-race` 测试 + `gomobile`/API 检查 + 签名 `.debug` APK 构建（不运行 App 测试，不发版） |
 | `check-keystore.yml` | 手动 | 验证签名密钥 secrets |
 
 ## 全局优选 IP v2（Android 实现；行为需设备手工验证）
@@ -207,4 +207,4 @@ Go 返回的完整规范地址，不截端口。语义 Material 3 颜色、无�
 
 ### App 手工验证
 
-GitHub Actions 的 trial workflow 只执行 Go race、gomobile bind/API 检查与 APK 构建/签名校验，不运行 Android App 模拟测试。所有 App 行为验证均由用户在设备上手工完成；当前仓库不保留模拟网络的 `androidTest` 套件、Instrumentation runner 或对应报告 parser。CI 成功只代表上述构建/Go 检查通过，不代表 App 行为已通过测试。
+GitHub Actions 手动 CI 构建（`.debug` 包）执行 `go test -race`、`gomobile`（未命中缓存时重新绑定）与 JSON API 签名检查，以及 `com.x.client.app.debug` APK 构建和签名校验，不运行 Android Instrumentation / App 模拟测试。所有 App 行为验证均由用户在设备上手工完成；当前仓库不保留模拟网络的 `androidTest` 套件、Instrumentation runner 或对应报告 parser。CI 成功只代表上述构建、签名与 Go 检查通过，不代表 App 行为已通过测试。
