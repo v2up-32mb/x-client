@@ -8,10 +8,9 @@
 
 package com.x.client.app;
 
+import android.net.Uri;
 import org.json.JSONObject;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
+import java.util.Locale;
 
 public final class ProfileUriCodec {
 
@@ -39,24 +38,40 @@ public final class ProfileUriCodec {
         public int xtHotPairCount = Preferences.DEFAULT_XT_HOT_PAIR_COUNT;
         public String xtIpStrategy = Preferences.DEFAULT_XT_IP_STRATEGY;
 
+        // SOCKS5
+        public String s5Host = "";
+        public int s5Port = Preferences.DEFAULT_S5_PORT;
+        public String s5Username = "";
+        public String s5Password = "";
+
         public boolean isXtunnel() {
             return Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
+        }
+
+        public boolean isSocks5() {
+            return Preferences.PROTOCOL_SOCKS5.equals(protocol);
         }
     }
 
     public static boolean isSupportedUri(String uri) {
         if (uri == null) return false;
-        String s = uri.trim();
-        return s.startsWith("xtunnel://") || s.startsWith("gcm://") || s.startsWith("ech://");
+        String s = uri.trim().toLowerCase(Locale.ROOT);
+        return s.startsWith("xtunnel://") || s.startsWith("gcm://")
+                || s.startsWith("ech://") || s.startsWith("socks5://")
+                || s.startsWith("socks://");
     }
 
     public static ParsedProfile parse(String protocol) throws IllegalArgumentException {
         if (!isSupportedUri(protocol)) {
             throw new IllegalArgumentException("Unsupported protocol format");
         }
-        protocol = protocol.trim();
-        boolean isXtunnel = protocol.startsWith("xtunnel://");
-        String rest = isXtunnel ? protocol.substring(10) : protocol.substring(6);
+        String trimmed = protocol.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("socks5://") || lower.startsWith("socks://")) {
+            return parseSocks5(trimmed, lower.startsWith("socks5://") ? 9 : 8);
+        }
+        boolean isXtunnel = lower.startsWith("xtunnel://");
+        String rest = isXtunnel ? trimmed.substring(10) : trimmed.substring(6);
 
         ParsedProfile res = new ParsedProfile();
         res.protocol = isXtunnel ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM;
@@ -170,11 +185,7 @@ public final class ProfileUriCodec {
         }
 
         if (!fragment.isEmpty()) {
-            try {
-                res.name = URLDecoder.decode(fragment, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                res.name = fragment;
-            }
+            res.name = urlDecode(fragment);
         }
         if (res.name == null || res.name.trim().isEmpty()) {
             res.name = "导入节点";
@@ -183,9 +194,146 @@ public final class ProfileUriCodec {
         return res;
     }
 
+    private static ParsedProfile parseSocks5(String trimmed, int schemeLen) {
+        String rest = trimmed.substring(schemeLen);
+        ParsedProfile res = new ParsedProfile();
+        res.protocol = Preferences.PROTOCOL_SOCKS5;
+
+        // 分离 #fragment（配置名称）
+        String fragment = "";
+        int hash = rest.indexOf('#');
+        if (hash >= 0) {
+            fragment = rest.substring(hash + 1);
+            rest = rest.substring(0, hash);
+        }
+
+        // 剥离可选 ?query
+        int qmark = rest.indexOf('?');
+        if (qmark >= 0) {
+            rest = rest.substring(0, qmark);
+        }
+
+        // 容错：剥离 host 前的多余斜杠
+        while (rest.startsWith("/")) {
+            rest = rest.substring(1);
+        }
+
+        // 先剥离可选 /path，避免路径中的 '@' 被误判为 userinfo 分隔符
+        int pathSlash = rest.indexOf('/');
+        if (pathSlash >= 0) {
+            rest = rest.substring(0, pathSlash);
+        }
+
+        // 解析 [userinfo@]hostport
+        String hostPort = rest;
+        int at = rest.lastIndexOf('@');
+        if (at >= 0) {
+            String userInfo = rest.substring(0, at);
+            hostPort = rest.substring(at + 1);
+            if (!userInfo.isEmpty()) {
+                String[] creds = userInfo.split(":", 2);
+                res.s5Username = urlDecode(creds[0]).trim();
+                if (creds.length > 1) {
+                    res.s5Password = urlDecode(creds[1]);
+                }
+            }
+        }
+        if (res.s5Username.isEmpty() && !res.s5Password.isEmpty()) {
+            throw new IllegalArgumentException("Password requires username in URI");
+        }
+
+        hostPort = hostPort.trim();
+        if (hostPort.isEmpty()) {
+            throw new IllegalArgumentException("Missing server host in URI");
+        }
+
+        String host;
+        int port = Preferences.DEFAULT_S5_PORT;
+        if (hostPort.startsWith("[")) {
+            int closeBracket = hostPort.indexOf(']');
+            if (closeBracket < 0) {
+                throw new IllegalArgumentException("Invalid IPv6 host in URI");
+            }
+            host = hostPort.substring(1, closeBracket).trim();
+            String after = hostPort.substring(closeBracket + 1).trim();
+            if (!after.isEmpty()) {
+                if (!after.startsWith(":")) {
+                    throw new IllegalArgumentException("Invalid host/port in URI");
+                }
+                port = parseSocks5Port(after.substring(1).trim());
+            }
+        } else {
+            int firstColon = hostPort.indexOf(':');
+            int lastColon = hostPort.lastIndexOf(':');
+            if (firstColon < 0) {
+                host = hostPort;
+            } else if (firstColon == lastColon) {
+                host = hostPort.substring(0, firstColon).trim();
+                port = parseSocks5Port(hostPort.substring(firstColon + 1).trim());
+            } else {
+                // 裸 IPv6 地址（未加方括号）
+                host = hostPort;
+            }
+        }
+
+        if (host.isEmpty()) {
+            throw new IllegalArgumentException("Missing server host in URI");
+        }
+        if (host.indexOf('[') != -1 || host.indexOf(']') != -1) {
+            throw new IllegalArgumentException("Invalid server host in URI");
+        }
+        for (int i = 0; i < host.length(); i++) {
+            if (Character.isWhitespace(host.charAt(i))) {
+                throw new IllegalArgumentException("Invalid server host in URI");
+            }
+        }
+
+        res.s5Host = host;
+        res.s5Port = port;
+        if (!fragment.isEmpty()) {
+            res.name = urlDecode(fragment);
+        }
+        if (res.name == null || res.name.trim().isEmpty()) {
+            res.name = "导入节点";
+        }
+        return res;
+    }
+
+    private static int parseSocks5Port(String portStr) {
+        if (portStr.isEmpty()) {
+            throw new IllegalArgumentException("Invalid port in URI");
+        }
+        int port;
+        try {
+            port = Integer.parseInt(portStr);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Invalid port in URI: " + portStr);
+        }
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("Invalid port in URI: " + portStr);
+        }
+        return port;
+    }
+
+    private static String urlDecode(String value) {
+        if (value == null) {
+            return "";
+        }
+        return Uri.decode(value);
+    }
+
+    private static String urlEncode(String value) {
+        return Uri.encode(value != null ? value : "");
+    }
+
     public static void applyToProfile(Preferences profilePrefs, ParsedProfile p) {
         profilePrefs.setProtocol(p.protocol);
-        if (p.isXtunnel()) {
+        if (p.isSocks5()) {
+            profilePrefs.setS5Host(p.s5Host);
+            profilePrefs.setS5Port(p.s5Port);
+            profilePrefs.setS5Username(p.s5Username);
+            profilePrefs.setS5Password(p.s5Password);
+        } else if (p.isXtunnel()) {
             profilePrefs.setXtServerAddr(p.serverAddr);
             profilePrefs.setXtToken(p.xtToken);
             profilePrefs.setXtRelayNodes(p.xtRelayNodes);
@@ -209,15 +357,26 @@ public final class ProfileUriCodec {
 
     public static String exportUri(Preferences profilePrefs, String profileId, JSONObject effective) {
         String protocolValue = profilePrefs.getProtocol();
-        String profileName = profilePrefs.getProfileName(profileId);
-        String encodedName;
-        try {
-            encodedName = URLEncoder.encode(profileName != null ? profileName : "", "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            encodedName = profileName != null ? profileName : "";
-        }
+        String encodedName = urlEncode(profilePrefs.getProfileName(profileId));
 
-        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
+        if (Preferences.PROTOCOL_SOCKS5.equals(protocolValue)) {
+            String host = profilePrefs.getS5Host().trim();
+            int port = profilePrefs.getS5Port();
+            String username = profilePrefs.getS5Username();
+            String password = profilePrefs.getS5Password();
+
+            StringBuilder uri = new StringBuilder("socks5://");
+            if (username != null && !username.isEmpty()) {
+                uri.append(urlEncode(username));
+                if (password != null && !password.isEmpty()) {
+                    uri.append(":").append(urlEncode(password));
+                }
+                uri.append("@");
+            }
+            uri.append(Preferences.formatHostPort(host, port));
+            uri.append("#").append(encodedName);
+            return uri.toString();
+        } else if (Preferences.PROTOCOL_X_TUNNEL.equals(protocolValue)) {
             String xtToken = effective.optString("token");
             String xtRelayNodes = effective.optString("relay_nodes");
             int xtConnections = effective.optInt("connections", Preferences.DEFAULT_XT_CONNECTIONS);

@@ -153,7 +153,7 @@ public class PreferredIpActivity extends BaseActivity implements
         concatAdapter = new ConcatAdapter(config, headerAdapter, resultAdapter);
         list.setAdapter(concatAdapter);
 
-        profiles = new Preferences(this).getProfileList();
+        profiles = loadEligibleProfiles();
         testsBinder.updateProfiles(this, profiles, referenceId);
 
         pendingScroll = controller.scroll;
@@ -165,8 +165,18 @@ public class PreferredIpActivity extends BaseActivity implements
         super.onStart();
         controller.attach(this);
         controller.setActionListener(this);
-        profiles = new Preferences(this).getProfileList();
+        profiles = loadEligibleProfiles();
         testsBinder.updateProfiles(this, profiles, controller.uiReference);
+    }
+
+    private List<Preferences.ProfileInfo> loadEligibleProfiles() {
+        List<Preferences.ProfileInfo> filtered = new ArrayList<>();
+        for (Preferences.ProfileInfo info : new Preferences(this).getProfileList()) {
+            if (info != null && !Preferences.PROTOCOL_SOCKS5.equals(info.protocol)) {
+                filtered.add(info);
+            }
+        }
+        return filtered;
     }
 
     @Override

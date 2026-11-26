@@ -13,7 +13,7 @@
 | 屏幕（Activity） | 职责 | 入口 |
 |---|---|---|
 | `ProfileListActivity` | 主页：Profile 列表 + `Connection FAB` 连接/断开 + 添加/导入（扫码 / 手动）+ 主题切换菜单 | 启动器 |
-| `ProfileEditActivity` | 编辑配置：按协议（GCM / X-Tunnel）切换字段组，`TextInputLayout` 就近校验 | 主页卡片次级菜单 / 长按 |
+| `ProfileEditActivity` | 编辑配置：按协议（GCM / X-Tunnel / SOCKS5）切换字段组，`TextInputLayout` 就近校验 | 主页卡片次级菜单 / 长按 |
 | `SettingsActivity` | 全局设置：通用 / 网络 / 代理绕过 / ECH 与 DNS 四分组，每项带当前值 summary | 主页菜单 |
 | `AppListActivity` | 分应用代理：搜索、全选/反选、已选计数确认条、加载/空态 | 设置页入口行 |
 | `RuntimeLogActivity` | 运行日志查看：等级过滤语义着色（ERROR 红 / WARN 橙）、复制 | 主页菜单 / 错误卡「查看日志」 |
@@ -28,6 +28,7 @@
 | `Profile 卡片 / PopupMenu` | Material 3 风格 Profile 列表卡片与次级弹出菜单（连接/断开、设为当前、编辑、复制、分享导出、删除），支持卡片右侧 `>` 按钮与长按触发 |
 | `ScannerOverlayView` | 扫码遮罩自定义绘制（颜色可经 `app:scanner*` 属性配置） |
 | `Preferences` | SharedPreferences 集中访问（Profile 列表 / 全局设置 / 主题模式），`MODE_MULTI_PROCESS` |
+| `Socks5ConfigBinder` | SOCKS5 协议表单绑定器（实现 `ProtocolConfigBinder`）：绑定 `s5_host` / `s5_port` / `s5_username` / `s5_password`，负责就近校验（非空 host 且无空白字符、端口 1..65535、密码非空时必填用户名）及 URI 导入回填 |
 | `ThemeManager` | 主题切换（浅色 / 深色 / 跟随系统，默认跟随系统），经 `AppCompatDelegate.setDefaultNightMode` |
 | `TProxyService` | VPN 前台服务（`specialUse`，独立 `:vpn` 进程）：TUN 接口 + hev-socks5-tunnel 转发 |
 
@@ -65,9 +66,11 @@ app/src/main/res/values[-night]/
 
 ### 多协议 Profile
 
-- 每个 Profile 独立选择 `Protocol`（`gcm` / `xtunnel`），决定字段组与后端分发
-- 导入通道：`gcm://` / `ech://`（兼容）/ `xtunnel://` URI 解析、二维码扫描
-- 导出：生成协议 URI + 二维码，一键复制
+- 每个 Profile 独立选择 `Protocol`（`Preferences.PROTOCOL_GCM` = `"gcm"` / `Preferences.PROTOCOL_X_TUNNEL` = `"xtunnel"` / `Preferences.PROTOCOL_SOCKS5` = `"socks5"`），决定字段组与后端分发；列表卡片显示对应协议徽章及地址（SOCKS5 显示 `host:port`）
+- **SOCKS5 配置与参数**：通过 `Socks5ConfigBinder` 绑定并校验 `S5Host` / `S5Port`（默认 `1080`）/ `S5Username` / `S5Password`；`TProxyService.buildSocks5Params` 组装 `server_host`、`server_port`、`username`、`password`、`log_level`、`bypass_private`、`bypass_geoip_cn`、`bypass_geosite_cn`、`bypass_rules` 与 `force_proxy_rules` 启动 Go 端 `socks5` 后端（运行日志对非空 `password` 脱敏为 `******`）
+- **导入通道**：`gcm://` / `ech://`（兼容）/ `xtunnel://` / `socks5://[user:pass@]host:port#name`（导入同时兼容 `socks://`，端口省略默认 `1080`，支持 IPv6 `[host]:port`）URI 解析（`ProfileUriCodec`）及二维码扫描
+- **导出**：生成协议 URI（SOCKS5 导出为 `socks5://[user:pass@]host:port#name`，并对用户名、密码与节点名称进行 URL 编码）+ 二维码，一键复制
+- **优选 IP 排除**：SOCKS5 不使用中转优选 IP 体系——`ProfileEditActivity` 隐藏优选/高级卡片并跳过保存优选模式；`ProfileListActivity` 导入/导出 `socks5://` 时跳过 `PreferredIpStore` / `PreferredIpResolver`；`PreferredIpController` 与 `PreferredIpTestsBinder` 在参考节点下拉、参数指纹、验证分组及旧入口收集时跳过 `PROTOCOL_SOCKS5`；`TProxyService` 启动时不调用 `PreferredIpResolver`
 
 ### 代理绕过
 

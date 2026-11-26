@@ -10,7 +10,7 @@
   - [`github.com/v2up-32mb/gcm`](https://github.com/v2up-32mb/gcm) —— GCM 协议（protocol/pool/relay + `NewStreamDialer` 适配器）
   - [`github.com/v2up-32mb/xtunnel`](https://github.com/v2up-32mb/xtunnel) —— X-Tunnel 协议（Client + `ProxyDialer`/`Reconnect`）
   - [`github.com/v2up-32mb/xshared`](https://github.com/v2up-32mb/xshared) —— SOCKS5/HTTP 代理服务器 + config/dns/ech/logger/routing
-- 协议适配层保留两个薄 backend：`gcm/backend.go`、`xtunnel/backend.go`（paramsJSON 解析 + 库装配）；
+- 协议适配层保留三个薄 backend：`gcm/backend.go`、`xtunnel/backend.go`、`socks5/backend.go`（paramsJSON 解析 + 库装配/上游中继）；
   `ipopt/` 独立实现全局优选 IP 前台任务
 
 ## 目录结构
@@ -20,6 +20,8 @@ golib/
 ├── android.go            # gomobile 入口：API 导出 + 协议分发（newBackend）
 ├── gcm/
 │   └── backend.go        # GCM 后端：paramsJSON → gcm 库装配（SOCKS5 + StreamDialer + bypass Option）
+├── socks5/
+│   └── backend.go        # SOCKS5 后端：RFC 1928/1929 TCP 上游中继（xshared/socks5 + routing bypass + 活跃连接追踪）
 └── xtunnel/
     ├── backend.go        # X-Tunnel 后端：paramsJSON → xtunnel 库装配（SOCKS5 + ProxyDialer + bypass Option）
     └── log.go            # 后端日志器（xshared logger）
@@ -31,9 +33,9 @@ Android 侧统一通过 `xclient.Xclient`（gomobile 绑定类）调用，`andro
 
 | API | 说明 |
 |---|---|
-| `StartSocksProxy(listenAddr, protocol, paramsJSON, verbose)` | 在 `listenAddr` 启动本地代理；`protocol` 取 `"gcm"`（默认，空值向后兼容）或 `"xtunnel"`；`paramsJSON` 为协议参数对象 |
-| `StopSocksProxy()` | 停止当前代理并释放资源 |
-| `Reconnect(reason)` | 按指定原因重连当前后端（xtunnel 走库 `reconnectCh` 强制重建通道） |
+| `StartSocksProxy(listenAddr, protocol, paramsJSON, verbose)` | 在 `listenAddr` 启动本地代理；`protocol` 取 `"gcm"`（默认，空值向后兼容）、`"xtunnel"` 或 `"socks5"`；`paramsJSON` 为协议参数对象 |
+| `StopSocksProxy()` | 停止当前代理并释放资源（`socks5` 同时关闭本地监听与全部活跃上游连接） |
+| `Reconnect(reason)` | 按指定原因重连当前后端（`xtunnel` 走库 `reconnectCh` 强制重建通道；`socks5` 关闭全部活跃上游连接以触发新请求重建套接字） |
 | `NotifyNetworkChanged()` | 通知网络切换（触发后端自适应重连） |
 | `SetTimeZone(tz)` | 设置日志时间戳时区（跟随 Android 系统时区） |
 | `ValidateBypassRules(rules)` | 校验路由绕过规则（换行分隔，见下） |
@@ -69,7 +71,17 @@ read_timeout, write_timeout, ping_interval, reconnect_delay, connect_timeout,
 max_socks5_connections, udp_blocked_ports
 ```
 
-> 键集由 `gcm/backend.go` 与 `xtunnel/backend.go` 的 `Param*` 常量定义，与 Android 侧逐键对齐；
+**SOCKS5**（`TProxyService.buildSocks5Params` 组装，10 项）：
+
+```
+server_host (必填), server_port (1..65535，默认 1080), username, password,
+log_level, bypass_private, bypass_geoip_cn, bypass_geosite_cn,
+bypass_rules, force_proxy_rules
+```
+
+- 校验约束：`server_host` 必填且不允许含未配对或内部 `[` / `]`（支持 `[IPv6]` 自动剥括号）；`password` 非空时 `username` 必填；`username` 与 `password` 长度均不可超过 255 字节。
+
+> 键集由 `gcm/backend.go`、`xtunnel/backend.go` 与 `socks5/backend.go` 的 `Param*` 常量定义，与 Android 侧逐键对齐；
 > 变更任一侧必须同步另一侧。
 
 ## 协议速查
@@ -94,13 +106,21 @@ TYPE = 3 CLOSE       无 DATA
 - 选路 = 通道竞争 + Hot Pair 预绑定；UDP ASSOCIATE 经 `ProxyDialer()`（端口拦截 +
   IPStrategy 过滤）；Fast Retry、背压控制在库内
 
+### SOCKS5（阶段 1：纯 TCP 上游中继）
+
+- 实现位置：`golib/socks5/backend.go`（`ProtocolSOCKS5 = "socks5"`）
+- 上游握手：基于 RFC 1928 / RFC 1929 直连上游 `server_host:server_port`（15s 拨号超时，120s 隧道空闲超时），支持无认证（`0x00`）与用户名/密码认证（`0x02`，配置 `username` 时协商）
+- 共享能力复用：复用 `xshared/socks5` 本地服务端与 `routing.NewMatcherWithForceProxy` 绕过规则（`bypass_private` / `bypass_geoip_cn` / `bypass_geosite_cn` / `bypass_rules` / `force_proxy_rules`）
+- 阶段 1 仅支持 TCP：无 UDP 中继，客户端发起 `UDP ASSOCIATE` 时由共享 `xshared/socks5` 服务端回复 `0x07`（Command not supported）
+- 连接生命周期：`upstreamDialer` 追踪全部活跃上游连接（`trackedConn`）；`Reconnect`（含网络切换 `NotifyNetworkChanged`）会立即关闭全部活跃上游连接以便后续请求沿新网络建立连接，`Stop` 关闭本地监听并同步清理全部活跃上游连接
+
 ## ECH / DoH 回退链（共享）
 
 ```
 DoH 多服务器 fallback → UDP DNS (8.8.8.8:53) → 标准 TLS 1.3
 ```
 
-ECH 配置项（`ech_domain` / `ech_dns`）对两种协议共用；配置懒加载（首次拨号按需获取，
+ECH 配置项（`ech_domain` / `ech_dns`）对 GCM / x-tunnel 共用（SOCKS5 不使用 ECH）；配置懒加载（首次拨号按需获取，
 不阻塞后端启动）。
 
 ## 路由绕过规则语法
@@ -133,7 +153,8 @@ full:api.example.com    # 全匹配域名
 │ golib：xshared SOCKS5 服务器                 │
 │   └─ newBackend(protocol)                    │
 │       ├─ gcm     → gcmlib.NewStreamDialer    │
-│       └─ xtunnel → xtlib.ProxyDialer()       │
+│       ├─ xtunnel → xtlib.ProxyDialer()       │
+│       └─ socks5  → socks5.upstreamDialer     │
 └─────────────────────────────────────────────┘
 ```
 

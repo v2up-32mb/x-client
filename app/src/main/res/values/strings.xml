@@ -88,6 +88,7 @@
     <string name="protocol_label">Proxy Protocol:</string>
     <string name="protocol_gcm">GCM</string>
     <string name="protocol_x_tunnel">xtunnel</string>
+    <string name="protocol_socks5">SOCKS5</string>
 
     <!-- ===== x-tunnel Protocol Parameters ===== -->
     <string name="xt_server_addr">Server Address (wss://):</string>
@@ -154,6 +155,11 @@ full:www.example.com</string>
     <string name="xt_relay_nodes_hint">Relay Nodes (comma separated)</string>
     <string name="xt_connections_hint">Connections</string>
     <string name="xt_hot_pair_count_hint">Hot Pair Channels (1-8)</string>
+    <string name="s5_host_hint">Server Address</string>
+    <string name="s5_host_helper">e.g. proxy.example.com or 1.2.3.4</string>
+    <string name="s5_port_hint">Port (default 1080)</string>
+    <string name="s5_username_hint">Username (optional)</string>
+    <string name="s5_password_hint">Password (optional)</string>
     <string name="xt_ip_strategy_label">IP Strategy</string>
     <string-array name="xt_ip_strategy_options">
         <item>IPv4,IPv6</item>
@@ -175,7 +181,8 @@ full:www.example.com</string>
     <string name="toast_scanner_start_failed">Failed to start scanner</string>
     <string name="scan_qr_prompt">Scan Profile QR Code</string>
     <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name
-xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name
+socks5://user:pass@1.2.3.4:1080#Name</string>
     <string name="error_profile_name_empty">Profile name cannot be empty</string>
     <string name="error_server_addr_empty">Server address cannot be empty</string>
     <string name="error_server_addr_scheme">Server address must start with wss:// or ws://</string>
@@ -188,6 +195,11 @@ xtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
     <string name="error_hot_pair_invalid">Hot pair count must be a number</string>
     <string name="error_hot_pair_range">Hot pair count must be between 1 and %1$d</string>
     <string name="error_xt_advanced_invalid">Invalid advanced parameters (leave empty for defaults)</string>
+    <string name="error_s5_host_empty">Server address cannot be empty</string>
+    <string name="error_s5_host_invalid">Invalid server address (enter host only, without port or whitespace)</string>
+    <string name="error_s5_port_invalid">Port must be between 1 and 65535</string>
+    <string name="error_s5_username_required">Username is required when password is set</string>
+    <string name="error_s5_credential_too_long">Must be at most 255 bytes (UTF-8)</string>
 
     <!-- ===== Global Settings ===== -->
     <string name="settings_title">Global Settings</string>

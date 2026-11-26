@@ -770,12 +770,20 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     private void exportProfileSnapshot(String profileId) {
         Preferences prefs = this.prefs.forProfile(profileId);
         org.json.JSONObject effective;
-        try {
-            effective = PreferredIpResolver.baseParams(prefs);
-            PreferredIpResolver.apply(prefs, effective, new PreferredIpStore(this).read());
-        } catch (Exception error) {
-            runOnUiThread(() -> Toast.makeText(this, "无法生成有效入口快照：" + error.getMessage(), Toast.LENGTH_LONG).show());
-            return;
+        if (Preferences.PROTOCOL_SOCKS5.equals(prefs.getProtocol())) {
+            if (prefs.getS5Host().trim().isEmpty()) {
+                runOnUiThread(() -> Toast.makeText(this, "请先配置 SOCKS5 服务器地址", Toast.LENGTH_SHORT).show());
+                return;
+            }
+            effective = new org.json.JSONObject();
+        } else {
+            try {
+                effective = PreferredIpResolver.baseParams(prefs);
+                PreferredIpResolver.apply(prefs, effective, new PreferredIpStore(this).read());
+            } catch (Exception error) {
+                runOnUiThread(() -> Toast.makeText(this, "无法生成有效入口快照：" + error.getMessage(), Toast.LENGTH_LONG).show());
+                return;
+            }
         }
 
         String snapshot = ProfileUriCodec.exportUri(prefs, profileId, effective);
@@ -848,7 +856,6 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
     private void showManualInputDialog() {
         final EditText input = new EditText(this);
         input.setHint(R.string.manual_import_hint);
-        input.setSingleLine(true);
         ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         if (clipboard != null && clipboard.hasPrimaryClip()) {
             ClipData clip = clipboard.getPrimaryClip();
@@ -980,10 +987,15 @@ public class ProfileListActivity extends BaseActivity implements ProfileAdapter.
 
                     mutateProfile(() -> {
                         // New URI profiles keep an unset mode, just like new manual profiles.
-                        new PreferredIpStore(this).read();
+                        if (!parsed.isSocks5()) {
+                            new PreferredIpStore(this).read();
+                        }
                     }, () -> {
                         refreshProfileList();
-                        Toast.makeText(this, "配置已导入；原入口保留，全局跟随需在优选页验证并确认", Toast.LENGTH_LONG).show();
+                        String msg = parsed.isSocks5()
+                                ? getString(R.string.toast_imported)
+                                : "配置已导入；原入口保留，全局跟随需在优选页验证并确认";
+                        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
                     });
                 })
                 .setNegativeButton(android.R.string.cancel, null)

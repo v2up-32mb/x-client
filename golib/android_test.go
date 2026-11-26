@@ -71,6 +71,15 @@ func TestNewBackendDispatch(t *testing.T) {
 	if backend == nil {
 		t.Fatal("newBackend(xtunnel) = nil")
 	}
+	for _, protocol := range []string{ProtocolSOCKS5, "SOCKS5", " socks5 "} {
+		backend, err := newBackend(protocol)
+		if err != nil {
+			t.Fatalf("newBackend(%q) error = %v", protocol, err)
+		}
+		if backend == nil {
+			t.Fatalf("newBackend(%q) = nil", protocol)
+		}
+	}
 	if _, err := newBackend("bogus"); err == nil || !strings.Contains(err.Error(), `unsupported protocol "bogus"`) {
 		t.Fatalf("newBackend(bogus) error = %v", err)
 	}
@@ -94,6 +103,14 @@ func TestStartSocksProxyDispatch(t *testing.T) {
 	// xtunnel：缺 server_addr 时在启动网络前报错，证明分发到 xtunnel 后端
 	if err := StartSocksProxy("127.0.0.1:1080", ProtocolXTunnel, `{"token":"t"}`, false); err == nil || !strings.Contains(err.Error(), "server address is required") {
 		t.Fatalf("StartSocksProxy(xtunnel) error = %v", err)
+	}
+	// socks5：缺 server_host 时在启动网络前报错，证明分发到 socks5 后端
+	if err := StartSocksProxy("127.0.0.1:1080", ProtocolSOCKS5, `{}`, false); err == nil || !strings.Contains(err.Error(), "server host is required") {
+		t.Fatalf("StartSocksProxy(socks5 missing host) error = %v", err)
+	}
+	// socks5：非法端口在启动网络前报错
+	if err := StartSocksProxy("127.0.0.1:1080", ProtocolSOCKS5, `{"server_host":"127.0.0.1","server_port":"99999"}`, false); err == nil || !strings.Contains(err.Error(), "server_port") {
+		t.Fatalf("StartSocksProxy(socks5 bad port) error = %v", err)
 	}
 	// 显式 GCM：非法 bypass 规则在启动网络前报错，证明分发到 GCM 后端
 	badRules := `{"worker_host":"w.example","bypass_rules":"not a valid rule!"}`

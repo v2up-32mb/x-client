@@ -56,11 +56,13 @@ public class ProfileEditActivity extends BaseActivity {
     // 协议专有表单绑定器
     private GcmConfigBinder gcmBinder;
     private XtunnelConfigBinder xtunnelBinder;
+    private Socks5ConfigBinder socks5Binder;
+    private View cardAdvanced;
 
     // 优选中转路由状态
     private final ExecutorService preferredWorker = Executors.newSingleThreadExecutor();
     private Spinner preferredMode;
-    private boolean preferredConflict, preferredLoaded, preferredResumed, preferredInitialImplicit;
+    private boolean preferredConflict, preferredLoaded, preferredReadFailed, preferredResumed, preferredInitialImplicit;
     private boolean preferredDraftDirty, preferredImportedAddresses;
     private boolean preferredGlobalEnabled;
     private int preferredGlobalCount;
@@ -107,6 +109,7 @@ public class ProfileEditActivity extends BaseActivity {
         // 基础控件绑定
         edittext_profile_name = findViewById(R.id.profile_name);
         toggleGroupProtocol = findViewById(R.id.toggle_group_protocol);
+        cardAdvanced = findViewById(R.id.card_advanced);
         preferredMode = findViewById(R.id.preferred_mode_spinner);
         btn_import = findViewById(R.id.btn_import);
         btn_save = findViewById(R.id.btn_save);
@@ -125,11 +128,20 @@ public class ProfileEditActivity extends BaseActivity {
             xtunnelBinder.setAdvancedExpanded(true);
         }
 
+        socks5Binder = new Socks5ConfigBinder(this);
+        socks5Binder.bindViews(root);
+
         // 协议分段切换监听
         toggleGroupProtocol.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (isChecked) {
-                String protocol = checkedId == R.id.btn_protocol_xtunnel
-                        ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM;
+                String protocol;
+                if (checkedId == R.id.btn_protocol_xtunnel) {
+                    protocol = Preferences.PROTOCOL_X_TUNNEL;
+                } else if (checkedId == R.id.btn_protocol_socks5) {
+                    protocol = Preferences.PROTOCOL_SOCKS5;
+                } else {
+                    protocol = Preferences.PROTOCOL_GCM;
+                }
                 updateProtocolView(protocol);
             }
         });
@@ -141,7 +153,8 @@ public class ProfileEditActivity extends BaseActivity {
                 findViewById(R.id.preferred_manage),
                 findViewById(R.id.preferred_clear_conflict),
                 findViewById(R.id.btn_protocol_gcm),
-                findViewById(R.id.btn_protocol_xtunnel)
+                findViewById(R.id.btn_protocol_xtunnel),
+                findViewById(R.id.btn_protocol_socks5)
         );
         TvFocusHelper.applyParentFocusFeedback(preferredMode);
 
@@ -158,9 +171,20 @@ public class ProfileEditActivity extends BaseActivity {
 
     private void updateProtocolView(String protocol) {
         boolean isXtunnel = Preferences.PROTOCOL_X_TUNNEL.equals(protocol);
-        gcmBinder.setVisible(!isXtunnel);
+        boolean isSocks5 = Preferences.PROTOCOL_SOCKS5.equals(protocol);
+        boolean isGcm = !isXtunnel && !isSocks5;
+        gcmBinder.setVisible(isGcm);
         xtunnelBinder.setVisible(isXtunnel);
-        if (preferredMode != null) {
+        socks5Binder.setVisible(isSocks5);
+        if (cardAdvanced != null) {
+            cardAdvanced.setVisibility(isSocks5 ? View.GONE : View.VISIBLE);
+        }
+        if (btn_save != null && btn_import != null && !preferredLocked()) {
+            boolean ready = isSocks5 || preferredLoaded;
+            btn_save.setEnabled(ready);
+            btn_import.setEnabled(ready);
+        }
+        if (preferredMode != null && !isSocks5) {
             refreshPreferredConflict(protocol);
             if (preferredLoaded) {
                 showPreferredSummary();
@@ -169,13 +193,24 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private String getSelectedProtocol() {
-        return toggleGroupProtocol.getCheckedButtonId() == R.id.btn_protocol_xtunnel
-                ? Preferences.PROTOCOL_X_TUNNEL : Preferences.PROTOCOL_GCM;
+        int checkedId = toggleGroupProtocol.getCheckedButtonId();
+        if (checkedId == R.id.btn_protocol_xtunnel) {
+            return Preferences.PROTOCOL_X_TUNNEL;
+        } else if (checkedId == R.id.btn_protocol_socks5) {
+            return Preferences.PROTOCOL_SOCKS5;
+        }
+        return Preferences.PROTOCOL_GCM;
     }
 
     private void setProtocolSelection(String protocol) {
-        int targetId = Preferences.PROTOCOL_X_TUNNEL.equals(protocol)
-                ? R.id.btn_protocol_xtunnel : R.id.btn_protocol_gcm;
+        int targetId;
+        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+            targetId = R.id.btn_protocol_xtunnel;
+        } else if (Preferences.PROTOCOL_SOCKS5.equals(protocol)) {
+            targetId = R.id.btn_protocol_socks5;
+        } else {
+            targetId = R.id.btn_protocol_gcm;
+        }
         toggleGroupProtocol.check(targetId);
     }
 
@@ -196,6 +231,7 @@ public class ProfileEditActivity extends BaseActivity {
         // 委托协议专属绑定器加载
         gcmBinder.loadFromPreferences(profilePrefs);
         xtunnelBinder.loadFromPreferences(profilePrefs);
+        socks5Binder.loadFromPreferences(profilePrefs);
 
         updateProtocolView(protocol);
 
@@ -208,8 +244,10 @@ public class ProfileEditActivity extends BaseActivity {
             toggleGroupProtocol.setEnabled(false);
             findViewById(R.id.btn_protocol_gcm).setEnabled(false);
             findViewById(R.id.btn_protocol_xtunnel).setEnabled(false);
+            findViewById(R.id.btn_protocol_socks5).setEnabled(false);
             gcmBinder.setEnabled(false);
             xtunnelBinder.setEnabled(false);
+            socks5Binder.setEnabled(false);
             btn_save.setEnabled(false);
             btn_import.setEnabled(false);
 
@@ -252,8 +290,9 @@ public class ProfileEditActivity extends BaseActivity {
         }
         setPreferredModeEnabled(false);
         updateRelayEnabled();
-        btn_save.setEnabled(false);
-        btn_import.setEnabled(false);
+        boolean canEditSocks5 = Preferences.PROTOCOL_SOCKS5.equals(getSelectedProtocol()) && !preferredLocked();
+        btn_save.setEnabled(canEditSocks5);
+        btn_import.setEnabled(canEditSocks5);
         preferredMode.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(android.widget.AdapterView<?> a, View v, int position, long id) {
@@ -353,9 +392,11 @@ public class ProfileEditActivity extends BaseActivity {
                     JSONObject profileModes = pool.optJSONObject("profile_modes");
                     preferredInitialImplicit = profileModes == null || !profileModes.has(profileId);
                     preferredLoaded = true;
+                    preferredReadFailed = false;
                     setPreferredModeEnabled(!preferredLocked());
-                    btn_save.setEnabled(!preferredLocked());
-                    btn_import.setEnabled(!preferredLocked());
+                    boolean ready = Preferences.PROTOCOL_SOCKS5.equals(getSelectedProtocol()) || preferredLoaded;
+                    btn_save.setEnabled(ready && !preferredLocked());
+                    btn_import.setEnabled(ready && !preferredLocked());
                     showPreferredSummary();
                     if (pendingPreferredImport != null) {
                         String pending = pendingPreferredImport;
@@ -366,8 +407,13 @@ public class ProfileEditActivity extends BaseActivity {
             } catch (Exception error) {
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
+                    preferredReadFailed = true;
                     TextView summary = findViewById(R.id.preferred_mode_summary);
                     if (summary != null) summary.setText("优选库读取失败：" + error.getMessage());
+                    if (Preferences.PROTOCOL_SOCKS5.equals(getSelectedProtocol()) && !preferredLocked()) {
+                        btn_save.setEnabled(true);
+                        btn_import.setEnabled(true);
+                    }
                 });
             }
         });
@@ -441,11 +487,13 @@ public class ProfileEditActivity extends BaseActivity {
     }
 
     private void onSaveClicked() {
-        if (!preferredLoaded) return;
+        boolean isSocks5 = Preferences.PROTOCOL_SOCKS5.equals(getSelectedProtocol());
+        if (!isSocks5 && !preferredLoaded) return;
         if (savePrefs()) {
             hasBeenSaved = true;
             String mode = getSelectedPreferredMode();
-            boolean saveMode = preferredDraftDirty || !preferredInitialImplicit || !mode.equals(preferredOriginalMode);
+            boolean saveMode = !isSocks5
+                    && (preferredDraftDirty || !preferredInitialImplicit || !mode.equals(preferredOriginalMode));
             btn_save.setEnabled(false);
             btn_import.setEnabled(false);
             preferredWorker.execute(() -> {
@@ -474,6 +522,7 @@ public class ProfileEditActivity extends BaseActivity {
         FormUtils.clearFieldError(edittext_profile_name);
         gcmBinder.clearErrors();
         xtunnelBinder.clearErrors();
+        socks5Binder.clearErrors();
 
         String profileName = edittext_profile_name.getText().toString().trim();
         if (profileName.isEmpty()) {
@@ -486,7 +535,11 @@ public class ProfileEditActivity extends BaseActivity {
 
         Preferences profilePrefs = this.prefs.forProfile(profileId);
 
-        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+        if (Preferences.PROTOCOL_SOCKS5.equals(protocol)) {
+            if (!socks5Binder.validateAndSave(profilePrefs, saveRelay)) {
+                return false;
+            }
+        } else if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
             if (!xtunnelBinder.validateAndSave(profilePrefs, saveRelay)) {
                 return false;
             }
@@ -602,10 +655,6 @@ public class ProfileEditActivity extends BaseActivity {
             Toast.makeText(this, "当前节点正在运行，不能导入覆盖", Toast.LENGTH_LONG).show();
             return;
         }
-        if (!preferredLoaded) {
-            pendingPreferredImport = protocol;
-            return;
-        }
         if (!ProfileUriCodec.isSupportedUri(protocol)) {
             Toast.makeText(this, getString(R.string.toast_invalid_protocol), Toast.LENGTH_SHORT).show();
             return;
@@ -616,6 +665,25 @@ public class ProfileEditActivity extends BaseActivity {
             p = ProfileUriCodec.parse(protocol);
         } catch (Exception e) {
             Toast.makeText(this, getString(R.string.toast_invalid_protocol), Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (p.isSocks5()) {
+            setProtocolSelection(Preferences.PROTOCOL_SOCKS5);
+            socks5Binder.applyImport(p);
+            if (!p.name.isEmpty()) {
+                edittext_profile_name.setText(p.name);
+            }
+            Toast.makeText(this, getString(R.string.toast_imported_check), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (!preferredLoaded) {
+            if (preferredReadFailed) {
+                Toast.makeText(this, "优选库读取失败，无法导入此协议", Toast.LENGTH_LONG).show();
+            } else {
+                pendingPreferredImport = protocol;
+            }
             return;
         }
 

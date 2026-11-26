@@ -752,6 +752,7 @@ final class PreferredIpController {
     private String profilesKey() throws Exception {
         StringBuilder key = new StringBuilder(); Preferences prefs = new Preferences(context);
         for (Preferences.ProfileInfo info : prefs.getProfileList()) {
+            if (Preferences.PROTOCOL_SOCKS5.equals(info.protocol)) continue;
             Preferences p = prefs.forProfile(info.id); String params;
             try { params = PreferredIpResolver.baseParams(p).toString(); }
             catch (Exception e) { params = p.getXtAdvancedParams(); }
@@ -781,6 +782,7 @@ final class PreferredIpController {
         if (selected.length() == 0) return;
         Map<String, ValidationGroup> groups = new LinkedHashMap<>(); Preferences prefs = new Preferences(context);
         for (Preferences.ProfileInfo info : prefs.getProfileList()) {
+            if (Preferences.PROTOCOL_SOCKS5.equals(info.protocol)) continue;
             Preferences p = prefs.forProfile(info.id);
             try {
                 if (!following(data, p)) continue;
@@ -1007,6 +1009,7 @@ final class PreferredIpController {
             try {
                 StringBuilder text = new StringBuilder(); Preferences prefs = new Preferences(context);
                 for (Preferences.ProfileInfo profile : prefs.getProfileList()) {
+                    if (Preferences.PROTOCOL_SOCKS5.equals(profile.protocol)) continue;
                     Preferences entry = prefs.forProfile(profile.id);
                     String raw = Preferences.PROTOCOL_X_TUNNEL.equals(entry.getProtocol()) ? entry.getXtRelayNodes() : entry.getPrefIp();
                     // NEVER read FallbackIp; relay originals are never modified.

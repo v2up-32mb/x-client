@@ -81,10 +81,17 @@ public class Preferences
         public static final String LOG_LEVEL_ERROR = "ERROR";
         // 界面显示：是否在配置列表中显示服务器地址（默认显示；关闭后防截图泄露）
         public static final String SHOW_SERVER_ADDR = "ShowServerAddr";
-        // 代理协议（gcm / xtunnel），默认 gcm
+        // 代理协议（gcm / xtunnel / socks5），默认 gcm
         public static final String PROTOCOL = "Protocol";
         public static final String PROTOCOL_GCM = "gcm";
         public static final String PROTOCOL_X_TUNNEL = "xtunnel";
+        public static final String PROTOCOL_SOCKS5 = "socks5";
+        // SOCKS5 协议参数
+        public static final String S5_HOST = "S5Host";
+        public static final String S5_PORT = "S5Port";
+        public static final String S5_USERNAME = "S5Username";
+        public static final String S5_PASSWORD = "S5Password";
+        public static final int DEFAULT_S5_PORT = 1080;
         // X-Tunnel 协议参数
         public static final String XT_SERVER_ADDR = "XtServerAddr";
         public static final String XT_TOKEN = "XtToken";
@@ -798,11 +805,77 @@ public class Preferences
                         json == null ? "" : json.trim()).apply();
         }
 
+        // ======================== SOCKS5 协议参数（per-profile） ========================
+
+        public String getS5Host() {
+                String v = prefs.getString(getKey(S5_HOST), "");
+                return v == null ? "" : v;
+        }
+
+        public void setS5Host(String v) {
+                prefs.edit().putString(getKey(S5_HOST), v == null ? "" : v).apply();
+        }
+
+        public int getS5Port() {
+                return Math.max(1, Math.min(prefs.getInt(getKey(S5_PORT), DEFAULT_S5_PORT), 65535));
+        }
+
+        public void setS5Port(int port) {
+                prefs.edit().putInt(getKey(S5_PORT), Math.max(1, Math.min(port, 65535))).apply();
+        }
+
+        public String getS5Username() {
+                String v = prefs.getString(getKey(S5_USERNAME), "");
+                return v == null ? "" : v;
+        }
+
+        public void setS5Username(String v) {
+                prefs.edit().putString(getKey(S5_USERNAME), v == null ? "" : v).apply();
+        }
+
+        public String getS5Password() {
+                String v = prefs.getString(getKey(S5_PASSWORD), "");
+                return v == null ? "" : v;
+        }
+
+        public void setS5Password(String v) {
+                prefs.edit().putString(getKey(S5_PASSWORD), v == null ? "" : v).apply();
+        }
+
+        static String formatHostPort(String host, int port) {
+                if (host == null) {
+                        return "";
+                }
+                String h = host.trim();
+                if (h.isEmpty()) {
+                        return "";
+                }
+                if (!h.startsWith("[") && h.contains(":")) {
+                        return "[" + h + "]:" + port;
+                }
+                return h + ":" + port;
+        }
+
         // ======================== 辅助方法（用于配置列表页） ========================
 
         // 获取指定配置的 Worker 域名（不切换当前配置）
-        // X-Tunnel 配置没有 Worker 字段，回退显示服务器地址。
+        // X-Tunnel 配置没有 Worker 字段，回退显示服务器地址；SOCKS5 显示 host:port。
         public String getWorkerHostForProfile(String profileId) {
+                String protocol = prefs.getString(PROTOCOL + "_" + profileId, PROTOCOL_GCM);
+                if (PROTOCOL_SOCKS5.equals(protocol)) {
+                        String host = prefs.getString(S5_HOST + "_" + profileId, "");
+                        if (host == null || host.trim().isEmpty()) {
+                                return "";
+                        }
+                        int port = Math.max(1, Math.min(prefs.getInt(S5_PORT + "_" + profileId, DEFAULT_S5_PORT), 65535));
+                        return formatHostPort(host, port);
+                }
+                if (PROTOCOL_X_TUNNEL.equals(protocol)) {
+                        String xtAddr = prefs.getString(XT_SERVER_ADDR + "_" + profileId, "");
+                        if (xtAddr != null && !xtAddr.isEmpty()) {
+                                return xtAddr;
+                        }
+                }
                 String workerHost = prefs.getString(WORKER_HOST + "_" + profileId, "");
                 if (workerHost.isEmpty()) {
                         return prefs.getString(XT_SERVER_ADDR + "_" + profileId, "");
@@ -882,6 +955,10 @@ public class Preferences
                         this.id = id;
                         this.name = name;
                         this.protocol = protocol;
+                        if (PROTOCOL_SOCKS5.equals(protocol)) {
+                                this.serverAddr = wssAddr != null && !wssAddr.trim().isEmpty() ? wssAddr.trim() : "未配置";
+                                return;
+                        }
                         // 提取服务器地址（移除 wss:// 前缀和路径）
                         if (wssAddr != null && wssAddr.startsWith("wss://")) {
                                 wssAddr = wssAddr.substring(6);

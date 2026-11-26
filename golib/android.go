@@ -15,6 +15,7 @@ import (
 	"github.com/v2up-32mb/xshared/routing"
 	"golang.org/x/net/proxy"
 	"xclient/gcm"
+	"xclient/socks5"
 	"xclient/xtunnel"
 )
 
@@ -39,6 +40,7 @@ type ProxyBackend interface {
 const (
 	ProtocolGCM     = "gcm"
 	ProtocolXTunnel = "xtunnel"
+	ProtocolSOCKS5  = "socks5"
 )
 
 var (
@@ -108,6 +110,8 @@ func newBackend(protocol string) (ProxyBackend, error) {
 		return gcm.NewBackend(), nil
 	case ProtocolXTunnel:
 		return xtunnel.NewBackend(), nil
+	case ProtocolSOCKS5:
+		return socks5.NewBackend(), nil
 	default:
 		return nil, fmt.Errorf("unsupported protocol %q", protocol)
 	}

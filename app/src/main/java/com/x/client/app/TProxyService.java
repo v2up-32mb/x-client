@@ -204,7 +204,9 @@ public class TProxyService extends VpnService {
             }
             session += "IPv4";
         }
-        if (prefs.getIpv6() && !prefs.getDisableIpv6Route()) {
+        boolean disableIpv6Route = Preferences.PROTOCOL_GCM.equals(prefs.getProtocol())
+                && prefs.getDisableIpv6Route();
+        if (prefs.getIpv6() && !disableIpv6Route) {
             builder.addAddress(prefs.getTunnelIpv6Address(), prefs.getTunnelIpv6Prefix());
             builder.addRoute("::", 0);
             if (!prefs.getRemoteDns() && !prefs.getDnsIpv6().isEmpty()) {
@@ -280,28 +282,37 @@ public class TProxyService extends VpnService {
         }
 
         JSONObject params;
-        if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
+        boolean isSocks5 = Preferences.PROTOCOL_SOCKS5.equals(protocol);
+        if (isSocks5) {
+            params = buildSocks5Params(prefs);
+        } else if (Preferences.PROTOCOL_X_TUNNEL.equals(protocol)) {
             params = buildXtunnelParams(prefs);
         } else {
             protocol = Preferences.PROTOCOL_GCM;
             params = buildGCMParams(prefs);
         }
 
-        PreferredIpResolver.resolveDefaults(prefs, params);
-        String relayKey = Preferences.PROTOCOL_X_TUNNEL.equals(protocol) ? "relay_nodes" : "relay_ips";
-        params.put(relayKey, PreferredIpResolver.stripComments(params.optString(relayKey)));
-        // A stable AtomicFile snapshot, read only once after all advanced overrides.
-        try {
-            JSONObject pool = new PreferredIpStore(this).read();
-            PreferredIpResolver.Decision decision = PreferredIpResolver.apply(prefs, params, pool);
-            appendRuntimeLog("优选IP revision=" + pool.optLong("revision") + " · " + decision.summary);
-        } catch (Exception error) {
-            appendRuntimeLog("优选IP未接管，保留节点原配置：" + error.getMessage()
-                    + " · " + PreferredIpResolver.effectiveCount(prefs, params));
+        if (!isSocks5) {
+            PreferredIpResolver.resolveDefaults(prefs, params);
+            String relayKey = Preferences.PROTOCOL_X_TUNNEL.equals(protocol) ? "relay_nodes" : "relay_ips";
+            params.put(relayKey, PreferredIpResolver.stripComments(params.optString(relayKey)));
+            // A stable AtomicFile snapshot, read only once after all advanced overrides.
+            try {
+                JSONObject pool = new PreferredIpStore(this).read();
+                PreferredIpResolver.Decision decision = PreferredIpResolver.apply(prefs, params, pool);
+                appendRuntimeLog("优选IP revision=" + pool.optLong("revision") + " · " + decision.summary);
+            } catch (Exception error) {
+                appendRuntimeLog("优选IP未接管，保留节点原配置：" + error.getMessage()
+                        + " · " + PreferredIpResolver.effectiveCount(prefs, params));
+            }
         }
 
-        // 诊断：将实际传递的参数写入运行日志（排查 server_addr/token 传递问题）
-        appendRuntimeLog("启动参数(" + protocol + "): " + params.toString());
+        // 诊断：将实际传递的参数写入运行日志（敏感字段脱敏）
+        JSONObject loggedParams = new JSONObject(params.toString());
+        if (loggedParams.has("password") && !loggedParams.optString("password").isEmpty()) {
+            loggedParams.put("password", "******");
+        }
+        appendRuntimeLog("启动参数(" + protocol + "): " + loggedParams.toString());
 
         Xclient.startSocksProxy(
                 prefs.getSocksAddress() + ":" + prefs.getSocksPort(),
@@ -309,6 +320,21 @@ public class TProxyService extends VpnService {
                 params.toString(),
                 true
         );
+    }
+
+    private JSONObject buildSocks5Params(Preferences prefs) throws Exception {
+        JSONObject params = new JSONObject();
+        params.put("server_host", prefs.getS5Host().trim());
+        params.put("server_port", prefs.getS5Port());
+        params.put("username", prefs.getS5Username());
+        params.put("password", prefs.getS5Password());
+        params.put("log_level", prefs.getLogLevel());
+        params.put("bypass_private", prefs.getBypassPrivate());
+        params.put("bypass_geoip_cn", prefs.getBypassGeoIpCn());
+        params.put("bypass_geosite_cn", prefs.getBypassGeoSiteCn());
+        params.put("bypass_rules", prefs.getBypassRules());
+        params.put("force_proxy_rules", buildForceProxyRules());
+        return params;
     }
 
     private JSONObject buildGCMParams(Preferences prefs) throws Exception {
@@ -660,20 +686,20 @@ public class TProxyService extends VpnService {
             }
             networkReconnectPending = true;
         }
-        appendRuntimeLog("计划重建 GCM 连接: " + reason);
+        appendRuntimeLog("计划重建代理连接: " + reason);
 
         new Thread(() -> {
             try {
                 Thread.sleep(300);
                 if (runtimeRunning) {
                     Xclient.reconnect(reason);
-                    appendRuntimeLog("已触发 GCM 连接重建: " + reason);
+                    appendRuntimeLog("已触发代理连接重建: " + reason);
                 }
             } catch (InterruptedException error) {
                 Thread.currentThread().interrupt();
             } catch (Throwable error) {
                 Log.w(TAG, "Failed to reconnect after network change", error);
-                appendRuntimeLog("GCM 连接重建失败: " + error.getMessage());
+                appendRuntimeLog("代理连接重建失败: " + error.getMessage());
             } finally {
                 synchronized (networkLock) {
                     networkReconnectPending = false;

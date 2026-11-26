@@ -130,7 +130,14 @@ public class PreferredIpTestsBinder {
     }
 
     public void updateProfiles(Context context, List<Preferences.ProfileInfo> profileList, String referenceId) {
-        this.profiles = profileList == null ? new ArrayList<>() : new ArrayList<>(profileList);
+        this.profiles = new ArrayList<>();
+        if (profileList != null) {
+            for (Preferences.ProfileInfo info : profileList) {
+                if (info != null && !Preferences.PROTOCOL_SOCKS5.equals(info.protocol)) {
+                    this.profiles.add(info);
+                }
+            }
+        }
         this.currentReferenceId = referenceId;
         if (reference != null && context != null) {
             populateSpinner(context);
@@ -139,6 +146,14 @@ public class PreferredIpTestsBinder {
 
     private void populateSpinner(Context context) {
         if (reference == null || context == null) return;
+
+        if (profiles.isEmpty()) {
+            reference.setAdapter(null);
+            if (referenceDetail != null) {
+                referenceDetail.setText("");
+            }
+            return;
+        }
 
         List<String> names = new ArrayList<>();
         int selected = initialReference;
@@ -151,9 +166,7 @@ public class PreferredIpTestsBinder {
         ArrayAdapter<String> choices = new ArrayAdapter<>(context, android.R.layout.simple_spinner_item, names);
         choices.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         reference.setAdapter(choices);
-        if (!profiles.isEmpty()) {
-            reference.setSelection(Math.max(0, Math.min(selected, profiles.size() - 1)));
-        }
+        reference.setSelection(Math.max(0, Math.min(selected, profiles.size() - 1)));
     }
 
     private void notifySettingsChanged() {

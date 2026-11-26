@@ -88,6 +88,7 @@
     <string name="protocol_label">代理协议：</string>
     <string name="protocol_gcm">GCM</string>
     <string name="protocol_x_tunnel">xtunnel</string>
+    <string name="protocol_socks5">SOCKS5</string>
 
     <!-- ===== x-tunnel Protocol Parameters ===== -->
     <string name="xt_server_addr">服务器地址（wss://）：</string>
@@ -151,6 +152,11 @@
     <string name="xt_relay_nodes_hint">中转节点（逗号分隔）</string>
     <string name="xt_connections_hint">连接数</string>
     <string name="xt_hot_pair_count_hint">热通道对数（1-8）</string>
+    <string name="s5_host_hint">服务器地址</string>
+    <string name="s5_host_helper">例如：proxy.example.com 或 1.2.3.4</string>
+    <string name="s5_port_hint">端口（默认 1080）</string>
+    <string name="s5_username_hint">用户名（可选）</string>
+    <string name="s5_password_hint">密码（可选）</string>
     <string name="xt_ip_strategy_label">IP 策略</string>
     <string-array name="xt_ip_strategy_options">
         <item>IPv4,IPv6</item>
@@ -171,7 +177,7 @@
     <string name="toast_import_missing_host">链接缺少服务器地址，无法导入</string>
     <string name="toast_scanner_start_failed">无法启动扫描器</string>
     <string name="scan_qr_prompt">扫描配置二维码</string>
-    <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name\nxtunnel://server:8443?token=t&amp;relay=r1.com:443#Name</string>
+    <string name="manual_import_hint">gcm://server.com?ip=1.1.1.1:443&amp;fip=2.2.2.2&amp;user_id=v2up#Name\nxtunnel://server:8443?token=t&amp;relay=r1.com:443#Name\nsocks5://user:pass@1.2.3.4:1080#Name</string>
     <string name="error_profile_name_empty">配置名称不能为空</string>
     <string name="error_server_addr_empty">服务器地址不能为空</string>
     <string name="error_server_addr_scheme">服务器地址必须以 wss:// 或 ws:// 开头</string>
@@ -184,6 +190,11 @@
     <string name="error_hot_pair_invalid">热通道对数必须是数字</string>
     <string name="error_hot_pair_range">热通道对数必须在 1-%1$d 之间</string>
     <string name="error_xt_advanced_invalid">高级参数数值无效，请检查输入（留空表示使用默认值）</string>
+    <string name="error_s5_host_empty">服务器地址不能为空</string>
+    <string name="error_s5_host_invalid">服务器地址格式无效（请仅填写主机名或 IP，勿包含端口或空格）</string>
+    <string name="error_s5_port_invalid">端口必须在 1 到 65535 之间</string>
+    <string name="error_s5_username_required">填写密码时必须同时填写用户名</string>
+    <string name="error_s5_credential_too_long">长度不能超过 255 字节</string>
 
     <!-- ===== Global Settings ===== -->
     <string name="settings_title">全局设置</string>
