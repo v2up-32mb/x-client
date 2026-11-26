@@ -6,12 +6,12 @@
 
 [![Release](https://img.shields.io/github/v/release/v2up-32mb/x-client?color=blue&logo=github)](https://github.com/v2up-32mb/x-client/releases)
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?logo=android)](https://android-arsenal.com/api?level=24)
-[![Go Version](https://img.shields.io/badge/Go-1.25%2B-00ADD8.svg?logo=go)](https://golang.org)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Go Version](https://img.shields.io/badge/Go-1.27-00ADD8.svg?logo=go)](https://golang.org)
+[![License](https://img.shields.io/badge/License-Apache%202.0%20%2F%20MIT-blue.svg)](LICENSE)
 
 X Client 是一个专为 Android 打造的高性能多协议 VPN 客户端。每个配置节点（Profile）均可独立指定代理协议，并共享同一套成熟的 VPN 隧道框架、优选中转节点体系、路由分流绕过与全局设置。
 
-- **多协议扩展架构**：基于 [gcm-client](https://github.com/v2up-32mb/gcm-client) 演进重构，支持 GCM 与 X-Tunnel 双协议。
+- **多协议扩展架构**：基于 [gcm-client](https://github.com/v2up-32mb/gcm-client) 演进重构，支持 GCM、X-Tunnel 与 SOCKS5 三协议。
 - **Go 原生核心引擎**：网络核心基于 Go 语言编写（位于 `golib/`，module `xclient`），通过 `gomobile bind` 编译生成原生动态库 `xclient.aar`。
 - **高效 TUN 转发**：VPN 隧道基于高性能 [hev-socks5-tunnel](https://github.com/heiher/hev-socks5-tunnel) 实现，将 TUN 流量以近原生性能重定向至核心库本地 SOCKS5 代理。
 
@@ -19,7 +19,7 @@ X Client 是一个专为 Android 打造的高性能多协议 VPN 客户端。每
 
 ## 功能特性
 
-- **多协议支持**：GCM / X-Tunnel 双协议共存，每个 Profile 独立配置、按需切换。
+- **多协议支持**：GCM / X-Tunnel / SOCKS5 三协议共存，每个 Profile 独立配置、按需切换；其中 **SOCKS5** 支持直连现有上游 SOCKS5 代理服务器（可选用户名/密码认证、纯 TCP 中继），复用本地路由分流绕过能力，无 GCM / X-Tunnel 隧道封装及 ECH / 优选 IP 开销。
 - **全界面多语言（i18n）**：
   - 支持 **English**、**简体中文**、**繁體中文**、**Русский** 四种语言；
   - 自动匹配系统语言，未适配语言默认以英文作为通用兜底；
@@ -45,9 +45,17 @@ X Client 是一个专为 Android 打造的高性能多协议 VPN 客户端。每
 - **代理延迟测试**：
   - 内置网络探测机制，支持自定义测速目标 URL（默认 gstatic 204）与探测间隔。
 - **现代化 Material 3 设计**：
-  - 提供「赛博极光」、「钛金极简」、「瑞士暗盾」三套精致主题调色板；
+  - 提供「赛博极光」、「钛金极简」、「瑞士暗盾」三套精致主题调色板，亮暗模式调色板独立存储；
   - 五态动态连接悬浮按钮（Connection FAB），支持长按展开状态卡与单行定速信息展示；
   - Profile 卡片次级弹出菜单（切换/编辑/分享/复制/删除）与丰富空态引导。
+- **Android TV 与大屏/横屏适配**：
+  - 无触摸与相机硬件强制依赖，内置 TV Launcher Banner 与设备模式自适应；
+  - 支持遥控器方向键（D-pad）/ OK 键一键启停连接、长按唤起操作菜单及全流程焦点导航；
+  - 手机横屏采用多列网格布局，全面适配异形屏与系统栏安全边距（Edge-to-Edge Safe Insets）。
+- **应用内版本更新与关于信息**：
+  - 自动检测 GitHub Releases 新版本，按设备 ABI 精准匹配下载对应安装包；
+  - 下载过程支持与 VPN 路由联动，更新后自动清理旧安装包；
+  - 关于信息支持在编译期动态展示当前 Go 核心库版本。
 - **运行日志诊断**：
   - 内存环形日志缓冲，时间戳与 Android 系统时区自动对齐；
   - 调试 / 信息 / 警告 / 错误 4 档过滤，支持一键导出与剪贴板复制。
@@ -56,15 +64,15 @@ X Client 是一个专为 Android 打造的高性能多协议 VPN 客户端。每
 
 ## 协议能力对比
 
-| 核心特性 | GCM 协议 | X-Tunnel 协议 |
-|---|---|---|
-| **协议包头** | 2 字节（`[STREAM_ID:1][TYPE:1]`） | 8 字节（`connID` + `msgType`） |
-| **多路复用** | 256 流/WS 连接，连接池统一扩容 | 每个通道拥有独立 `connID` 空间 |
-| **通道调度** | 中转节点评分 + 加权负载均衡 | 通道竞争选路 + Hot Pair 热通道预绑定 |
-| **UDP 转发** | 暂不支持 | 完整支持 SOCKS5 UDP associate 转发 |
-| **HTTP 代理** | 流内隧道传输 | 支持独立本地 HTTP 代理监听器 |
-| **路由绕过** | ✅ 支持本地/GeoIP/GeoSite/自定义 | ✅ 支持（SOCKS5 与 HTTP 直连分流） |
-| **ECH / DoH** | ✅ 共享 Go 核心防探测模块 | ✅ 共享 Go 核心防探测模块 |
+| 核心特性 | GCM 协议 | X-Tunnel 协议 | SOCKS5 协议 |
+|---|---|---|---|
+| **协议包头** | 2 字节（`[STREAM_ID:1][TYPE:1]`） | 8 字节（`connID` + `msgType`） | 标准 SOCKS5（RFC 1928 / RFC 1929，无额外加密隧道封装） |
+| **多路复用** | 256 流/WS 连接，连接池统一扩容 | 每个通道拥有独立 `connID` 空间 | 直拨上游连接（按需建连） |
+| **通道调度** | 中转节点评分 + 加权负载均衡 | 通道竞争选路 + Hot Pair 热通道预绑定 | 直连指定上游 `host:port`（可选用户名/密码认证） |
+| **UDP 转发** | 暂不支持 | 完整支持 SOCKS5 UDP associate 转发 | 暂不支持（阶段 1 仅 TCP，`UDP ASSOCIATE` 返回 `0x07`） |
+| **HTTP 代理** | 流内隧道传输 | 支持独立本地 HTTP 代理监听器 | 无独立监听器（由 `hev-socks5-tunnel` 统一转入本地 SOCKS5） |
+| **路由绕过** | ✅ 支持本地/GeoIP/GeoSite/自定义 | ✅ 支持（SOCKS5 与 HTTP 直连分流） | ✅ 支持本地/GeoIP/GeoSite/自定义及强制代理规则 |
+| **ECH / DoH** | ✅ 共享 Go 核心防探测模块 | ✅ 共享 Go 核心防探测模块 | 不使用（直连现有 SOCKS5 代理） |
 
 ---
 
@@ -100,6 +108,13 @@ xtunnel://<serverAddr>?token=<Token>&relay_nodes=<中转节点>&connections=<连
 - **Hot Pair**：`hotpair=1`（或 `true`）启用 1 对暖备用通道；`hotpair=2..8` 启用多对热通道；
 - **IP 策略**：支持 `IPv4,IPv6`（默认）、`IPv6,IPv4`、`IPv4`、`IPv6` 四种出站解析优选规则。
 
+### SOCKS5 协议 URI
+```
+socks5://[username[:password]@]host:port#<配置名称>
+```
+
+- **兼容与解析**：导入同时兼容 `socks://` 前缀；支持 IPv6 字面量格式 `[host]:port`；省略端口时默认使用 `1080`。
+
 ---
 
 ## 项目架构
@@ -119,11 +134,13 @@ x-client/
 │   │   ├── values-ru/                    # 俄语资源（Русский）
 │   │   └── ...
 │   └── libs/xclient.aar  # gomobile 编译产物（CI 自动构建注入）
-├── golib/                # Go 核心网络库（module xclient，Go 1.25.5）
-│   ├── gcm/              # GCM 协议后端（连接池、多路复用与 Relay 优选）
-│   ├── xtunnel/          # X-Tunnel 协议后端（通道竞争、Hot Pair 与背压）
-│   ├── ipopt/            # 优选 IP 算法、探测与网络扫描核心
-│   └── shared/           # 共享基础模块（DNS、ECH、Logger、路由、SOCKS5）
+├── golib/                # Go 核心网络库（module xclient，Go 1.27）
+│   ├── gcm/              # GCM 协议后端（装配 github.com/v2up-32mb/gcm）
+│   ├── xtunnel/          # X-Tunnel 协议后端（装配 github.com/v2up-32mb/xtunnel）
+│   ├── socks5/           # SOCKS5 协议后端（RFC 1928/1929 TCP 上游中继）
+│   └── ipopt/            # 优选 IP 算法、探测与网络扫描核心
+│   # 共享包（config/dialer/dns/ech/httpproxy/logger/pipe/routing/socks5）
+│   # 统一托管于上游模块 github.com/v2up-32mb/xshared（与 gcm / xtunnel 并列）
 └── .github/workflows/    # CI 自动化流水线（AAR 预热、构建、签名与发版）
 ```
 
@@ -137,20 +154,15 @@ x-client/
             │
             ▼
 [ hev-socks5-tunnel (C / JNI) ]
-            │ (TUN 流量转换转为 SOCKS5)
+            │ (TUN 流量转为 SOCKS5)
             ▼
 [ 本地 SOCKS5 代理 (Go / golib 监听 127.0.0.1:1080) ]
        │                                     │
        ├─ [ 路由命中绕过 (Bypass) ]          └─ [ 代理转发 (Proxy) ]
        │        │                                    │
-       ▼        ▼                                    ▼
-  [ 直连目标地址 (Direct) ]                [ Go 协议后端 (GCM / X-Tunnel) ]
-                                                     │
-                                                     ▼
-                                      [ ECH / TLS 1.3 加密隧道 ]
-                                                     │
-                                                     ▼
-                                            [ 出口服务端 / Worker ]
+       ▼        ▼                                    ├─ [ GCM / X-Tunnel ] ──▶ [ ECH / TLS 1.3 ] ──▶ [ 出口服务端 / Worker ]
+  [ 直连目标地址 (Direct) ]                          │
+                                                     └─ [ SOCKS5 ] ─────────────────────────────▶ [ 上游 SOCKS5 代理服务器 ]
 ```
 
 ---
@@ -170,10 +182,12 @@ CGO_ENABLED=1 go test -race -count=1 ./...
 ### CI 自动化工作流
 
 - **AAR 预热 (`build-aar.yml`)**：监听 `main` 分支 `golib/**` 变更，自动触发 gomobile 交叉编译并将 `xclient.aar` 产物落入全局构建缓存。
-- **Release 发布 (`release.yml`)**：推送 `v*` 语义化标签自动触发全架构 Release 构建、对齐签名并自动生成 GitHub Release（带 `-preview` / `-beta` / `-rc` 后缀自动标记预发布）。
+- **Release 与 CI 构建 (`release.yml`)**：
+  - **tag 触发（`v*`）**：推送语义化标签自动触发全架构 Release 构建、对齐签名并生成 GitHub Release（带 `-preview` / `-beta` / `-rc` 后缀自动标记预发布）；
+  - **手动 `workflow_dispatch`**：执行 Go `-race` 测试、`gomobile`/API 检查并构建签名测试包（独立包名 `com.x.client.app.debug`，版本名 `ci-<shortsha>`，可与正式版并存安装测试），不发布 Release。
 
 ---
 
 ## 许可证
 
-本项目基于 [Apache License 2.0](LICENSE) 协议开源。
+本项目基于 **Apache License 2.0 OR MIT License** 双重协议开源，详情见 [LICENSE](LICENSE)。
