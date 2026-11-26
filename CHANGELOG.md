@@ -7,7 +7,7 @@
 
 ---
 
-## Unreleased (main)
+## v1.7.2 — 2026-11-26
 
 - **Added**：新增 `socks5` 核心代理协议支持：`golib/socks5`（RFC 1928 / RFC 1929 TCP 上游中继、可选用户名/密码认证与活跃连接追踪）、Android `Socks5ConfigBinder` 配置表单、`socks5://` / `socks://` URI 导入导出、优选 IP 体系隔离、非空密码日志脱敏与四国语言字符串资源。
 
